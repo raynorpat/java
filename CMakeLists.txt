@@ -54,7 +54,7 @@ else()
     set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
   endif()
 endif()
-include_directories(include include/_gen md-include/${plat} md-include/share runtime)
+include_directories(src/share/java/include src/share/java/include/_gen src/${plat}/java/include src/share/java/runtime)
 
 function(prefixed out dir)
   set(r)
@@ -65,35 +65,35 @@ function(prefixed out dir)
 endfunction()
 
 # --- VM runtime DLL (javai.dll), holding the built-in native stubs ---
-prefixed(runtime_sources runtime agent arena class date debug globals io math
+prefixed(runtime_sources src/share/java/runtime agent arena class date debug globals io math
   object opnames profiler runtime security string stubs system thread threads
   utf util zip classinitialize classresolver common_exceptions threadruntime
   compiler check_class check_code classloader classruntime gifdecoder exception
   exceptions filesystem interpreter gc finalize monitor monitor_cache)
-prefixed(md_share md/share agentthread compiler_md io_md ionet_md math_md
+prefixed(md_share src/share/java/runtime agentthread compiler_md io_md ionet_md math_md
   process_md properties_md socket_md stubs_md)
-prefixed(md_plat md/${plat} dir_md gc_md link_md misc_md mon_md path_md
+prefixed(md_plat src/${plat}/java/runtime dir_md gc_md link_md misc_md mon_md path_md
   system_md thread_md)
 
 if(WIN32)
-  list(APPEND md_plat java/javai.def)
+  list(APPEND md_plat src/share/java/javai/javai.def)
 else()
-  list(APPEND md_plat md/unix/net_md.c)
+  list(APPEND md_plat src/unix/java/runtime/net_md.c)
 endif()
-add_library(javai SHARED java/javai.c java/javai_dll.c ${runtime_sources}
+add_library(javai SHARED src/share/java/javai/javai.c src/share/java/javai/javai_dll.c ${runtime_sources}
   ${md_share} ${md_plat})
 target_link_libraries(javai ${sys_libs})
 
-add_executable(java java/java_stub.c)
+add_executable(java src/share/java/javai/java_stub.c)
 target_link_libraries(java javai)
 
 # --- Standalone tools, each with its reduced runtime subset ---
-prefixed(tool_runtime runtime arena classloader classresolver classresolver_stubs
+prefixed(tool_runtime src/share/java/runtime arena classloader classresolver classresolver_stubs
   globals runtime_stubs utf util zip)
-add_executable(javah javah/javah.c ${tool_runtime} md/${plat}/path_md.c
-  md/share/stubs_md.c md/${plat}/system_md.c)
-add_executable(javap javap/javap.c javap/console.c ${tool_runtime} runtime/check_class.c
-  runtime/check_code.c runtime/decode.c md/${plat}/path_md.c md/${plat}/system_md.c)
+add_executable(javah src/share/java/javah/javah.c ${tool_runtime} src/${plat}/java/runtime/path_md.c
+  src/share/java/runtime/stubs_md.c src/${plat}/java/runtime/system_md.c)
+add_executable(javap javap/javap.c javap/console.c ${tool_runtime} src/share/java/runtime/check_class.c
+  src/share/java/runtime/check_code.c src/share/java/runtime/decode.c src/${plat}/java/runtime/path_md.c src/${plat}/java/runtime/system_md.c)
 foreach(t javah javap)
   target_link_libraries(${t} ${sys_libs})
 endforeach()
@@ -169,6 +169,6 @@ set_tests_properties(native PROPERTIES PASS_REGULAR_EXPRESSION "native add=42 gr
 install(TARGETS java javah javap javai RUNTIME DESTINATION bin LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
 install(FILES classsrc/classes.zip DESTINATION lib)
-install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY md-include/${plat}/ md-include/share/ DESTINATION include/${plat}
+install(DIRECTORY src/share/java/include/ DESTINATION include FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY src/${plat}/java/include/ DESTINATION include/${plat}
   FILES_MATCHING PATTERN "*.h")
