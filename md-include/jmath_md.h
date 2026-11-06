@@ -15,10 +15,7 @@
 
 #define DREM(a,b) fmod(a,b)
 
-#if defined(SOLARIS) || defined(SCO) || defined(UNIXWARE)
+/* IEEE 754 remainder: the quotient rounds to nearest (C99, MSVC 2013+). */
 #define IEEEREM(a,b) remainder(a,b)
-#else
-#define IEEEREM(a,b) drem(a, b)
-#endif
 
 #endif /* sun_java_jmath_md_h___ */

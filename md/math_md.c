@@ -61,28 +61,6 @@ void math_init() {
 
 #endif
 
-#ifdef XP_PC
-#include <float.h>              /* _finite(...) */
-double drem(double dividend, double divisor) {
-#if defined(_WIN32)
-    static double nan = 0.0;    /* compiler won't let me use 0.0/0.0 */
-    if (_finite(dividend) && (divisor != 0.0)) {
-        if (_finite(divisor))
-            return fmod(dividend, divisor);
-        /* XXX fix me! */
-        else
-            return dividend;
-    } 
-    /* need to return nan */
-    if (nan == 0.0)             /* generate nan if first time */
-        nan = nan/nan;
-    return nan;
-#else
-	OutputDebugString("gcvt is not implemented");
-	return 0.0;
-#endif
-}
-#endif /* XP_PC */
 
 
 #ifdef XP_MAC

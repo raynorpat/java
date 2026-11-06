@@ -96,6 +96,8 @@ set_tests_properties(threads PROPERTIES TIMEOUT 60
   PASS_REGULAR_EXPRESSION "count=80000 .*caught NPE.*gc ok, free=true")
 add_test(NAME longs COMMAND java -classpath "${test_cp}" Longs)
 set_tests_properties(longs PROPERTIES PASS_REGULAR_EXPRESSION "longs ok")
+add_test(NAME maths COMMAND java -classpath "${test_cp}" Maths)
+set_tests_properties(maths PROPERTIES PASS_REGULAR_EXPRESSION "maths ok")
 add_test(NAME dates COMMAND java -classpath "${test_cp}" Dates)
 set_tests_properties(dates PROPERTIES PASS_REGULAR_EXPRESSION "dates ok")
 add_test(NAME props COMMAND java -classpath "${test_cp}" Props)
