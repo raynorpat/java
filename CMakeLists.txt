@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.0...3.10)
 project(SunJava C)
+set(JDK115_DIR "${CMAKE_SOURCE_DIR}/vendor/jdk1.1.5" CACHE PATH "Sun JDK 1.1.5 reference tree")
+if(NOT EXISTS "${JDK115_DIR}/lib/classes.zip")
+  message(FATAL_ERROR "JDK115_DIR does not contain lib/classes.zip - run tools/vendor.cmake")
+endif()
 
 # Builds a JDK-style tree (bin/, lib/, include/):
 #   Windows: cmake -S . -B out -G "Visual Studio 18 2026" -A Win32
@@ -96,6 +100,19 @@ endforeach()
 
 # --- Smoke tests (ctest -C Release). Classes are prebuilt with JDK 1.1.5 javac (class file 45.3). ---
 enable_testing()
+include(CMakeParseArguments)
+function(java_test)
+  cmake_parse_arguments(JT "" "NAME;CLASS" "ARGS;VM_ARGS" ${ARGN})
+  add_test(NAME ${JT_NAME} COMMAND ${CMAKE_COMMAND}
+    "-DJAVA=$<TARGET_FILE:java>"
+    "-DCP=${CMAKE_SOURCE_DIR}/tests/vm${sep}${JDK115_DIR}/lib/classes.zip"
+    "-DCLASS=${JT_CLASS}" "-DARGS=${JT_ARGS}" "-DVM_ARGS=${JT_VM_ARGS}"
+    "-DEXPECTED=${CMAKE_SOURCE_DIR}/tests/vm/${JT_CLASS}.expected"
+    -P ${CMAKE_SOURCE_DIR}/tools/run-java-test.cmake)
+  set_tests_properties(${JT_NAME} PROPERTIES TIMEOUT 40 LABELS "jdk115")
+endfunction()
+# Known output mismatch until Task 4. Keep failure visible; baseline uses -LE jdk115.
+java_test(NAME vm-hello115 CLASS Hello115)
 configure_file(classsrc/classes.zip "${CMAKE_BINARY_DIR}/classes.zip" COPYONLY)
 set(test_cp "${CMAKE_SOURCE_DIR}/tests/smoke${sep}${CMAKE_BINARY_DIR}/classes.zip")
 add_test(NAME hello COMMAND java -classpath "${test_cp}" Hello)
