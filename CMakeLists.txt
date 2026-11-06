@@ -477,7 +477,8 @@ add_executable(mach115-condvar tests/native/mach115-condvar.c
 add_executable(mach115-condvar-integration tests/native/mach115-condition.c
   src/unix/java/runtime/condition_md.c src/unix/java/runtime/condvar_md.c)
 target_compile_definitions(mach115-condvar-integration PRIVATE TEST_VM_CONDVARS)
-foreach(probe mach115-condvar mach115-condvar-integration)
+add_executable(mach115-thread tests/native/mach115-thread.c)
+foreach(probe mach115-condvar mach115-condvar-integration mach115-thread)
   target_include_directories(${probe} BEFORE PRIVATE tests/native/mach115-hpi
     tests/native/mach115 src/unix/java/include)
   add_test(NAME ${probe} COMMAND ${probe})

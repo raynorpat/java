@@ -216,3 +216,56 @@ Final checks for this slice: Windows Debug full109/109, Linux Release97 passed
 plus the expected audio-device skip, and MSVC Release focused3/3. Zero test
 failures. Logs: out/phase3-condvar-{win,linux}-tests.log. Original header
 whitespace/license formatting is preserved rather than cleaned up.
+
+## Task 3: allocation and enumeration slice
+
+Recovered allocation (5C144970), initialization (5C144CFC), TLS lookup
+(5C1451FC), unlocked enumeration (5C145210), locked enumeration (5C14524C),
+and stack/base-cookie accessors (5C1448D0-5C1448F0) in thread_cthreads.c.
+Allocation initializes the original 192-byte record, installs TLS, then
+registers the record/counts under _queue_lock before publishing the result.
+Enumeration propagates the first nonzero callback result and releases the
+lock. The void accessor signatures follow the shared HPI declarations,
+rather than incidental register return values inferred by the decompiler.
+
+Ruling: use the binary's cthread TLS offset 116, accessed with memcpy, rather
+than the external SDK's cthread_data macro. A new offset assertion failed:
+with the SDK's 72-byte jump buffer, its public cthread data field is at 124.
+The original sysThreadSelf and sysThreadAlloc instructions both access 116.
+This is evidence that the available SDK is not a matching full DR2 thread
+ABI. The existing condition/VM-record layout results remain valid for the
+specific fields tested. Byte copies avoid inventing the unobserved private
+cthread fields or introducing aliasing assumptions. Cost if wrong: a
+different cthreads runtime may corrupt TLS; backend selection remains off
+and actual DR2 ABI/runtime validation is still required.
+
+The native probe supplies opaque cthread storage with TLS at the recovered
+offset, OS/queue-lock doubles, and an allocation-failure injector. It checks
+the complete initial VM record, allocation failure before/after registration
+of other threads (no output/count/TLS mutation), independent TLS lookup,
+reverse registration order, both enumeration variants, early callback exit,
+and stack/back-pointer accessors. RED: missing implementation, then the SDK
+offset mismatch above. GREEN: optimized strict C89/i386 native probe and
+MSVC Debug Mach targets. Test-owned records are freed only at process end;
+this does not test or implement sysThreadFree.
+
+Thread creation, bootstrap, teardown, roots and suspension remain open.
+No production runtime is switched to this partial backend.
+
+Teardown audit for the next slice: sysThreadFree (5C144D0C) clears Java
+privateInfo/eetop, unregisters/counts under _queue_lock, deletes the saved
+ExecEnv, wakes joiners through the object monitor, clears the monitor-cache
+key and cthread TLS, then frees the record. sysThreadExit (5C144E24) duplicates
+this path but subsequently reads the freed record's cthread pointer to test
+its Objective-C flag at124. Disassembly confirms `call _free` followed by
+`mov eax,[edi+0Ch]`, not merely a decompiler artifact. Reconstruction must
+save any exit-dispatch state before freeing the record; reproducing this
+use-after-free is not required for binary-faithful behavior. Native-thread
+attachment cleanup and joiner wake ordering need dedicated tests when that
+slice is implemented.
+
+Final regression checks for this slice: Windows Debug 110/110; Linux Release
+98 passed plus one expected audio-device skip; Windows Release focused1/1;
+optimized strict C89/i386 native probe passed. Logs are
+out/phase3-thread-{win,linux}-{build,tests}.log. No actual Mach execution or
+full SDK ABI compatibility is claimed.

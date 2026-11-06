@@ -3,11 +3,12 @@
 #define TEST_MACH_CTHREADS_H
 #include <setjmp.h>
 typedef struct cthread *cthread_t;
-typedef struct ur_cthread { struct ur_cthread *next; void *incarnation; } *ur_cthread_t;
+typedef struct ur_cthread { struct ur_cthread *next; cthread_t incarnation; } *ur_cthread_t;
 struct cthread_queue_item { struct cthread_queue_item *next; };
 struct cthread_queue { struct cthread_queue_item *head, *tail; };
 typedef struct mutex { int lock; char *name; } *mutex_t;
 typedef struct condition { int lock; struct cthread_queue queue; char *name; } *condition_t;
+#define cthread_self() (ur_cthread_self()->incarnation)
 ur_cthread_t ur_cthread_self(void);
 void spin_lock(int *);
 void cond_broadcast(condition_t);

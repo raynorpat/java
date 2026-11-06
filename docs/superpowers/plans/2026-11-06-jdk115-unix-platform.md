@@ -101,3 +101,15 @@ out/phase3-condvar-{win,linux}-tests.log. The Linux VM remains on pthreads;
 enabling a usable Mach VM backend depends on the remaining lifecycle and
 monitor-runtime tasks. The original monitor header's disabled C++ comment was
 converted to a C89 block comment; declarations are unchanged.
+
+Task 3, allocation/enumeration slice: recovered allocation, TLS lookup,
+locked/unlocked iteration, initialization and stack/back-pointer accessors.
+Native contracts cover OOM without side effects, complete record contents,
+counts, iteration order and early return. Windows Debug full110/110,
+MSVC Release focused1/1, and optimized strict C89/i386 probe pass. The SDK
+cthread TLS field is at124 while the binary uses116: the implementation uses
+binary-confirmed byte access and records this ABI mismatch in the evidence
+document. Task 3 stays open for bootstrap/create/free/exit, roots, priority
+and suspension; the partial backend remains excluded from production.
+Linux Release full regression: 98 passed plus one expected audio-device
+skip, zero failures. Build/test logs: out/phase3-thread-{win,linux}-*.log.
