@@ -1,61 +1,71 @@
-/*
- * Win32 directory listing (java.io.File.list) and OS identification.
- */
+/* Win32 directory ABI recovered from javai_g.dll 100155b0..10015908. */
 #include <windows.h>
+#include <direct.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include "sys_api.h"
 
-struct sys_dir {
-    HANDLE handle;
-    WIN32_FIND_DATAA data;
-    int pending;		/* data holds an entry not yet returned */
-    sys_dirent_t entry;
-};
-
-sys_dir_t *sysOpenDir(const char *path)
+DIR *opendir(const char *path)
 {
-    char pattern[MAX_PATH + 3];
-    size_t len = strlen(path);
-    sys_dir_t *dir;
-
-    if (len == 0 || len + 3 > sizeof pattern)
-	return NULL;
-    strcpy(pattern, path);
-    if (pattern[len - 1] != '\\' && pattern[len - 1] != '/')
-	pattern[len++] = '\\';
-    strcpy(pattern + len, "*");
-
-    if ((dir = (sys_dir_t *) calloc(1, sizeof *dir)) == NULL)
-	return NULL;
-    dir->handle = FindFirstFileA(pattern, &dir->data);
-    if (dir->handle == INVALID_HANDLE_VALUE) {
-	/* An empty directory still has "." and ".."; failure means no directory. */
-	free(dir);
-	return NULL;
+    DIR *dir = (DIR *)malloc(sizeof(DIR));
+    char root[4] = {0, 0, 0, 0};
+    char *p;
+    if (dir == NULL) { errno = ENOMEM; return NULL; }
+    /* Preserve the primary's root-path test, including leading '/'. */
+    if ((path[1] == 0 && path[0] == '\\') || path[0] == '/') {
+        root[0] = (char)(_getdrive() + 'A' - 1);
+        strcpy(root + 1, ":\\");
+        path = root;
     }
-    dir->pending = 1;
+    dir->path = (char *)malloc(strlen(path) + 5);
+    if (dir->path == NULL) { free(dir); errno = ENOMEM; return NULL; }
+    strcpy(dir->path, path);
+    for (p = dir->path; *p; ++p) if (*p == '/') *p = '\\';
+    if (GetFileAttributesA(dir->path) == INVALID_FILE_ATTRIBUTES) {
+        free(dir->path); free(dir); errno = ENOENT; return NULL;
+    }
+    strcat(dir->path, root[1] ? "*.*" : "\\*.*");
+    dir->handle = FindFirstFileA(dir->path, &dir->find_data);
+    if (dir->handle == INVALID_HANDLE_VALUE && GetLastError() != ERROR_FILE_NOT_FOUND) {
+        free(dir->path); free(dir); errno = EACCES; return NULL;
+    }
     return dir;
 }
 
-sys_dirent_t *sysReadDir(sys_dir_t *dir)
+struct dirent *readdir(DIR *dir)
 {
-    if (!dir->pending && !FindNextFileA(dir->handle, &dir->data))
-	return NULL;
-    dir->pending = 0;
-    dir->entry.d_name = dir->data.cFileName;
-    return &dir->entry;
+    if (dir->handle == INVALID_HANDLE_VALUE) return NULL;
+    strcpy(dir->dirent.d_name, dir->find_data.cFileName);
+    if (!FindNextFileA(dir->handle, &dir->find_data)) {
+        if (GetLastError() == ERROR_INVALID_HANDLE) { errno = EBADF; return NULL; }
+        FindClose(dir->handle);
+        dir->handle = INVALID_HANDLE_VALUE;
+    }
+    return &dir->dirent;
 }
 
-int sysCloseDir(sys_dir_t *dir)
+int closedir(DIR *dir)
 {
-    if (dir) {
-	if (!FindClose(dir->handle)) { errno = EBADF; return -1; }
-	free(dir);
+    if (dir->handle != INVALID_HANDLE_VALUE) {
+        if (!FindClose(dir->handle)) { errno = EBADF; return -1; }
+        dir->handle = INVALID_HANDLE_VALUE;
     }
+    free(dir->path);
+    free(dir);
     return 0;
 }
+
+/* Header-contract implementation: no linked rewinddir body in primary. */
+void rewinddir(DIR *dir)
+{
+    if (dir->handle != INVALID_HANDLE_VALUE) FindClose(dir->handle);
+    dir->handle = FindFirstFileA(dir->path, &dir->find_data);
+}
+
+DIR *sysOpenDir(const char *path) { return opendir(path); }
+struct dirent *sysReadDir(DIR *dir) { return readdir(dir); }
+int sysCloseDir(DIR *dir) { return closedir(dir); }
 
 /* os.name and os.version, as reported since JDK 1.0. */
 void sysOSInfo(char *name, int namelen, char *version, int versionlen)

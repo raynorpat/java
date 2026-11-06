@@ -30,7 +30,7 @@
 #include "oobj.h"
 #include "tree.h"
 #include "interpreter.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "signature.h"
 #include "javaString.h"
 #include "opcodes.h"
@@ -97,15 +97,15 @@ long sun_tools_debug_Agent_objectId(Hsun_tools_debug_Agent *this,
 }
 
 void sun_tools_debug_Agent_runMain(Hsun_tools_debug_Agent *this, 
-				    HClass *c, HArrayOfString *argv) 
+				    ClassClass *c, HArrayOfString *argv) 
 {
-    execute_java_static_method(0, unhand(c), "main", 
+    execute_java_static_method(0, c, "main", 
 			       "([Ljava/lang/String;)V", argv);
 }
 
 static void
 RPI_decode_stack_frame(JavaFrame	*frame,
-		       HClass		**clazz,
+		       ClassClass		**clazz,
 		       HString		**className,
 		       HString		**methodName,
 		       long		*lineno,
@@ -125,7 +125,7 @@ RPI_decode_stack_frame(JavaFrame	*frame,
 	ClassClass *cb = fieldclass(&mb->fb);
 
 	*clazz = cbHandle(cb);
-	classname2string(classname(cb), buf, sizeof(buf));
+	classname2string(cbName(cb), buf, sizeof(buf));
 	*className = makeJavaString(buf, strlen(buf));
 	strcpy(buf, fieldname(&mb->fb));
 	/*strcat(buf, fieldsig(&mb->fb)); */
@@ -343,7 +343,7 @@ static int signature2Type(int signature) {
 
 HArrayOfInt *
 sun_tools_debug_Agent_getSlotSignature(Hsun_tools_debug_Agent * this, 
-					HClass * c, long slot)
+					ClassClass * c, long slot)
 {
     OBJECT 		*v;
     struct fieldblock	*fb;
@@ -531,7 +531,7 @@ sun_tools_debug_Agent_getSlotArraySize(Hsun_tools_debug_Agent *this,
 }
 
 HArrayOfObject *
-sun_tools_debug_Agent_getMethods(Hsun_tools_debug_Agent *this, HClass *c)
+sun_tools_debug_Agent_getMethods(Hsun_tools_debug_Agent *this, ClassClass *c)
 {
     int nmethods;
     struct methodblock *mb;
@@ -547,7 +547,7 @@ sun_tools_debug_Agent_getMethods(Hsun_tools_debug_Agent *this, HClass *c)
     }
 
     nmethods = unhand(c)->methods_count;
-    mb = cbMethods(unhand(c));
+    mb = cbMethods(c);
     ret = (HArrayOfObject *)ArrayAlloc(T_CLASS, nmethods);
     if (ret == 0) {
 	SignalError(0, JAVAPKG "OutOfMemoryError", 0);
@@ -579,7 +579,7 @@ sun_tools_debug_Agent_getMethods(Hsun_tools_debug_Agent *this, HClass *c)
 }
 
 HArrayOfObject *
-sun_tools_debug_Agent_getFields(Hsun_tools_debug_Agent *this, HClass *c)
+sun_tools_debug_Agent_getFields(Hsun_tools_debug_Agent *this, ClassClass *c)
 {
     int nslots = 0;
     int i;
@@ -593,12 +593,12 @@ sun_tools_debug_Agent_getFields(Hsun_tools_debug_Agent *this, HClass *c)
 	return NULL;
     }
 
-    if (makeslottable(unhand(c)) == NULL) {
+    if (makeslottable(c) == NULL) {
 	SignalError(0, JAVAPKG "OutOfMemoryError", 0);
 	return NULL;
     }
-    nslots = cbSlotTableSize(unhand(c));
-    slots = cbSlotTable(unhand(c));
+    nslots = cbSlotTableSize(c);
+    slots = cbSlotTable(c);
     ret = (HArrayOfObject *)ArrayAlloc(T_CLASS, nslots);
     if (ret == 0) {
 	SignalError(0, JAVAPKG "OutOfMemoryError", 0);
@@ -652,7 +652,7 @@ sun_tools_debug_Agent_getClasses(Hsun_tools_debug_Agent *this)
     pcb = get_binclasses();
     for (i = 0; i < nClasses; i++, pcb++) {
 	cb = *pcb;
-	retData[i] = (HObject *)cb->HandleToSelf;
+	retData[i] = (HObject *)cbHandle(cb);
     }
     return ret;
 }
@@ -695,7 +695,7 @@ sun_tools_debug_BreakpointHandler_clrBreakpoint(
 
 Hsun_tools_debug_LineNumber *
 sun_tools_debug_Agent_lineno2pc(Hsun_tools_debug_Agent * this, 
-				 HClass * c, long lineno)
+				 ClassClass * c, long lineno)
 {
     ClassClass *cls;
     struct methodblock *mb;
@@ -705,7 +705,7 @@ sun_tools_debug_Agent_lineno2pc(Hsun_tools_debug_Agent * this,
     Hsun_tools_debug_LineNumber *hline;
 
     if (!c) {
-        dprintf("agent.c: HClass c==0\n");
+        dprintf("agent.c: ClassClass c==0\n");
         SignalError(0, JAVAPKG "NullPointerException", 0);
         return NULL;
     }
@@ -719,9 +719,9 @@ sun_tools_debug_Agent_lineno2pc(Hsun_tools_debug_Agent * this,
     }
     unhand(hline)->startPC = unhand(hline)->endPC = -1;
 
-    cls = (ClassClass *)unhand(c);
-    mb = cls->methods;
-    nMethods = (int)(cls->methods_count);
+    cls = (ClassClass *)c;
+    mb = cbMethods(cls);
+    nMethods = (int)(cbMethodsCount(cls));
     while (nMethods > 0) {
 	nLines = mb->line_number_table_length;
 	ln = mb->line_number_table;
@@ -760,12 +760,12 @@ sun_tools_debug_Agent_lineno2pc(Hsun_tools_debug_Agent * this,
 
 long
 sun_tools_debug_Agent_method2pc(Hsun_tools_debug_Agent * this, 
-				 HClass * c, long method_slot)
+				 ClassClass * c, long method_slot)
 {
-    ClassClass *cls = (ClassClass *)unhand(c);
+    ClassClass *cls = (ClassClass *)c;
     struct methodblock *mb;
 
-    if (method_slot < 0 || method_slot >= (long)(cls->methods_count)) {
+    if (method_slot < 0 || method_slot >= (long)(cbMethodsCount(cls))) {
 	SignalError(0, JAVAPKG "IllegalAccessError","invalid slot index");
 	return 0;
     }
@@ -775,16 +775,16 @@ sun_tools_debug_Agent_method2pc(Hsun_tools_debug_Agent * this,
 
 long
 sun_tools_debug_Agent_pc2lineno(Hsun_tools_debug_Agent * this, 
-				HClass * c, long pc)
+				ClassClass * c, long pc)
 {
-    ClassClass *cls = (ClassClass *)unhand(c);
-    struct methodblock *mb = cls->methods;
+    ClassClass *cls = (ClassClass *)c;
+    struct methodblock *mb = cbMethods(cls);
     struct lineno *ln;
     int nMethods, nLines;
     int i, j;
     Hsun_tools_debug_LineNumber *hline;
 
-    nMethods = (int)(cls->methods_count);
+    nMethods = (int)(cbMethodsCount(cls));
     while (nMethods > 0) {
 	if (pc >= (long)mb->code && pc < (long)(mb->code + mb->code_length)) {
 	    nLines = mb->line_number_table_length;
@@ -891,7 +891,7 @@ sun_tools_debug_Agent_exceptionStackTrace(Hsun_tools_debug_Agent *this,
     unsigned char **enddata = 
 	(unsigned char **)(real_data + obj_length(backtrace));
 
-    p = classname2string(classname(obj_classblock(exc)), buf, sizeof(buf));
+    p = classname2string(cbName(obj_classblock(exc)), buf, sizeof(buf));
     strcpy(outbuf, p);
     hstr = unhand(exc)->detailMessage;
     if (hstr) {
@@ -925,7 +925,7 @@ void sun_tools_debug_Agent_setSingleStep(Hsun_tools_debug_Agent *this,
 }
 
 HString *
-sun_tools_debug_Agent_getClassSourceName(Hsun_tools_debug_Agent *this, HClass *c) {
+sun_tools_debug_Agent_getClassSourceName(Hsun_tools_debug_Agent *this, ClassClass *c) {
     char *name = unhand(c)->source_name;
     if (name == 0) {
         name = "";

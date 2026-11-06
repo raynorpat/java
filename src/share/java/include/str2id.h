@@ -1,7 +1,7 @@
 #ifndef sun_java_str2id_h___
 #define sun_java_str2id_h___
 
-#define STR2ID_HTSIZE 107		/* must be prime */
+#define STR2ID_HTSIZE 2003		/* must be prime */
 #define kHashTableArenaIncrementSize	4 * 1024
 
 #include "arena.h"

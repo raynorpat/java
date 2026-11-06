@@ -25,7 +25,7 @@
 #include <monitor_md.h>
 #include <threads_md.h>
 #include <monitor_cache.h>
-#include <javaThreads.h>
+#include <threads.h>
 #include <log.h>
 #include <sys_api.h>
 
@@ -256,16 +256,21 @@ registeredCleanupHelper(reg_mon_t *reg, void *T)
  * The monitors it contains, of course, are as accessible as desired.
  */
 void
-registeredEnumerate(void (*fcn)(reg_mon_t *, void *), void *cookie)
+registeredEnumerate_unlocked(void (*fcn)(reg_mon_t *, void *), void *cookie)
 {
     reg_mon_t *reg;
-
-    REGISTRY_LOCK();
     reg = MonitorRegistry;
     while (reg) {
 	fcn(reg, cookie);
 	reg = reg->next;
     }
+}
+
+void
+registeredEnumerate(void (*fcn)(reg_mon_t *, void *), void *cookie)
+{
+    REGISTRY_LOCK();
+    registeredEnumerate_unlocked(fcn, cookie);
     REGISTRY_UNLOCK();
 }
 

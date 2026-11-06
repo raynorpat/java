@@ -9,43 +9,9 @@
 #include <string.h>
 #include "sys_api.h"
 
-struct sys_dir {
-    DIR *dir;
-    sys_dirent_t entry;
-};
-
-sys_dir_t *sysOpenDir(const char *path)
-{
-    sys_dir_t *dir = (sys_dir_t *) calloc(1, sizeof *dir);
-
-    if (dir == NULL)
-	return NULL;
-    if ((dir->dir = opendir(path)) == NULL) {
-	free(dir);
-	return NULL;
-    }
-    return dir;
-}
-
-sys_dirent_t *sysReadDir(sys_dir_t *dir)
-{
-    struct dirent *d = readdir(dir->dir);
-
-    if (d == NULL)
-	return NULL;
-    dir->entry.d_name = d->d_name;
-    return &dir->entry;
-}
-
-int sysCloseDir(sys_dir_t *dir)
-{
-    int result = 0;
-    if (dir) {
-	result = closedir(dir->dir);
-	free(dir);
-    }
-    return result;
-}
+DIR *sysOpenDir(const char *path) { return opendir(path); }
+struct dirent *sysReadDir(DIR *dir) { return readdir(dir); }
+int sysCloseDir(DIR *dir) { return dir ? closedir(dir) : 0; }
 
 /* os.name and os.version, as reported since JDK 1.0: uname -s and -r. */
 void sysOSInfo(char *name, int namelen, char *version, int versionlen)

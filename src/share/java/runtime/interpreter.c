@@ -1,3 +1,4 @@
+#include "classhash115.h"
 /*
  * @(#)interpreter.c	1.174 96/03/30
  *
@@ -46,7 +47,7 @@
 #include "signature.h"
 #include "code.h"
 #include "tree.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "monitor.h"
 #include "exceptions.h"
 #include "javaString.h"
@@ -157,7 +158,9 @@ JavaStack *CreateNewJavaStack(ExecEnv *ee, JavaStack *previous_stack)
  * otherwise call out_of_memory (for instance in the middle of startup).
  */
 void InitializeExecEnv(ExecEnv *ee, JHandle *thread) {
-    ee->jni_state = NULL;
+    memset(&ee->nativeInterface, 0, sizeof(ee->nativeInterface));
+    memset(&ee->seenclasses, 0, sizeof(ee->seenclasses));
+    memset(&ee->alloc_cache, 0, sizeof(ee->alloc_cache));
     if (DefaultExecEnv == 0 && thread == 0) {
 	DefaultExecEnv = ee;
     }
@@ -173,9 +176,6 @@ void InitializeExecEnv(ExecEnv *ee, JHandle *thread) {
     ee->opcodeCount             = 0;
 #endif
 
-#ifdef DEBUG
-    ee->debugFlags              = 0;
-#endif
 }
 
 #ifdef DEBUG
@@ -191,11 +191,14 @@ typedef struct free_javastack_t {
 
 static free_javastack_t *javastackFreeList = (free_javastack_t *) 0;
 
-void DeleteExecEnv(ExecEnv *ee, JHandle *thread) {
+void DeleteExecEnv(ExecEnv *ee) {
+    JHandle *thread = ee->thread;
     JavaStack *this_stack;
 #ifdef JNI115_ENABLED
     extern void jni_FreeEnv(ExecEnv *);
     jni_FreeEnv(ee);
+    /* deviation: Rhapsody cleanup also applied on Windows to reclaim caches. */
+    allocCacheCleanup(&ee->alloc_cache);
 #endif
 
     if (thread) { 
@@ -311,7 +314,7 @@ HObject *execute_java_constructor_vararg(struct execenv *ee,
 
     HObject *obj;
     char real_signature[256];
-    hash_t initID;
+    unsigned int initID;
     int len;
     ClassClass *current_class;
     struct methodblock *mb;
@@ -340,14 +343,14 @@ HObject *execute_java_constructor_vararg(struct execenv *ee,
 	    return 0;
 	}
     } else { 
-	classname = classname(cb);
+	classname = cbName(cb);
     }
     if (cbAccess(cb) & (ACC_INTERFACE | ACC_ABSTRACT)) { 
-	SignalError(0, JAVAPKG "InstantiationException", classname(cb));
+	SignalError(0, JAVAPKG "InstantiationException", cbName(cb));
 	return 0;
     }
     if (security && !VerifyClassAccess(current_class, cb, FALSE)) {
-	SignalError(0, JAVAPKG "IllegalAccessException", classname(cb));
+	SignalError(0, JAVAPKG "IllegalAccessException", cbName(cb));
 	return 0;
     }
     
@@ -358,8 +361,8 @@ HObject *execute_java_constructor_vararg(struct execenv *ee,
     }
 
     /* Only call 'universal' methods (all argument and result types local). */
-    initID = NameAndTypeToHash("<init>", real_signature, 0);
-    for (len = cb->methods_count, mb = cb->methods; --len >= 0; mb++) 
+    initID = NameAndTypeToHash("<init>", real_signature);
+    for (len = cbMethodsCount(cb), mb = cbMethods(cb); --len >= 0; mb++) 
 	if (mb->fb.ID == initID) 
 	    break;
     if (len < 0) { 
@@ -378,7 +381,7 @@ HObject *execute_java_constructor_vararg(struct execenv *ee,
 	return 0;
     }
     TRACE(("execute_java_constructor new %s => %s\n", 
-	   classname(cb), Object2CString(obj)));
+	   cbName(cb), Object2CString(obj)));
     do_execute_java_method_vararg(ee, obj, 0, 0, mb, FALSE, args, 0, FALSE);
     return obj;
 }
@@ -484,7 +487,6 @@ do_execute_java_method_vararg(ExecEnv *ee, void *obj,
     current_frame->optop = current_frame->ostack;
     current_frame->vars = 0;	/* better not reference any! */
     current_frame->monitor = 0;	/* not monitoring anything */
-    current_frame->annotation = 0;
     current_frame->current_method = 0; /* not part of a method. */
     
     /* Push the target object, if not a static call */
@@ -614,7 +616,7 @@ Object2CString(JHandle *oh)
 		cb = obj_classblock(oh);
 		/* Quietly truncate on buffer overflow */
 		(void) jio_snprintf(buf, sizeof(buf), "%s@%lX%c%lX",
-			 classname2string(classname(cb), cbuf, sizeof(cbuf)),
+			 classname2string(cbName(cb), cbuf, sizeof(cbuf)),
 			 (int32_t)oh, DIR_SEPARATOR, (int32_t)o);
 	    }
 	    break;
@@ -641,7 +643,7 @@ Object2CString(JHandle *oh)
 		cb = ((ClassClass **) BODYOF((HArrayOfObject*)oh))[obj_length(oh)];
 		/* Quietly truncate on buffer overflow */
 		(void) jio_snprintf(buf, sizeof(buf), "%s[%d]",
-			cb ? classname2string(classname(cb), cbuf, sizeof(cbuf)) : "*MissingClassName*",
+			cb ? classname2string(cbName(cb), cbuf, sizeof(cbuf)) : "*MissingClassName*",
 			obj_length(oh));
 	    }
 	    break;
@@ -670,7 +672,7 @@ is_instance_of(JHandle * h, ClassClass *dcb, ExecEnv *ee)
     } else {
 	/* h is an array.  dcb must either be classJavaLangObject, or 
 	   interfaceJavaLangCloneable, or an array class */
-	return dcb->name[0] == SIGNATURE_ARRAY
+	return cbName(dcb)[0] == SIGNATURE_ARRAY
 	           ? array_is_instance_of_array_type(h, dcb, ee)
 		   : (dcb == classJavaLangObject 
 		          || dcb == interfaceJavaLangCloneable);
@@ -680,15 +682,15 @@ is_instance_of(JHandle * h, ClassClass *dcb, ExecEnv *ee)
 bool_t
 is_subclass_of(ClassClass *cb, ClassClass *dcb, ExecEnv *ee)
 {
-    if (dcb->access & ACC_INTERFACE) {
-	for (; ; cb = unhand(cbSuperclass(cb))) {
+    if (cbAccess(dcb) & ACC_INTERFACE) {
+	for (; ; cb = cbSuperclass(cb)) {
 	    if (ImplementsInterface(cb, dcb, ee)) 
 		return TRUE;
 	    if (cbSuperclass(cb) == 0)
 		return FALSE;
 	}
     } else {
-	for (; ; cb = unhand(cbSuperclass(cb))) {
+	for (; ; cb = cbSuperclass(cb)) {
 	    if (cb == dcb)
 		return TRUE;
 	    if (cbSuperclass(cb) == 0)
@@ -706,11 +708,11 @@ ImplementsInterface(ClassClass *cb, ClassClass *icb, ExecEnv *ee)
      * First, do a string comparison of icb against all the interfaces thant
      * cb implements.
      */
-    char *icb_name = icb->name;
-    cp_item_type *constant_pool = cb->constantpool;
+    char *icb_name = cbName(icb);
+    cp_item_type *constant_pool = cbConstantPool(cb);
     int i;
-    for (i = 0; i < (int)(cb->implements_count); i++) {
-	int interface_index = cb->implements[i];
+    for (i = 0; i < (int)(cbImplementsCount(cb)); i++) {
+	int interface_index = cbImplements(cb)[i];
 	char *interface_name = 
 	        GetClassConstantClassName(constant_pool, interface_index);
 	/* First, check to see if the names match, so we know whether we
@@ -732,8 +734,8 @@ ImplementsInterface(ClassClass *cb, ClassClass *icb, ExecEnv *ee)
 	}
     }
     /* See if any of the interfaces that we implement possibly implement icb */
-    for (i = 0; i < (int)(cb->implements_count); i++) {
-	int interface_index = cb->implements[i];
+    for (i = 0; i < (int)(cbImplementsCount(cb)); i++) {
+	int interface_index = cbImplements(cb)[i];
 	ClassClass *sub_cb;
 	if (!ResolveClassConstantFromClass(cb, interface_index, ee, 
 					   1 << CONSTANT_Class))
@@ -748,8 +750,8 @@ ImplementsInterface(ClassClass *cb, ClassClass *icb, ExecEnv *ee)
 
 bool_t array_is_instance_of_array_type(JHandle * h, ClassClass *cb, ExecEnv *ee)
 {
-    int32_t class_depth = cb->constantpool[CONSTANT_POOL_ARRAY_DEPTH_INDEX].i;
-    int32_t class_type = cb->constantpool[CONSTANT_POOL_ARRAY_TYPE_INDEX].i;
+    int32_t class_depth = cbConstantPool(cb)[CONSTANT_POOL_ARRAY_DEPTH_INDEX].i;
+    int32_t class_type = cbConstantPool(cb)[CONSTANT_POOL_ARRAY_TYPE_INDEX].i;
     int32_t item_depth, item_type;
     ClassClass *item_class, *class_class;
 
@@ -758,26 +760,26 @@ bool_t array_is_instance_of_array_type(JHandle * h, ClassClass *cb, ExecEnv *ee)
     if (exceptionOccurred(ee))
 	return FALSE;
     class_class = (class_type == T_CLASS) 
-	             ? cb->constantpool[CONSTANT_POOL_ARRAY_CLASS_INDEX].p : 0;
+	             ? cbConstantPool(cb)[CONSTANT_POOL_ARRAY_CLASS_INDEX].p : 0;
 
     if (obj_flags(h) == T_CLASS) {
 	/* We have an array of classes.  Find out the types of the elements. */
 	ArrayOfObject *array = (ArrayOfObject *)unhand(h);
 	/* uint32_t length = obj_length(h); Removed because it was crashing MSVC's cl 1.52 */
 	ClassClass *array_cb = (ClassClass *) array->body[obj_length(h)];
-	if (array_cb->name[0] == SIGNATURE_ARRAY) {
+	if (cbName(array_cb)[0] == SIGNATURE_ARRAY) {
 	    /* an Array of arrays */
 	    item_depth = 
-		  array_cb->constantpool[CONSTANT_POOL_ARRAY_DEPTH_INDEX].i + 1;
+		  cbConstantPool(array_cb)[CONSTANT_POOL_ARRAY_DEPTH_INDEX].i + 1;
 	    item_type = 
-		  array_cb->constantpool[CONSTANT_POOL_ARRAY_TYPE_INDEX].i;
+		  cbConstantPool(array_cb)[CONSTANT_POOL_ARRAY_TYPE_INDEX].i;
 	    ResolveClassConstantFromClass(array_cb, 
 					  CONSTANT_POOL_ARRAY_CLASS_INDEX,
 					  ee, 1 << CONSTANT_Class);
 	    if (exceptionOccurred(ee))
 		return FALSE;
 	    item_class = 
-		  array_cb->constantpool[CONSTANT_POOL_ARRAY_CLASS_INDEX].p;
+		  cbConstantPool(array_cb)[CONSTANT_POOL_ARRAY_CLASS_INDEX].p;
 	} else {
 	    /* An array of clases */
 	    item_depth = 1;
@@ -866,7 +868,7 @@ ProcedureFindThrowTag(ExecEnv *ee, JavaFrame *frame,
 	ClassClass *objectClass = obj_array_classblock(object);
 	struct CatchFrame *cf = mb->exception_table;
 	struct CatchFrame *cfEnd = cf + mb->exception_table_length;
-	codepos_t pcTarget = pc - mb->code; /* offset from start of code */
+	unsigned long pcTarget = pc - mb->code; /* offset from start of code */
 	cp_item_type *constant_pool = frame->constant_pool;
 	for (; cf < cfEnd; cf++) { 
 	    if (cf->start_pc <= pcTarget && pcTarget < cf->end_pc) { 
@@ -881,8 +883,8 @@ ProcedureFindThrowTag(ExecEnv *ee, JavaFrame *frame,
 			GetClassConstantClassName(constant_pool, catchType);
 		    ClassClass *catchClass = NULL;
 		    ClassClass *cb;
-		    for (cb = objectClass;; cb = unhand(cbSuperclass(cb))) {
-			if (strcmp(classname(cb), catchName) == 0) {
+		    for (cb = objectClass;; cb = cbSuperclass(cb)) {
+			if (strcmp(cbName(cb), catchName) == 0) {
 			    if (cbLoader(cb) == cbLoader(methodClass)) 
 				goto found;
 			    if (catchClass == NULL) { 
@@ -933,7 +935,7 @@ MultiArrayAlloc(int dimensions, ClassClass *array_cb, stack_item *sizes)
     int32_t depth = constant_pool[CONSTANT_POOL_ARRAY_DEPTH_INDEX].i;
     int32_t base_type = constant_pool[CONSTANT_POOL_ARRAY_TYPE_INDEX].i;
     ClassClass *sub_array_cb[256];
-    char *class_name = classname(array_cb);
+    char *class_name = cbName(array_cb);
     struct execenv *ee = EE();
     int i;
 
@@ -1034,8 +1036,8 @@ isSpecialSuperCall(ClassClass *current_class, struct methodblock *mb) {
 	  && (strcmp(mb->fb.name, "<init>") != 0)
 	  && (current_class != classJavaLangObject)) {
 	ClassClass *methodClass = fieldclass(&mb->fb);
-	ClassClass *cb = unhand(cbSuperclass(current_class));
-	for (; ; cb = unhand(cbSuperclass(cb))) {
+	ClassClass *cb = cbSuperclass(current_class);
+	for (; ; cb = cbSuperclass(cb)) {
 	    if (cb == methodClass) 
 		return TRUE;
 	    if (cbSuperclass(cb) == 0)
@@ -1091,13 +1093,8 @@ static char longstringbuf[30];
 
 #define REAL_OPTOP()      (&S_INFO(0))
 
-#ifdef DEBUG
-#define DECACHE_OPTOP()   frame->optop = REAL_OPTOP(); ee->debugFlags &= ~EE_DEBUG_OPTOP_CACHED;
-#define CACHE_OPTOP()     optop = frame->optop - OPTOP_OFFSET; ee->debugFlags |= EE_DEBUG_OPTOP_CACHED;
-#else
 #define DECACHE_OPTOP()   (frame->optop = REAL_OPTOP())
 #define CACHE_OPTOP()     (optop = frame->optop - OPTOP_OFFSET)
-#endif
 
 #define SIZE_AND_STACK(size, stack) pc += size; optop += stack; continue
 #define SIZE_AND_STACK_BUT(size, stack) pc += size; optop += stack;
@@ -1182,7 +1179,7 @@ static char longstringbuf[30];
      * DECACHED().  If this happens the GC will not properly scan the 
      * previous java frame for roots...
      */
-    sysAssert( !(ee->debugFlags & EE_DEBUG_OPTOP_CACHED) );
+    /* The Sun ExecEnv has no private debugFlags field. */
 
     /*
      * It is necessary for proper java stack scavenging during GC that the 
@@ -1201,9 +1198,6 @@ static char longstringbuf[30];
 	 */
 	frame->lastpc = pc;
 	ee->exceptionKind = EXCKIND_STKOVRFLW;
-#ifdef DEBUG
-        ee->debugFlags &= ~EE_DEBUG_OPTOP_CACHED;
-#endif
 	return FALSE;
     }
 
@@ -1909,7 +1903,7 @@ again:
 	case opc_putfield: 
 	    DECACHE_OPTOP();
 	    WITH_OPCODE_CHANGE {
-		cp_index_type field_index;
+		unsigned int field_index;
                 CODE_LOCK();
 		field_index = GET_INDEX(pc+1);
                 CODE_UNLOCK();
@@ -1921,11 +1915,11 @@ again:
 		if (!exceptionOccurred(ee)) {
 		    signature = fieldsig(fb);
 		    TRACE(("\t%s %s.%s\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb)));
+			   cbName(fieldclass(fb)), fieldname(fb)));
 		    if (fb->access & ACC_STATIC) {
 			char buf[256];
 			int len;
-			classname2string(classname(fieldclass(fb)), 
+			classname2string(cbName(fieldclass(fb)), 
 					 buf, sizeof(buf));
 			len = strlen(buf);
 			/* If buffer overflow, quietly truncate */
@@ -1941,7 +1935,7 @@ again:
                                     fieldclass(&ee->current_frame->current_method->fb)))) {
                         char buf[256];
                         int len;
-                        classname2string(classname(fieldclass(fb)), buf, sizeof(buf));
+                        classname2string(cbName(fieldclass(fb)), buf, sizeof(buf));
                         len = strlen(buf);
                         /* If buffer overflow, quietly truncate */
                         (void) jio_snprintf(buf + len, sizeof(buf)-len, 
@@ -1971,18 +1965,18 @@ again:
 	case opc_putstatic:
 	    DECACHE_OPTOP();
 	    WITH_OPCODE_CHANGE {
-		cp_index_type field_index = GET_INDEX(pc+1);
+		unsigned int field_index = GET_INDEX(pc+1);
 
 		ResolveClassConstant(constant_pool, field_index, ee, 
 				     1 << CONSTANT_Fieldref);
 		fb = (struct fieldblock *)(constant_pool[field_index].p);
 		if (!exceptionOccurred(ee)) {
 		    TRACE(("\t%s %s.%s\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb)));
+			   cbName(fieldclass(fb)), fieldname(fb)));
 		    if ((fb->access & ACC_STATIC) == 0) {
 			char buf[256];
 			int len;
-			classname2string(classname(fieldclass(fb)), 
+			classname2string(cbName(fieldclass(fb)), 
 					 buf, sizeof(buf));
 			len = strlen(buf);
 			/* If buffer overflow, quietly truncate */
@@ -1998,7 +1992,7 @@ again:
                                     fieldclass(&ee->current_frame->current_method->fb)))) {
                         char buf[256];
                         int len;
-                        classname2string(classname(fieldclass(fb)), buf, sizeof(buf));
+                        classname2string(cbName(fieldclass(fb)), buf, sizeof(buf));
                         len = strlen(buf);
                         /* If buffer overflow, quietly truncate */
                         (void) jio_snprintf(buf + len, sizeof(buf)-len, 
@@ -2021,7 +2015,7 @@ again:
 	case opc_invokestatic:
 	    DECACHE_OPTOP();
 	    WITH_OPCODE_CHANGE {
-		cp_index_type method_index;
+		unsigned int method_index;
                 CODE_LOCK();
 		method_index = GET_INDEX(pc+1);
                 CODE_UNLOCK();
@@ -2032,13 +2026,13 @@ again:
 		if (!exceptionOccurred(ee)) {
 		    mb = constant_pool[method_index].p;
 		    TRACE(("\t%s %s.%s%s\n", opnames[opcode], 
-			   classname(fieldclass(&mb->fb)), 
+			   cbName(fieldclass(&mb->fb)), 
 			   fieldname(&mb->fb), fieldsig(&mb->fb)));
 		    if (opcode == opc_invokestatic) {
 			if ((mb->fb.access & ACC_STATIC) == 0) {
 			    char buf[256];
 			    int len;
-			    classname2string(classname(fieldclass(&mb->fb)), 
+			    classname2string(cbName(fieldclass(&mb->fb)), 
 					     buf, sizeof(buf));
 			    len = strlen(buf);
 			    /* If buffer overflow, quietly truncate */
@@ -2053,7 +2047,7 @@ again:
 			if (mb->fb.access & ACC_STATIC) {
 			    char buf[256];
 			    int len;
-			    classname2string(classname(fieldclass(&mb->fb)), 
+			    classname2string(cbName(fieldclass(&mb->fb)), 
 					     buf, sizeof(buf));
 			    len = strlen(buf);
 			    /* If buffer overflow, quietly truncate */
@@ -2082,10 +2076,10 @@ again:
 			      fieldclass(&frame->current_method->fb) : NULL;
 			if ((current_class != NULL) && 
 			        isSpecialSuperCall(current_class, mb)) {
-			    fb_offset_t offset = mb->fb.u.offset; 
+			    unsigned long offset = mb->fb.u.offset; 
 			    struct methodblock *new_mb;
 			    superClass = 
-				unhand(cbSuperclass(current_class));
+				cbSuperclass(current_class);
 			    new_mb = 
 				cbMethodTable(superClass)->methods[offset];
 			    if (mb != new_mb) { 
@@ -2106,7 +2100,7 @@ again:
 	case opc_invokeinterface:
 	    DECACHE_OPTOP();
 	    WITH_OPCODE_CHANGE {
-		cp_index_type InterfaceMethodref_index;
+		unsigned int InterfaceMethodref_index;
                 CODE_LOCK();
 		InterfaceMethodref_index = GET_INDEX(pc + 1);
                 CODE_UNLOCK();
@@ -2115,8 +2109,8 @@ again:
 		if (!exceptionOccurred(ee)) {
 		    uint32_t InterfaceMethodref = 
 		         constant_pool[InterfaceMethodref_index].i;
-		    cp_index_type NameAndType_index = InterfaceMethodref & 0xFFFF;
-		    hash_t ID = constant_pool[NameAndType_index].i;
+		    unsigned int NameAndType_index = InterfaceMethodref & 0xFFFF;
+		    unsigned int ID = constant_pool[NameAndType_index].i;
 		    TRACE(("\t%s %s\n", opnames[opcode], 
 			   IDToNameAndTypeString(ID)));
 		    CODE_LOCK();
@@ -2203,15 +2197,15 @@ again:
 		char isig = fieldsig(fb)[0];
 		if (isig == SIGNATURE_FLOAT) {
 		    TRACE(("\t%s %s.%s <= %g\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb), 
+			   cbName(fieldclass(fb)), fieldname(fb), 
 			   S_FLOAT(-1)));
 		} else if (isig == SIGNATURE_CLASS || isig == SIGNATURE_ARRAY) {
 		    TRACE(("\t%s %s.%s <= %s\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb), 
+			   cbName(fieldclass(fb)), fieldname(fb), 
 			   S_OSTRING(-1)));
 		} else {
 		    TRACE(("\t%s %s.%s <= %ld\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb), 
+			   cbName(fieldclass(fb)), fieldname(fb), 
 			   S_INT(-1)));
 		}
 	    }
@@ -2228,15 +2222,15 @@ again:
 		char isig = fieldsig(fb)[0];
 		if (isig == SIGNATURE_FLOAT) {
 		    TRACE(("\t%s %s.%s <= %g\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb), 
+			   cbName(fieldclass(fb)), fieldname(fb), 
 			   S_FLOAT(0)));
 		} else if (isig == SIGNATURE_CLASS || isig == SIGNATURE_ARRAY) {
 		    TRACE(("\t%s %s.%s <= %s\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb), 
+			   cbName(fieldclass(fb)), fieldname(fb), 
 			   S_OSTRING(0)));
 		} else {
 		    TRACE(("\t%s %s.%s <= %ld\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb), 
+			   cbName(fieldclass(fb)), fieldname(fb), 
 			   S_INT(0)));
 		} 
 	    }
@@ -2256,11 +2250,11 @@ again:
 		signature = fieldsig(fb);
 		if (signature[0] == SIGNATURE_LONG) {
 		    TRACE(("\t%s %s.%s <= %s\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb), 
+			   cbName(fieldclass(fb)), fieldname(fb), 
 			   S_LONGSTRING(-2)));
 		} else {
 		    TRACE(("\t%s %s.%s <= %g\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb), 
+			   cbName(fieldclass(fb)), fieldname(fb), 
 			   S_DOUBLE(-2)));
 		}
 	    }
@@ -2343,11 +2337,11 @@ again:
 		signature = fieldsig(fb);
 		if (signature[0] == SIGNATURE_LONG) {
 		    TRACE(("\t%s %s.%s <= %s\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb), 
+			   cbName(fieldclass(fb)), fieldname(fb), 
 			   S_LONGSTRING(0)));
 		} else {
 		    TRACE(("\t%s %s.%s <= %g\n", opnames[opcode], 
-			   classname(fieldclass(fb)), fieldname(fb), 
+			   cbName(fieldclass(fb)), fieldname(fb), 
 			   S_DOUBLE(0)));
 		}
 	    }
@@ -2428,7 +2422,7 @@ again:
 	case opc_invokesuper_quick: { 
 	    int index = GET_INDEX(pc + 1);
 	    current_class = fieldclass(&frame->current_method->fb);
-	    superClass = unhand(cbSuperclass(current_class));
+	    superClass = cbSuperclass(current_class);
 	    mb = cbMethodTable(superClass)->methods[index];
 	    args_size = mb->args_size;
 	    optop -= args_size;
@@ -2468,8 +2462,8 @@ again:
 	    goto callmethod;
 
 	case opc_invokeinterface_quick: {
-	    cp_index_type NameAndType_index = GET_INDEX(pc + 1);
-	    uint32_t ID = constant_pool[NameAndType_index].u;
+	    unsigned int NameAndType_index = GET_INDEX(pc + 1);
+	    uint32_t ID = constant_pool[NameAndType_index].i;
 	    int32_t mslot = pc[4];	/* guess the slot of the method name */
 	    int32_t nslots;
 	    struct methodblock **mbt;  /* XXX These declarations should be deleted */
@@ -2511,7 +2505,7 @@ again:
 		if (n <= 0) {
 		    char buf[256];
 		    int32_t len;
-		    classname2string(classname(cb), buf, sizeof(buf));
+		    classname2string(cbName(cb), buf, sizeof(buf));
 		    len = strlen(buf);
 		    /* If buffer overflow, quietly truncate */
 		    (void) jio_snprintf(buf + len, (size_t) (sizeof(buf)-len),
@@ -2533,7 +2527,7 @@ again:
                 char buf[256];
                 int32_t len;
                 char *msg;
-                classname2string(classname(cb), buf, sizeof(buf));
+                classname2string(cbName(cb), buf, sizeof(buf));
                 len = strlen(buf);
                 if (mb->fb.access & ACC_STATIC) {
                     msg = ": method %s%s used to be dynamic, but is now static";
@@ -2595,7 +2589,7 @@ again:
 	callmethod:
 	    sysAssert(o != 0);
 	    TRACE(("\t%s %s.%s%s (%d)\n", opnames[opcode], 
-		   classname(fieldclass(&mb->fb)), fieldname(&mb->fb), 
+		   cbName(fieldclass(&mb->fb)), fieldname(&mb->fb), 
 		   fieldsig(&mb->fb), args_size));
 	    TRACE_METHOD(ee, mb, args_size, TRACE_METHOD_ENTER);
 
@@ -2631,7 +2625,7 @@ again:
 	    cb = constant_pool[GET_INDEX(pc + 1)].p;
 	    h = S_HANDLE(-1);
 	    S_INT(-1) = ((h != NULL) && is_instance_of(h, cb, ee));
-	    TRACE(("\tinstanceof %s => %ld\n", classname(cb), S_INT(-1)));
+	    TRACE(("\tinstanceof %s => %ld\n", cbName(cb), S_INT(-1)));
 	    SIZE_AND_STACK_BUT(3, 0); /* may error on implementations */
 	    goto check_for_exception;
 	}
@@ -2654,10 +2648,10 @@ again:
 	        /* Checkcast fails  */
 		char buf[255];
 		ERROR("ClassCastException", 
-		      classname2string(classname(obj_array_classblock(h)), 
+		      classname2string(cbName(obj_array_classblock(h)), 
 				       buf, sizeof(buf)));
 	    }
-	    TRACE(("\tcheckcast %s\n", classname(cb)));
+	    TRACE(("\tcheckcast %s\n", cbName(cb)));
 	    SIZE_AND_STACK(3, 0);
 	}
 
@@ -2670,9 +2664,9 @@ again:
 			        fieldclass(&frame->current_method->fb) : NULL;
 		    cb = constant_pool[GET_INDEX(pc + 1)].p;
 		    if (cbAccess(cb) & (ACC_INTERFACE | ACC_ABSTRACT))
-			ERROR("InstantiationError", cb->name);
+			ERROR("InstantiationError", cbName(cb));
 		    if (!VerifyClassAccess(current_class, cb, FALSE))
-			ERROR("IllegalAccessError", cb->name);
+			ERROR("IllegalAccessError", cbName(cb));
 		}
 	        if (!exceptionOccurred(ee))
 	            pc[0] = opc_new_quick;
@@ -2682,7 +2676,7 @@ again:
 	case opc_new_quick: {
 	    cb = constant_pool[GET_INDEX(pc + 1)].p;
 	    S_HANDLE(0) = newobject(cb, pc, ee);
-	    TRACE(("\tnew %s => %s\n", classname(cb), S_OSTRING(0)));
+	    TRACE(("\tnew %s => %s\n", cbName(cb), S_OSTRING(0)));
 	    SIZE_AND_STACK_BUT(3, 1);
 	    goto check_for_exception;
 	}
@@ -2709,7 +2703,7 @@ again:
 		array_cb = constant_pool[GET_INDEX(pc + 1)].p;
 		unhand(retArray)->body[size] = (HObject*)array_cb;
 		TRACE(("\tanewarray_quick %s[%ld] => %s\n", 
-		       array_cb->name, size, Object2CString((JHandle*)retArray)));
+		       cbName(array_cb), size, Object2CString((JHandle*)retArray)));
 		S_HANDLE(-1) = (JHandle *)retArray;
 		SIZE_AND_STACK(3, 0);
 	    }
@@ -2743,7 +2737,7 @@ again:
 		ERROR("OutOfMemoryError", 0);
 	    S_HANDLE(0) = retO;
 	    TRACE(("\tmultianewarray_quick %s, dimensions %d => %s\n", 
-		       array_cb->name, dimensions, 
+		       cbName(array_cb), dimensions, 
 		   Object2CString((JHandle*)retO)));
 	    SIZE_AND_STACK(4, 1);
 	}
@@ -3085,9 +3079,6 @@ again:
 	}
 #endif /* TRACING */
 	if (frame == initial_frame) {
-#ifdef DEBUG
-            ee->debugFlags &= ~EE_DEBUG_OPTOP_CACHED;
-#endif
 	    return !exceptionOccurred(ee);
 	} else {
 	    TRACE_METHOD(ee, frame->current_method, args_size, TRACE_METHOD_RETURN);
@@ -3176,7 +3167,7 @@ void PrintObject(JHandle *oh) {
 #endif /* TRACING */
 	    }
 	    if (current_ee == 0)
-	        DeleteExecEnv(&lee, 0);
+	        DeleteExecEnv(&lee);
 	}
     }
 }    
@@ -3231,14 +3222,14 @@ trace_method(struct execenv* ee, struct methodblock* mb,
 	printf("| ");
     printf("%c %s.%s%s ",
 	   ((type == TRACE_METHOD_ENTER) ? '>' : '<'),
-	   classname(fieldclass(&mb->fb)),
+	   cbName(fieldclass(&mb->fb)),
 	   fieldname(&mb->fb),
 	   fieldsig(&mb->fb));
     if (type == TRACE_METHOD_ENTER)
 	printf("(%d) entered\n", args_size);
     else if (exceptionOccurred(ee))
 	printf("throwing %s\n",
-		ee->exception.exc->methods->classdescriptor->name);
+		cbName(ee->exception.exc->methods->classdescriptor));
     else
 	printf("returning\n");
     fflush(stdout);

@@ -25,7 +25,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "javaThreads.h"
+#include "threads.h"
 #include "errno.h"
 #include "tree.h"
 #include "oobj.h"

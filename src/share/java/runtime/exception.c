@@ -30,7 +30,7 @@
 #include "javaString.h"
 
 #include "monitor.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "exceptions.h"
 
 #include "java_lang_Throwable.h"
@@ -62,7 +62,9 @@ getStackDepth(JavaFrame* start_frame)
     return size;
 }
 
-void
+typedef int (*StackPrinter)(void *, void *, size_t, const char *, size_t);
+
+static void
 printStackTrace(Hjava_lang_Throwable *o, StackPrinter printer,
 		void* stream, size_t len)
 {

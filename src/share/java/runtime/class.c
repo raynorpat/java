@@ -30,20 +30,23 @@
 #include "javaString.h"
 
 #include "monitor.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "exceptions.h"
 
 #include "java_lang_Class.h"
 #include "java_lang_ClassLoader.h"
 
+extern ClassClass *allocClassClass(void);
 extern void lock_classes(void), unlock_classes(void);
+/* Private legacy helper, retained outside the original 1.1.5 header. */
+void java_lang_ClassLoader_checkInitialized(Hjava_lang_ClassLoader *);
 
-HClass *
-java_lang_Class_forName(HClass *this, HString *classname)
+ClassClass *
+java_lang_Class_forName(ClassClass *this, HString *classname)
 {
     char clname[256], *p;
     ClassClass *cb;
-    HClass *h;
+    ClassClass *h;
     int c;
 
     javaString2CString(classname, clname, sizeof(clname));
@@ -63,25 +66,25 @@ java_lang_Class_forName(HClass *this, HString *classname)
 }
 
 Hjava_lang_String *
-java_lang_Class_getName(HClass *this)
+java_lang_Class_getName(ClassClass *this)
 {
     ClassClass *cb;
     char clname[256];
 
-    if ((this == NULL) || ((cb = unhand(this)) == NULL)) {
+    if ((this == NULL) || ((cb = this) == NULL)) {
 	SignalError(0, JAVAPKG "NullPointerException", 0);
 	return 0;
     }
 
-    classname2string(classname(cb), clname, sizeof(clname));
+    classname2string(cbName(cb), clname, sizeof(clname));
     return makeJavaString(clname, strlen(clname));
 }
 
-HClass *
-java_lang_Class_getSuperclass(HClass *this)
+ClassClass *
+java_lang_Class_getSuperclass(ClassClass *this)
 {
     ClassClass *cb;
-    if ((this == NULL) || ((cb = unhand(this)) == NULL)) {
+    if ((this == NULL) || ((cb = this) == NULL)) {
 	SignalError(0, JAVAPKG "NullPointerException", 0);
 	return 0;
     }
@@ -89,32 +92,32 @@ java_lang_Class_getSuperclass(HClass *this)
 }
 
 HArrayOfObject *
-java_lang_Class_getInterfaces(HClass *this)
+java_lang_Class_getInterfaces(ClassClass *this)
 {
     int i;
     ClassClass *cb;
     HArrayOfObject *list;
     ExecEnv *ee = EE();
-    HClass **listdata;
+    ClassClass **listdata;
 
-    if ((this == NULL) || ((cb = unhand(this)) == NULL)) {
+    if ((this == NULL) || ((cb = this) == NULL)) {
 	SignalError(0, JAVAPKG "NullPointerException", 0);
 	return 0;
     }
 
-    list = (HArrayOfObject *)ArrayAlloc(T_CLASS, cb->implements_count);
+    list = (HArrayOfObject *)ArrayAlloc(T_CLASS, cbImplementsCount(cb));
     if (list == 0) {
 	SignalError(0, JAVAPKG "OutOfMemoryError", 0);
 	return 0;
     }
-    listdata = (HClass **)unhand(list)->body;
-    listdata[cb->implements_count] = (void *)classJavaLangClass;
+    listdata = (ClassClass **)unhand(list)->body;
+    listdata[cbImplementsCount(cb)] = (void *)classJavaLangClass;
 
     /* See if any of the interfaces that we implement possibly implement icb */
-    for (i = 0 ; i < (int)cb->implements_count ; i++) {
-	ResolveClassConstant(cb->constantpool, cb->implements[i], ee, 1 << CONSTANT_Class);
+    for (i = 0 ; i < (int)cbImplementsCount(cb) ; i++) {
+	ResolveClassConstant(cbConstantPool(cb), cbImplements(cb)[i], ee, 1 << CONSTANT_Class);
 
-	listdata[i] = cbHandle((ClassClass *)(cb->constantpool[cb->implements[i]].p));
+	listdata[i] = cbHandle((ClassClass *)(cbConstantPool(cb)[cbImplements(cb)[i]].p));
 
     }
 
@@ -122,23 +125,23 @@ java_lang_Class_getInterfaces(HClass *this)
 }
 
 Hjava_lang_ClassLoader *
-java_lang_Class_getClassLoader(HClass *this)
+java_lang_Class_getClassLoader(ClassClass *this)
 {
     ClassClass *cb;
-    if ((this == NULL) || ((cb = unhand(this)) == NULL)) {
+    if ((this == NULL) || ((cb = this) == NULL)) {
 	SignalError(0, JAVAPKG "NullPointerException", 0);
 	return 0;
     }
-    return (Hjava_lang_ClassLoader *)cb->loader;
+    return (Hjava_lang_ClassLoader *)cbLoader(cb);
 }
 
 HObject *
-java_lang_Class_newInstance(HClass *this)
+java_lang_Class_newInstance(ClassClass *this)
 {
     ExecEnv *ee = EE();
     ClassClass *cb;
 
-    if ((this == NULL) || ((cb = unhand(this)) == NULL)) {
+    if ((this == NULL) || ((cb = this) == NULL)) {
 	SignalError(0, JAVAPKG "NullPointerException", 0);
 	return 0;
     }
@@ -146,14 +149,14 @@ java_lang_Class_newInstance(HClass *this)
 }
 
 long 
-java_lang_Class_isInterface(HClass *this) 
+java_lang_Class_isInterface(ClassClass *this) 
 {
     ClassClass *cb;
-    if ((this == NULL) || ((cb = unhand(this)) == NULL)) {
+    if ((this == NULL) || ((cb = this) == NULL)) {
 	SignalError(0, JAVAPKG "NullPointerException", 0);
 	return 0;
     }
-    return (cb->access & ACC_INTERFACE) ? 1 : 0;
+    return (cbAccess(cb) & ACC_INTERFACE) ? 1 : 0;
 }
 
 /**
@@ -182,10 +185,10 @@ class_loader(HObject *loader, char *name, long resolve)
     c = (HObject *)execute_java_dynamic_method(0, loader, "loadClass", 
 					      "(L" JAVAPKG "String;Z)L" JAVAPKG "Class;", 
 					      makeJavaString(buf, strlen(buf)), resolve);
-    return c ? (ClassClass *)unhand(c) : NULL;
+    return c ? (ClassClass *)c : NULL;
 }
 
-HClass *
+ClassClass *
 java_lang_ClassLoader_defineClass(Hjava_lang_ClassLoader *this, Hjava_lang_String * name, HArrayOfByte *data, long offset, long length) 
 {
     ClassClass	    *cb;
@@ -193,7 +196,7 @@ java_lang_ClassLoader_defineClass(Hjava_lang_ClassLoader *this, Hjava_lang_Strin
     int32_t	    body_len;
     char	    *detail;
     char	    *ename;
-    HClass	    *h;
+    ClassClass	    *h;
     char	    *namep;
     int		    ret_val;
 
@@ -207,12 +210,12 @@ java_lang_ClassLoader_defineClass(Hjava_lang_ClassLoader *this, Hjava_lang_Strin
 	SignalError(0, JAVAPKG "NullPointerException", 0);
 	return 0;
     }
-    cb = AllocClass();
+    cb = allocClassClass();
     if (cb == 0) {
 	SignalError(0, JAVAPKG "OutOfMemoryError", 0);
 	return 0;
     }
-    cb->loader = (HObject *)this;
+    cbLoader(cb) = this;
     body = (unsigned char *) unhand(data)->body;
     body_len = (int32_t) obj_length(data);
     if (offset < 0 || offset >= body_len || length < 0
@@ -221,7 +224,7 @@ java_lang_ClassLoader_defineClass(Hjava_lang_ClassLoader *this, Hjava_lang_Strin
 	return 0;
     }
 
-    sysAssert(!cb->name);
+    sysAssert(!cbName(cb));
     if (name) {                        /* Expected class name is optional */
         char *p;
         namep = allocCString(name);
@@ -230,16 +233,16 @@ java_lang_ClassLoader_defineClass(Hjava_lang_ClassLoader *this, Hjava_lang_Strin
         for (p = namep; *p; p++)       /* Translate from '.' to '/' separators */
             if ('.' == *p) 
                 *p = '/';  
-        cb->name = namep;              /* Provide expected name */
+        /* The parser checks the expected name against the classfile. */
     } else {
-        cb->name = namep = NULL;       /* Indicate no expectations */
+        namep = NULL;       /* Indicate no expectations */
     }
 
     /* We need to lock the classes while creating the class and adding
      * the class to the list of classes
     */
     lock_classes();
-    ret_val = createInternalClass(body + offset, body + offset + length, cb);
+    ret_val = createInternalClass(body + offset, body + offset + length, cb, this, namep, &detail);
     if (namep) {
         sysFree(namep);
         namep = 0;
@@ -252,17 +255,6 @@ java_lang_ClassLoader_defineClass(Hjava_lang_ClassLoader *this, Hjava_lang_Strin
 	unlock_classes();
 	return 0;
     }
-    AddBinClass(cb);
-
-    /*
-    ** AddBinClasses() sets the CCF_IsResolving bit to prevent the class
-    ** from being freed during class initialization...
-    ** Clear this bit since cb references the class and protects it from
-    ** being GCed...
-    */
-    sysAssert(CCIs(cb, Resolving));
-    CCClear(cb, Resolving);
-
     unlock_classes();
 
     /*
@@ -275,12 +267,12 @@ java_lang_ClassLoader_defineClass(Hjava_lang_ClassLoader *this, Hjava_lang_Strin
 	SignalError(0, ename, detail);
 	return 0;
     }
-    h = cb->HandleToSelf;		/* now there is a reference from C */
+    h = cbHandle(cb);		/* now there is a reference from C */
     return h;
 }
 
 void
-java_lang_ClassLoader_resolveClass(Hjava_lang_ClassLoader *this, HClass *c)
+java_lang_ClassLoader_resolveClass(Hjava_lang_ClassLoader *this, ClassClass *c)
 {
     ClassClass  *cb;
     char	*detail;
@@ -290,7 +282,7 @@ java_lang_ClassLoader_resolveClass(Hjava_lang_ClassLoader *this, HClass *c)
     if (exceptionOccurred(EE()))
       return;
 
-    if ((this == NULL) || ((cb = unhand(c)) == NULL)) {
+    if ((this == NULL) || ((cb = c) == NULL)) {
 	SignalError(0, JAVAPKG "NullPointerException", 0);
 	return;
     }
@@ -301,12 +293,12 @@ java_lang_ClassLoader_resolveClass(Hjava_lang_ClassLoader *this, HClass *c)
     }
 }
 
-HClass *
+ClassClass *
 java_lang_ClassLoader_findSystemClass(Hjava_lang_ClassLoader *this, HString *classname)
 {
     char clname[256], *p;
     ClassClass *cb;
-    HClass *h;
+    ClassClass *h;
     int c;
 
     java_lang_ClassLoader_checkInitialized(this);
@@ -345,4 +337,22 @@ java_lang_ClassLoader_checkInitialized(Hjava_lang_ClassLoader *this) {
         SignalError(0, JAVAPKG "SecurityException", "Attempted use of uninitialized ClassLoader");
         return;
     }
+}
+
+/* Transitional adapters: expose the original 1.1.5 C entry names while the
+ * parser/resolver implementation still uses the older class-body layout. */
+ClassClass *java_lang_ClassLoader_defineClass0(Hjava_lang_ClassLoader *loader,
+    HString *name, HArrayOfByte *bytes, long offset, long length)
+{
+    return java_lang_ClassLoader_defineClass(loader, name, bytes, offset, length);
+}
+
+void java_lang_ClassLoader_resolveClass0(Hjava_lang_ClassLoader *loader, ClassClass *type)
+{
+    java_lang_ClassLoader_resolveClass(loader, type);
+}
+
+ClassClass *java_lang_ClassLoader_findSystemClass0(Hjava_lang_ClassLoader *loader, HString *name)
+{
+    return java_lang_ClassLoader_findSystemClass(loader, name);
 }

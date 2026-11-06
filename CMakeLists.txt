@@ -21,7 +21,7 @@ endif()
 set(CMAKE_C_STANDARD 90)
 add_definitions(-DIN_JRT -DCOMPILER)
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DTRIMMED")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -DTRACING")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -DTRACING -DJCOV")
 
 if(WIN32)
   if(NOT MSVC)
@@ -69,7 +69,7 @@ prefixed(runtime_sources src/share/java/runtime agent arena class date debug glo
   primitive system115 resource115 reflect numeric115 serialization core115 corepath115 string115 stringhelpers115 exports115 hpi115
   jni jni-call jni-invoke fileextras115 breakpoints115
   object opnames profiler runtime security string stubs system thread threads
-  utf util zip classinitialize classresolver common_exceptions threadruntime
+  utf util zip classinitialize classresolver classhash115 common_exceptions threadruntime
   compiler check_class check_code classloader classruntime gifdecoder exception
   exceptions filesystem interpreter gc finalize monitor monitor_cache)
 prefixed(md_share src/share/java/runtime agentthread compiler_md io_md ionet_md math_md
@@ -133,10 +133,11 @@ foreach(tool ${jre_targets})
 endforeach()
 
 # --- Standalone tools, each with its reduced runtime subset ---
-prefixed(tool_runtime src/share/java/runtime arena classloader classresolver classresolver_stubs
+prefixed(tool_runtime src/share/java/runtime arena classloader classresolver classhash115 classresolver_stubs
   globals runtime_stubs utf util zip)
 add_executable(javah src/share/java/javah/javah.c ${tool_runtime} src/${plat}/java/runtime/path_md.c
   src/share/java/runtime/stubs_md.c src/${plat}/java/runtime/system_md.c)
+target_compile_definitions(javah PRIVATE JAVA_INTERNAL_BUILD)
 foreach(t javah)
   target_link_libraries(${t} zlib115 ${sys_libs})
 endforeach()
@@ -152,11 +153,28 @@ if(WIN32)
 endif()
 add_executable(jni-layout tests/native/jni-layout.c)
 add_test(NAME jni-layout COMMAND jni-layout)
+add_executable(class-layout115 tests/native/class-layout115.c)
+add_test(NAME class-layout115 COMMAND class-layout115)
 add_library(hpi-signatures OBJECT tests/native/hpi-signatures.c)
 add_executable(interrupt-state tests/native/interrupt-state.c $<TARGET_OBJECTS:javai_core>)
 target_compile_definitions(interrupt-state PRIVATE JAVA_INTERNAL_BUILD)
 target_link_libraries(interrupt-state zlib115 ${sys_libs})
 add_test(NAME interrupt-state COMMAND interrupt-state)
+
+add_executable(alloc-cache115 tests/native/alloc-cache115.c $<TARGET_OBJECTS:javai_core>)
+target_compile_definitions(alloc-cache115 PRIVATE JAVA_INTERNAL_BUILD)
+target_link_libraries(alloc-cache115 zlib115 ${sys_libs})
+add_test(NAME alloc-cache115 COMMAND alloc-cache115 "${JDK115_DIR}/lib/classes.zip")
+set_tests_properties(alloc-cache115 PROPERTIES TIMEOUT 30)
+add_executable(managed-class115 tests/native/managed-class115.c $<TARGET_OBJECTS:javai_core>)
+target_compile_definitions(managed-class115 PRIVATE JAVA_INTERNAL_BUILD)
+target_link_libraries(managed-class115 zlib115 ${sys_libs})
+foreach(classgc_enabled 0 1)
+  add_test(NAME managed-class115-${classgc_enabled} COMMAND managed-class115
+    "${CMAKE_SOURCE_DIR}/tests/vm${sep}${JDK115_DIR}/lib/classes.zip"
+    "${CMAKE_SOURCE_DIR}/tests/vm/ManagedPayload115.class" ${classgc_enabled})
+  set_tests_properties(managed-class115-${classgc_enabled} PROPERTIES TIMEOUT 30)
+endforeach()
 
 add_executable(hpi115-test tests/native/hpi115.c src/share/java/runtime/hpi115.c
   src/${plat}/java/runtime/dir_md.c)
@@ -226,6 +244,7 @@ endfunction()
 # Reconstruction progress tests; failures remain visible, baseline uses -LE jdk115.
 java_test(NAME vm-hello115 CLASS Hello115)
 java_test(NAME vm-primitives CLASS PrimitiveClasses)
+java_test(NAME vm-Circularity115 CLASS Circularity115)
 java_test(NAME vm-CommandLineProps115 CLASS CommandLineProps115 VM_ARGS
   -Dp0=zero -Dp1=one -Dp2=two -Dp3=three -Dp4=four -Dp5=five -Dp6=six -Dp7=seven -Dp8=)
 foreach(fixture Props115 Unicode ClassPathForms Reflect ReflectExceptions Numeric115 Serial ClinitFail Interrupt Exec)

@@ -119,3 +119,41 @@ side state for transitional invocation bookkeeping must be explicitly marked
 as such and must not replace the original descriptor or masquerade as a
 recovered reserved0 meaning. This document establishes behavior, not a claim
 that the present collector already supports these cache invariants.
+
+## Implemented cache regression and oracle
+
+`tests/native/alloc-cache115.c` was compiled against **vendor headers only**
+with MSVC x86 /MD /DDEBUG /DJCOV /DSUN_ORACLE. It loaded the original
+`javai_g.dll`, called exported ArrayAlloc and JNI entrypoints, and used the
+recovered private cleanup RVA278f0 and gc RVA2c9a9. Fresh result:
+`allocation-cache=ok`, exit0.
+
+The checks exercise the 1024-byte refill, exact 256-byte rounded-block boundary
+(252-byte byte-array body bypasses, 244-byte body takes cache), busy reentry
+bypass, busy-tail survival through GC, idle cache draining, and 80 JNI-rooted
+arrays retaining zero initialization and written contents across repeated
+refills and collection. JNI local refs intentionally root the arrays; raw C
+handle arrays in an invocation host are not an API root contract.
+
+The implementation uses the original EE inline cache, publication through
+sysMemoryFlush, managed tail tag40, and global/private handle lists. Collector
+thread scanning drains idle caches and marks busy tails. Handle diagnostics
+count the global free list because reserved private handles have NULL bodies
+but are not globally free. Windows thread-exit cleanup is an explicit deviation
+supported by the Rhapsody path, preventing lost private handles on EE disposal.
+Native CMake target `alloc-cache115` runs these same checks against the port;
+its runtime integration gate is pending the coordinated class/EE migration.
+
+After coordinated migration, Linux Release passed the cache, both managed-class
+lifetime modes, JNI invocation and stress tests. The cache regression was then
+extended with 30 native host attach/allocate/detach cycles concurrent with main
+thread allocation; the original Sun Debug DLL passes this extension too.
+
+The port's host-attach adapter allocates a Java Thread before publishing its
+cookie, unlike primary `1002755f`, which consumes a serialized preallocated
+Thread/EE prepared by `10027225`. Until that adapter is reconstructed fully,
+the allocator bypasses local caching when a registered native thread has no
+Java cookie, rather than borrowing DefaultExecEnv's cache concurrently. The
+collector scans such a provisional thread's native stack/registers without
+assuming a Java object or EE already exists. This is an explicit transitional
+attachment deviation; normal bound EEs retain the active 1024/256/42 cache.

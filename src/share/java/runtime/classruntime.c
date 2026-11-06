@@ -31,7 +31,7 @@
 #include "interpreter.h"
 #include "bool.h"
 #include "timeval.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "monitor.h"
 #include "exceptions.h"
 #include "javaString.h"
@@ -66,10 +66,10 @@ VerifyClasses()
 	ClassClass *clb = binclasses[i];
         if (!clb) continue;
 	sysAssert(((int32_t) clb & 3) == 0);
-	sysAssert(clb->fields_count < 1000);
-	sysAssert(clb->methods_count < 1000);
+	sysAssert(cbFieldsCount(clb) < 1000);
+	sysAssert(cbMethodsCount(clb) < 1000);
 	sysAssert(cbInstanceSize(clb) && cbInstanceSize(clb) < 4000);
-	sysAssert(classname(clb)[0]);
+	sysAssert(cbName(clb)[0]);
     }
 }
 #endif
@@ -126,7 +126,6 @@ invokeJavaMethod(JHandle *o, struct methodblock *mb, int args_size, ExecEnv *ee)
     frame->constant_pool = cbConstantPool(fieldclass(&mb->fb));
     frame->returnpc = mb->code;
     frame->monitor = 0;
-    frame->annotation = 0;
     ee->current_frame = frame;
     if (java_monitor)
 	  frame->mon_starttime = now();
@@ -177,7 +176,6 @@ invokeSynchronizedJavaMethod(JHandle *o, struct methodblock *mb, int args_size,
     frame->constant_pool = cbConstantPool(fieldclass(&mb->fb));
     frame->returnpc = mb->code;
     frame->monitor = o;
-    frame->annotation = 0;
     ee->current_frame = frame;
     monitorEnter(obj_monitor(o));
     if (java_monitor)
@@ -263,7 +261,7 @@ invokeLazyNativeMethod(JHandle *o, struct methodblock *mb, int args_size,
     } else {
 	char buf[1024];
 	jio_snprintf(buf, sizeof(buf), "native method %s.%s not found", 
-		     classname((&mb->fb)->clazz), fieldname(&mb->fb));
+		     cbName((&mb->fb)->clazz), fieldname(&mb->fb));
 	SignalError(ee, JAVAPKG "UnsatisfiedLinkError", buf);
 	return FALSE;
     }
@@ -288,7 +286,7 @@ dynoLink(struct methodblock *mb)
     if (cbLoader(cb)) {
 	return 0;
     }
-    mangleMethodName(mb, sym, sizeof(sym), "_stub");
+    mangleMethodName(mb, sym, sizeof(sym), MangleMethodName_JDK_1);
     mb->code = builtin_native_lookup(sym);
     if (mb->code == NULL)
         mb->code = (unsigned char *)sysDynamicLink(sym);
@@ -314,7 +312,7 @@ newobject(ClassClass *cb, unsigned char *pc, struct execenv *ee)
 	** removed -- because we recurse trying to call newobject to
 	** allocate the exception:
 	*/
-	SignalError(ee, JAVAPKG "OutOfMemoryError", classname2string(classname(cb), buf, sizeof(buf)));
+	SignalError(ee, JAVAPKG "OutOfMemoryError", classname2string(cbName(cb), buf, sizeof(buf)));
 #endif
 	exceptionThrow((ee ? ee : EE()), exceptionInternalObject(IEXC_OutOfMemory));
 	return 0;
@@ -324,7 +322,9 @@ newobject(ClassClass *cb, unsigned char *pc, struct execenv *ee)
 
 /* Reconstructed from JDK 1.1.5 javai_g.dll, RunStaticInitializers at
  * 0x10013e04; Rhapsody DR2 names the same routine and Error class global. */
-char*
+extern void freeClassInitializer(struct methodblock *);
+
+void
 RunStaticInitializers(ClassClass *cb)
 {
     struct methodblock *mb;
@@ -333,7 +333,7 @@ RunStaticInitializers(ClassClass *cb)
     struct methodblock *StaticInitializer = 0;
 
     mb = cbMethods(cb);
-    for (size = 0; size < (int) cb->methods_count; size++, mb++) {
+    for (size = 0; size < (int) cbMethodsCount(cb); size++, mb++) {
 	sysAssert(mb->fb.u.offset < cbMethodTableSize(cb));
 	s = fieldname(&mb->fb);
 	if (s[0] == '<' && strcmp(s, "<clinit>") == 0 
@@ -342,17 +342,15 @@ RunStaticInitializers(ClassClass *cb)
 	    break;
 	}
     }
-    if (StaticInitializer && StaticInitializer->code && !InhibitExecute) {
+    if (StaticInitializer && StaticInitializer->code) {
 	struct execenv *ee = EE();
 #ifndef TRIMMED
 	if (verbose)
 	    fprintf(stderr, "[Running static initializer for %s]\n", 
-		    classname(cb));
+		    cbName(cb));
 #endif
 	do_execute_java_method(ee, cb, 0, 0, StaticInitializer, TRUE);
-	/* deviation: bytecode belongs to the class arena in the current loader;
-	 * retain its storage until class unloading instead of Sun's free here. */
-	StaticInitializer->code = NULL;
+	freeClassInitializer(StaticInitializer);
 	StaticInitializer->invoker = invokeAbstractMethod;
 	if (ee && exceptionOccurred(ee)) {
 	    JHandle *exc = ee->exception.exc;
@@ -368,9 +366,7 @@ RunStaticInitializers(ClassClass *cb)
 	    }
 	}
     }
-    /* deviation: retain the old resolver's string-return interface, but
-     * propagate initializer failures only through the pending exception. */
-    return NULL;
+
 }
 
 void
@@ -380,7 +376,7 @@ InitializeInvoker(ClassClass *cb)
     int size;
 
     mb = cbMethods(cb);
-    for (size = 0; size < (int) cb->methods_count; size++, mb++) {
+    for (size = 0; size < (int) cbMethodsCount(cb); size++, mb++) {
 	unsigned int access = mb->fb.access;
 	sysAssert(mb->fb.u.offset < cbMethodTableSize(cb));
 	if (access & ACC_MACHINE_COMPILED) { 
@@ -398,6 +394,8 @@ InitializeInvoker(ClassClass *cb)
 	}
     }
 }
+
+void SignalError1(struct execenv *, ClassClass *, char *);
 
 JAVA_PUBLIC_API(void)
 SignalError(struct execenv * ee, char *ename, char *DetailMessage)
@@ -463,7 +461,7 @@ SignalError1(struct execenv * ee, ClassClass* cb, char *DetailMessage)
     if (frame == 0) {
 #ifndef TRIMMED
 	fprintf(stderr, "Exception: %s %s (can't backtrace because of a missing "
-		"context)\n", cb->name, (DetailMessage ? DetailMessage : ""));
+		"context)\n", cbName(cb), (DetailMessage ? DetailMessage : ""));
 #endif
 	exceptionThrow(ee, (HObject *)ret);
 	return;	
@@ -472,7 +470,7 @@ SignalError1(struct execenv * ee, ClassClass* cb, char *DetailMessage)
 #ifdef TRACING
     if (trace) {
 	printf("%6X %8X\tERROR %s\n", threadSelf(), 
-	       (frame ? frame->lastpc : (unsigned char*)-1), cb->name);
+	       (frame ? frame->lastpc : (unsigned char*)-1), cbName(cb));
 	fflush(stdout);
     }
 #endif /* TRACING */
@@ -484,7 +482,7 @@ SignalError1(struct execenv * ee, ClassClass* cb, char *DetailMessage)
     if (threadSelf() == NULL)
 	/* can only happen on startup */
 	fprintf(stderr, "Exception: %s %s (can't backtrace because of a missing "
-		"context)\n", cb->name, (DetailMessage ? DetailMessage : ""));
+		"context)\n", cbName(cb), (DetailMessage ? DetailMessage : ""));
     else
 #endif
 	fillInStackTrace(ret, ee);
@@ -544,7 +542,7 @@ static struct methodblock *pc2method(unsigned char *pc) {
     for (i = nbinclasses; --i >= 0; ) {
 	cb = binclasses[i];
         if (!cb) continue;
-	for (mb = cbMethods(cb), j = cb->methods_count; --j >= 0; mb++) {
+	for (mb = cbMethods(cb), j = cbMethodsCount(cb); --j >= 0; mb++) {
 	    if (!(mb->fb.access & ACC_NATIVE)) {
                 /*
                 ** In WIN16 pointer arithmetic deals with only the low 16-bits of a pointer.
@@ -578,7 +576,7 @@ pc2string(unsigned char *pc, struct methodblock *mb, char *buf, char *limit)
     if (mb != 0) {
 	char cbuf[128];
 	ClassClass *cb = fieldclass(&mb->fb);
-	buf = addstr(classname2string(classname(cb),
+	buf = addstr(classname2string(cbName(cb),
 		     cbuf, sizeof(cbuf)), buf, limit, 0);
 	buf = addstr(".", buf, limit, 0);
 	buf = addstr(fieldname(&mb->fb), buf, limit, '(');
@@ -586,12 +584,12 @@ pc2string(unsigned char *pc, struct methodblock *mb, char *buf, char *limit)
 	    if ((mb->fb.access & ACC_MACHINE_COMPILED) == 0) {
 	    char        *fn;
 	    int32_t      lineno;
-	    if (cb->source_name)
-	        fn = strrchr(classsrcname(cb), '/');
+	    if (cbSourceName(cb))
+	        fn = strrchr(cbSourceName(cb), '/');
 	    else
 	        fn = 0;
 	    buf = addstr("(", buf, limit, 0);
-	    buf = addstr(fn ? fn + 1 : classsrcname(cb), buf, limit, 0);
+	    buf = addstr(fn ? fn + 1 : cbSourceName(cb), buf, limit, 0);
 	    lineno = pc2lineno(mb, pc - mb->code);
 	    if (lineno >= 0) {
 		buf = addstr(":", buf, limit, 0);

@@ -32,15 +32,16 @@ int   SkipSourceChecks = 0;
 char *progname;
 ClassClass **binclasses = NULL;
 long nbinclasses, sizebinclasses;
-int verbose = 0;
-int verbosegc;
+bool_t verbose = 0;
+bool_t verbosegc;
 int verifyclasses;
-int noasyncgc;
-int debugagent;
+bool_t noasyncgc;
+bool_t classgc = TRUE;
+bool_t debugging;
 
 int ImportAcceptable;
 int InhibitExecute;
-unsigned char **mainstktop;
+void *mainstktop;
 
 #include "decode.h"
 int     PrintCode;		/* used by javap */

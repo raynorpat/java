@@ -30,7 +30,7 @@
 #endif
 
 #include "exceptions.h"
-#include "javaThreads.h"
+#include "threads.h"
 
 #ifdef XP_MAC
 #include "j_lang_NoClassDefFoundError.h"
@@ -97,7 +97,7 @@ exceptionInit(void) {
 	if ((cb = FindClassFromClass(NULL, internalExceptionClasses[ie], TRUE, NULL)) != 0) {
 	    handle = &internalExceptions[ie];
 	    handle->methods = cbMethodTable(cb);
-            cb->flags |= CCF_Sticky;
+            cbFlags(cb) |= CCF_IsSticky;
 	    
 	    /* Initialize the object */
 	    object = unhand(handle);
@@ -147,7 +147,7 @@ exceptionDescribe(ExecEnv *ee)
 		prints(Object2CString((JHandle *)getThreadName()));
 	    }
 	    printf(".  Uncaught exception of type %s\n", 
-		   classname2string(classname(class), buf, sizeof(buf)));
+		   classname2string(cbName(class), buf, sizeof(buf)));
 	    fflush(stdout);
 	}
 #endif

@@ -9,7 +9,6 @@
 
 #include "sys_api.h"
 #include "oobj.h"
-#include "arena.h"
 
 #if !defined(MAP_ANON) && defined(MAP_ANONYMOUS)
 #define MAP_ANON MAP_ANONYMOUS
@@ -95,22 +94,4 @@ unsigned char *gc_locked(int async_call, unsigned int free_space_goal)
 
 /************************************************************************/
 
-/*
- * Class structures live outside the Java heap and are reached through the
- * class table; each class's other storage comes from its own arena.
- */
-ClassClass *AllocClass(void)
-{
-    ClassClass *cb = (ClassClass *) sysCalloc(1, sizeof(ClassClass));
-    ClassArena *arena;
-
-    if (cb == NULL)
-	return NULL;
-    if ((arena = (ClassArena *) sysCalloc(1, sizeof(ClassArena))) == NULL) {
-	sysFree(cb);
-	return NULL;
-    }
-    ArenaInit(&arena->pool, 2 * 1024);
-    cb->classStorageArena = arena;
-    return cb;
-}
+/* Managed class allocation is shared in gc.c (allocClassClass). */

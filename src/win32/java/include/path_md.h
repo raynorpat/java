@@ -1,17 +1,40 @@
-#ifndef sun_java_path_md_h___
-#define sun_java_path_md_h___
+/*
+ * @(#)path_md.h	1.9 96/11/23
+ * 
+ * Copyright (c) 1995, 1996 Sun Microsystems, Inc. All Rights Reserved.
+ * 
+ * This software is the confidential and proprietary information of Sun
+ * Microsystems, Inc. ("Confidential Information").  You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Sun.
+ * 
+ * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+ * SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
+ * SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+ * THIS SOFTWARE OR ITS DERIVATIVES.
+ * 
+ * CopyrightVersion 1.1_beta
+ * 
+ */
 
-#define DIRECTORY_SEPARATOR '\\'
-#define PATH_SEPARATOR ';'
+/*-
+ * Win32 dependent search path definitions and API
+ */
 
-#define LOCAL_DIR_SEPARATOR DIRECTORY_SEPARATOR
-#define DIR_SEPARATOR DIRECTORY_SEPARATOR
+#ifndef _WIN32_PATH_MD_H_
+#define _WIN32_PATH_MD_H_
+
+#define	DIR_SEPARATOR		'/'
+#define	LOCAL_DIR_SEPARATOR	'\\'
 
 #define	CLS_CONST_STRING	"<init>([C)Ljava/lang/String;"
 
-#define CLS_RESLV_INIT_CLASS    "java/lang/Class"
-#define CLS_RESLV_INIT_OBJECT   "java/lang/Object"
-#define CLS_RESLV_INIT_REF      "sun/misc/Ref"
+#define	CLS_RESLV_INIT_CLASS	"java/lang/Class"
+#define	CLS_RESLV_INIT_OBJECT	"java/lang/Object"
+#define	CLS_RESLV_INIT_REF	"sun/misc/Ref"
 
 #define INTRP_BRKPT_STRING	"sun/tools/debug/BreakpointHandler"
 
@@ -24,9 +47,12 @@
 
 #define LANG_STRING_MAKE_STR	"<init>([C)Ljava/lang/String;"
 
-#define sysGetSeparator() PATH_SEPARATOR
+char *sysNativePath(char *path);
 
-extern char *sysNativePath(char *path);
+/* deviation: retained launcher and path-list adapters. */
+#define DIRECTORY_SEPARATOR LOCAL_DIR_SEPARATOR
+#define PATH_SEPARATOR ';'
+#define sysGetSeparator() PATH_SEPARATOR
 extern const char *sysJavaHome(void);
 
-#endif /* sun_java_path_md_h___ */
+#endif /* !_WIN32_PATH_MD_H_ */

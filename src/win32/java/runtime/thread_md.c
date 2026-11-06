@@ -14,9 +14,10 @@
 #include "sys_api.h"
 #include "threads_md.h"
 #include "monitor_md.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "interpreter.h"	/* obj_monitor, ExecEnv */
 #include "monitor.h"
+#include "monitor_cache.h"
 #include "exceptions.h"
 #include "finalize.h"
 #include "javaString.h"
@@ -173,36 +174,39 @@ int sysThreadCreate(long stackSize, uint_t flags,
     return SYS_OK;
 }
 
-void sysThreadExit(void)
+/* Primary 1004cbc5: detach Java state before removing the host thread. */
+int sysThreadFree(sys_thread_t *t)
 {
-    sys_thread_t *t = sysThreadSelf();
-    JHandle *p = (JHandle *) t->cookie;
-    ExecEnv *eep;
-
+    JHandle *p = (JHandle *)t->cookie;
+    ExecEnv *eep = NULL;
+    monitor_t *mon;
     if (p) {
-	/* Wake joiners (Thread.join waits on the thread object while isAlive()). */
-	monitorEnter(obj_monitor(p));
-	THREAD(p)->PrivateInfo = 0;
-	monitorNotifyAll(obj_monitor(p));
-	monitorExit(obj_monitor(p));
-
-	/* Delete java stack now that we are done with it */
-	eep = (ExecEnv *) THREAD(p)->eetop;
-	if (eep) {
-	    DeleteExecEnv(eep, p);		/* zeros eetop */
-	}
+        eep = (ExecEnv *)THREAD(p)->eetop;
+        THREAD(p)->PrivateInfo = 0;
+        THREAD(p)->eetop = 0;
+        mon = lookupMonitor(obj_monitor(p));
+        if (mon && sysMonitorInUse(&sysmon(mon))) {
+            sysMonitorEnter(&sysmon(mon));
+            sysMonitorNotifyAll(&sysmon(mon));
+            sysMonitorExit(&sysmon(mon));
+        }
     }
-
-    /* Off the list, the GC no longer stops or scans this thread. */
     QUEUE_LOCK();
     remove_thread(t);
-    QUEUE_NOTIFY();			/* WaitToDie */
+    QUEUE_NOTIFY();
     QUEUE_UNLOCK();
-
+    if (eep) DeleteExecEnv(eep);
     TlsSetValue(tls, NULL);
     CloseHandle(t->handle);
     CloseHandle(t->interrupt_event);
     free(t);
+    /* deviation: original leaves CRT free's unspecified EAX as int result. */
+    return SYS_OK;
+}
+
+void sysThreadExit(void)
+{
+    sysThreadFree(sysThreadSelf());
     _endthreadex(0);
 }
 
@@ -212,30 +216,36 @@ sys_thread_t *sysThreadSelf(void)
 }
 
 /* Invocation API: register a host-owned thread without starting a new one. */
-int jni_AttachHostThread(sys_thread_t **result)
+int sysThreadAlloc(sys_thread_t **result, stackp_t base, void *cookie)
 {
     sys_thread_t *t = new_thread();
-    if (!t) return SYS_NORESOURCE;
+    if (!t) return SYS_NOMEM;
     if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(),
                          &t->handle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
         CloseHandle(t->interrupt_event); free(t); return SYS_NORESOURCE;
     }
     t->id = GetCurrentThreadId();
-    t->stack_base = stack_high();
+    t->stack_base = base;
+    t->cookie = cookie;
     t->priority = NormalPriority;
     TlsSetValue(tls, t);
     QUEUE_LOCK(); add_thread(t); QUEUE_UNLOCK();
     *result = t;
     return SYS_OK;
 }
+/* Compatibility for JNI attachment, which creates its Java cookie later. */
+int jni_AttachHostThread(sys_thread_t **result)
+{
+    return sysThreadAlloc(result, stack_high(), NULL);
+}
 void jni_DetachHostThread(void)
 {
-    sys_thread_t *t = sysThreadSelf();
-    QUEUE_LOCK(); remove_thread(t); QUEUE_NOTIFY(); QUEUE_UNLOCK();
-    TlsSetValue(tls, NULL);
-    CloseHandle(t->handle);
-    CloseHandle(t->interrupt_event);
-    free(t);
+    sysThreadFree(sysThreadSelf());
+}
+
+void sysThreadSetStackBase(sys_thread_t *thread, stackp_t base)
+{
+    thread->stack_base = base;
 }
 
 void sysThreadYield(void)
@@ -446,3 +456,16 @@ int sysThreadIsInterrupted(sys_thread_t *t, long clear)
     }
     return interrupted;
 }
+
+/* Primary 10002925/10002962; called under invocation initialization. */
+static CRITICAL_SECTION attach_lock;
+static int attach_lock_initialized;
+void sysAttachThreadLock(void)
+{
+    if (!attach_lock_initialized) {
+        InitializeCriticalSection(&attach_lock);
+        attach_lock_initialized = 1;
+    }
+    EnterCriticalSection(&attach_lock);
+}
+void sysAttachThreadUnlock(void) { LeaveCriticalSection(&attach_lock); }

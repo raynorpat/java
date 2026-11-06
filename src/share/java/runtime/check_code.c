@@ -34,9 +34,9 @@
 #include "opcodes.in_out"
 #include "bool.h"
 #include "tree.h"
-#include "byteorder.h"
 #include "limits.h"
 #include "sys_api.h"
+#include "byteorder.h"
 #include "limits_md.h"
 
 #include "str2id.h"
@@ -182,7 +182,7 @@ struct register_info_type {
 };
 
 struct mask_type {
-    codepos_t entry;
+    unsigned long entry;
     int32_t *modifies;
 };
 
@@ -223,14 +223,14 @@ typedef struct mask_type mask_type;
 static void verify_method(context_type *context, struct methodblock *mb);
 static void verify_field(context_type *context, struct fieldblock *fb);
 
-static void verify_opcode_operands (context_type *, codepos_t inumber, codepos_t offset);
-static void set_protected(context_type *, codepos_t inumber, cp_index_type key, opcode_type);
+static void verify_opcode_operands (context_type *, unsigned long inumber, unsigned long offset);
+static void set_protected(context_type *, unsigned long inumber, unsigned int key, opcode_type);
 static bool_t isSuperClass(context_type *, fullinfo_type);
 
 static void initialize_exception_table(context_type *);
 static int32_t instruction_length(unsigned char *iptr, uint32_t offset);
-static bool_t isLegalTarget(context_type *, codepos_t offset);
-static void verify_constant_pool_type(context_type *, cp_index_type, unsigned);
+static bool_t isLegalTarget(context_type *, unsigned long offset);
+static void verify_constant_pool_type(context_type *, unsigned int, unsigned);
 
 static void initialize_dataflow(context_type *);
 static void run_dataflow(context_type *context);
@@ -277,9 +277,9 @@ static void CCreinit(context_type *context);
 static void CCdestroy(context_type *context);
 static void *CCalloc(context_type *context, uint32_t size, bool_t zero);
 
-static char *cp_index_to_fieldname(context_type *context, cp_index_type cp_index);
-static char *cp_index_to_signature(context_type *context, cp_index_type cp_index);
-static fullinfo_type cp_index_to_class_fullinfo(context_type *, cp_index_type, bool_t);
+static char *cp_index_to_fieldname(context_type *context, unsigned int cp_index);
+static char *cp_index_to_signature(context_type *context, unsigned int cp_index);
+static fullinfo_type cp_index_to_class_fullinfo(context_type *, unsigned int, bool_t);
 
 static char signature_to_fieldtype(context_type *context, 
 				   char **signature_p, fullinfo_type *info);
@@ -289,7 +289,7 @@ static void CCerror (context_type *, char *format, ...);
 #ifdef DEBUG
 static void print_stack (context_type *, stack_info_type *stack_info);
 static void print_registers(context_type *, register_info_type *register_info);
-static void print_formatted_fieldname(context_type *context, cp_index_type index);
+static void print_formatted_fieldname(context_type *context, unsigned int index);
 #endif
 
 /************************************************************************/
@@ -321,12 +321,12 @@ bool_t verify_class_codes(ClassClass *cb) {
     context->throwable_info = MAKE_CLASSNAME_INFO(JAVAPKG "Throwable", &addr);
     *addr = classJavaLangThrowable;
 
-    context->currentclass_info = MAKE_CLASSNAME_INFO(cb->name, &addr);
+    context->currentclass_info = MAKE_CLASSNAME_INFO(cbName(cb), &addr);
     context->superClasses = NULL; /* filled in later */
     *addr = cb;
     if (cbSuperclass(cb) != 0) {
-	ClassClass *super = unhand(cbSuperclass(cb));
-	context->superclass_info = MAKE_CLASSNAME_INFO(super->name, &addr);
+	ClassClass *super = cbSuperclass(cb);
+	context->superclass_info = MAKE_CLASSNAME_INFO(cbName(super), &addr);
 	*addr = super;
     } else { 
 	context->superclass_info = 0;
@@ -337,9 +337,9 @@ bool_t verify_class_codes(ClassClass *cb) {
 	struct methodblock *mb;
 	struct fieldblock *fb;
 	CCinit(context);		/* ininitialize heap */
-	for (i = cb->fields_count, fb = cb->fields; --i >= 0; fb++) 
+	for (i = cbFieldsCount(cb), fb = cbFields(cb); --i >= 0; fb++) 
 	    verify_field(context, fb);
-	for (i = cb->methods_count, mb = cb->methods; --i >= 0; mb++) 
+	for (i = cbMethodsCount(cb), mb = cbMethods(cb); --i >= 0; mb++) 
 		verify_method(context, mb);
 	result = TRUE;
     } else { 
@@ -374,7 +374,7 @@ verify_field(context_type *context, struct fieldblock *fb)
 	  ((access_bits & (ACC_PRIVATE | ACC_PROTECTED)) != 0)) {
 
 	jio_snprintf(buf, BUF_LEN, "VERIFIER ERROR %s.%s: Inconsistent access bits.\n", 
-		     fieldclass(fb)->name, fb->name);
+		     cbName(fieldclass(fb)), fb->name);
 #ifdef DEBUG
 	fprintf(stderr, buf);
 #endif /* DEBUG */
@@ -390,12 +390,12 @@ verify_method(context_type *context, struct methodblock *mb)
 {
     int access_bits = mb->fb.access;
     unsigned char *code = mb->code;
-    codepos_t code_length = mb->code_length;
+    unsigned long code_length = mb->code_length;
     short *code_data;
     instruction_data_type *idata = 0;
     int instruction_count;
-    codepos_t offset;
-    codepos_t inumber;			 
+    unsigned long offset;
+    unsigned long inumber;			 
     int i;
 
     CCreinit(context);		/* initial heap */
@@ -404,7 +404,7 @@ verify_method(context_type *context, struct methodblock *mb)
 #ifdef DEBUG
     if (verify_verbose) {
 	printf("Looking at %s.%s%s 0x%x\n", 
-	       fieldclass(&mb->fb)->name, mb->fb.name, mb->fb.signature, 
+	       cbName(fieldclass(&mb->fb)), mb->fb.name, mb->fb.signature, 
 	       (long)mb);
     }
 #endif
@@ -426,7 +426,7 @@ verify_method(context_type *context, struct methodblock *mb)
      * the instruction a number */
     for (i = 0, offset = 0; offset < code_length; i++) {
 	int32_t length = instruction_length(code, offset);
-	codepos_t next_offset = offset + (codepos_t)length;
+	unsigned long next_offset = offset + (unsigned long)length;
 	if (length <= 0) 
 	    CCerror(context, "Illegal instruction found at offset %d", offset);
 	if (next_offset > code_length) 
@@ -466,7 +466,7 @@ verify_method(context_type *context, struct methodblock *mb)
 	/* This also sets up this_data->operand.  It also makes the 
 	 * xload_x and xstore_x instructions look like the generic form. */
 	verify_opcode_operands(context, inumber, offset);
-	offset += (codepos_t) length;
+	offset += (unsigned long) length;
     }
     
     
@@ -485,7 +485,7 @@ verify_method(context_type *context, struct methodblock *mb)
  */
 
 static void
-verify_opcode_operands(context_type *context, codepos_t inumber, codepos_t offset)
+verify_opcode_operands(context_type *context, unsigned long inumber, unsigned long offset)
 {
     instruction_data_type *idata = context->instruction_data;
     instruction_data_type *this_idata = &idata[inumber];
@@ -513,7 +513,7 @@ verify_opcode_operands(context_type *context, codepos_t inumber, codepos_t offse
     case opc_goto: {
 	/* Set the ->operand to be the instruction number of the target. */
 	int16_t jump = (int16_t)(SH(code,offset+1)); /* (((int16_t)(code[offset+1])) << 8) + code[offset+2]; */
-	codepos_t target = offset + jump;
+	unsigned long target = offset + jump;
 	if (!isLegalTarget(context, target))
 	    CCerror(context, "Illegal target of jump or branch");
 	this_idata->operand.i = code_data[target];
@@ -529,7 +529,7 @@ verify_opcode_operands(context_type *context, codepos_t inumber, codepos_t offse
 	int32_t jump = (int32_t)(LG(code, offset + 1));/* (((signed char)(code[offset+1])) << 24) + 
 	             (code[offset+2] << 16) + (code[offset+3] << 8) + 
 	             (code[offset + 4]); */
-	codepos_t target = offset + jump;
+	unsigned long target = offset + jump;
 	if (!isLegalTarget(context, target))
 	    CCerror(context, "Illegal target of jump or branch");
 	this_idata->operand.i = code_data[target];
@@ -544,7 +544,7 @@ verify_opcode_operands(context_type *context, codepos_t inumber, codepos_t offse
 	int32_t *saved_operand;
 	int32_t keys;
 	int32_t k, delta;
-	codepos_t target;
+	unsigned long target;
 	if (opcode == opc_tableswitch) {
 	    keys = ntohl(lpc[2]) -  ntohl(lpc[1]) + 1;
 	    delta = 1;
@@ -600,7 +600,7 @@ verify_opcode_operands(context_type *context, codepos_t inumber, codepos_t offse
     case opc_getfield: case opc_putfield:
     case opc_getstatic: case opc_putstatic: {
 	/* Make sure the constant pool item is the right type. */
-	cp_index_type key = SH(code,offset+1); /* (code[offset + 1] << 8) + code[offset + 2]; */
+	unsigned int key = SH(code,offset+1); /* (code[offset + 1] << 8) + code[offset + 2]; */
 	this_idata->operand.i = key;
 	verify_constant_pool_type(context, key, 1 << CONSTANT_Fieldref);
 	if (opcode == opc_getfield || opcode == opc_putfield) 
@@ -613,7 +613,7 @@ verify_opcode_operands(context_type *context, codepos_t inumber, codepos_t offse
     case opc_invokestatic:
     case opc_invokeinterface: {
 	/* Make sure the constant pool item is the right type. */
-	cp_index_type key = SH(code, offset+1); /* (code[offset + 1] << 8) + code[offset + 2]; */
+	unsigned int key = SH(code, offset+1); /* (code[offset + 1] << 8) + code[offset + 2]; */
 	char *methodname;
 	fullinfo_type clazz_info;
 	int kind = (opcode == opc_invokeinterface 
@@ -637,8 +637,8 @@ verify_opcode_operands(context_type *context, codepos_t inumber, codepos_t offse
 		   && clazz_info != context->currentclass_info  
 		   && clazz_info != context->superclass_info) {
 		ClassClass *cb = context->class;
-		for (; ; cb = unhand(cbSuperclass(cb))) { 
-		    if (clazz_info == MAKE_CLASSNAME_INFO(cb->name, 0))
+		for (; ; cb = cbSuperclass(cb)) { 
+		    if (clazz_info == MAKE_CLASSNAME_INFO(cbName(cb), 0))
 			break;
 		    /* The optimizer make cause this to happen on local code */
 		    if (cbSuperclass(cb) == 0) {
@@ -671,7 +671,7 @@ verify_opcode_operands(context_type *context, codepos_t inumber, codepos_t offse
     case opc_anewarray: 
     case opc_multianewarray: {
 	/* Make sure the constant pool item is a class */
-	cp_index_type key = SH(code, offset + 1); /* (code[offset + 1] << 8) + code[offset + 2]; */
+	unsigned int key = SH(code, offset + 1); /* (code[offset + 1] << 8) + code[offset + 2]; */
 	fullinfo_type target;
 	verify_constant_pool_type(context, key, 1 << CONSTANT_Class);
 	target = cp_index_to_class_fullinfo(context, key, FALSE);
@@ -823,20 +823,20 @@ verify_opcode_operands(context_type *context, codepos_t inumber, codepos_t offse
 
 
 static void 
-set_protected(context_type *context, codepos_t inumber, cp_index_type key, opcode_type opcode) 
+set_protected(context_type *context, unsigned long inumber, unsigned int key, opcode_type opcode) 
 {
     fullinfo_type clazz_info = cp_index_to_class_fullinfo(context, key, TRUE);
     if (isSuperClass(context, clazz_info)) {
 	char *name = cp_index_to_fieldname(context, key);
 	char *signature = cp_index_to_signature(context, key);
 
-	hash_t ID = NameAndTypeToHash(name, signature, context->class);
+	unsigned int ID = NameAndTypeToHash(name, signature);
 	ClassClass *calledClass = 
 	    object_fullinfo_to_classclass(context, clazz_info);
 	struct fieldblock *fb;
 
 	if (opcode != opc_invokevirtual) { 
-	    int n = calledClass->fields_count;
+	    int n = cbFieldsCount(calledClass);
 	    fb = cbFields(calledClass);
 	    for (; --n >= 0; fb++) {
 		if (fb->ID == ID) {
@@ -846,7 +846,7 @@ set_protected(context_type *context, codepos_t inumber, cp_index_type key, opcod
 	    return;
 	} else { 
 	    struct methodblock *mb = cbMethods(calledClass);
-	    int n = calledClass->methods_count;
+	    int n = cbMethodsCount(calledClass);
 	    for (; --n >= 0; mb++) {
 		if (mb->fb.ID == ID) {
 		    fb = &mb->fb;
@@ -876,7 +876,7 @@ isSuperClass(context_type *context, fullinfo_type clazz_info) {
 	 * not counting Object, we get the same number.    */
 	for (i = 0, cb = context->class;
 	     cb != classJavaLangObject; 
-	     i++, cb = unhand(cbSuperclass(cb)));
+	     i++, cb = cbSuperclass(cb));
 	/* Can't go on context heap since it survives more than one method */
 	context->superClasses = fptr 
 	    = sysMalloc(sizeof(fullinfo_type)*(i + 1));
@@ -885,8 +885,8 @@ isSuperClass(context_type *context, fullinfo_type clazz_info) {
 	}
 	for (gptr = fptr, cb = context->class; cb != classJavaLangObject; ) { 
 	    void **addr;
-	    cb = unhand(cbSuperclass(cb));
-	    *gptr++ = MAKE_CLASSNAME_INFO(cb->name, &addr); 
+	    cb = cbSuperclass(cb);
+	    *gptr++ = MAKE_CLASSNAME_INFO(cbName(cb), &addr); 
 	    *addr = cb;
 	}
 	*gptr = 0;
@@ -914,10 +914,10 @@ initialize_exception_table(context_type *context)
     int32_t i;
     for (i = (int32_t) mb->exception_table_length; 
 	     --i >= 0; exception_table++, handler_info++) {
-	codepos_t start = exception_table->start_pc;
-	codepos_t end = exception_table->end_pc;
-	codepos_t handler = exception_table->handler_pc;
-	codepos_t catchType = exception_table->catchType;
+	unsigned long start = exception_table->start_pc;
+	unsigned long end = exception_table->end_pc;
+	unsigned long handler = exception_table->handler_pc;
+	unsigned long catchType = exception_table->catchType;
 	stack_item_type *stack_item = NEW(stack_item_type, 1);
 	if (!(  start <= end
 	      && isLegalTarget(context, start) 
@@ -935,7 +935,7 @@ initialize_exception_table(context_type *context)
 	handler_info->stack_info.stack_size = 1;
 	stack_item->next = NULL;
 	if (catchType != 0) {
-	    union cp_item_type *cp = context->class->constantpool;
+	    union cp_item_type *cp = cbConstantPool(context->class);
 	    char *classname;
 	    verify_constant_pool_type(context, catchType, 1 << CONSTANT_Class);
 	    classname = GetClassConstantClassName(cp, catchType);
@@ -1000,10 +1000,10 @@ static int32_t instruction_length(unsigned char *code, uint32_t offset)
 
 /* Given the target of a branch, make sure that it's a legal target. */
 static bool_t 
-isLegalTarget(context_type *context, codepos_t offset)
+isLegalTarget(context_type *context, unsigned long offset)
 {
     struct methodblock *mb = context->mb;
-    codepos_t code_length = mb->code_length;
+    unsigned long code_length = mb->code_length;
     short *code_data = context->code_data;
     return (offset < code_length && code_data[offset] >= 0);
 }
@@ -1013,9 +1013,9 @@ isLegalTarget(context_type *context, codepos_t offset)
  * type.
  */
 static void
-verify_constant_pool_type(context_type *context, cp_index_type index, unsigned mask)
+verify_constant_pool_type(context_type *context, unsigned int index, unsigned mask)
 {
-    union cp_item_type *constant_pool = context->class->constantpool;
+    union cp_item_type *constant_pool = cbConstantPool(context->class);
     unsigned char *type_table = 
            constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p;
     unsigned type = CONSTANT_POOL_TYPE_TABLE_GET_TYPE(type_table, index);
@@ -1257,7 +1257,7 @@ pop_stack(context_type *context, int inumber, stack_info_type *new_stack_info)
         case opc_putstatic: case opc_putfield: {
 	    /* The top thing on the stack depends on the signature of
 	     * the object.                         */
-	    cp_index_type operand = (cp_index_type) this_idata->operand.i;
+	    unsigned int operand = (unsigned int) this_idata->operand.i;
 	    char *signature = cp_index_to_signature(context, operand);
 	    char *ip = buffer;
 #ifdef DEBUG
@@ -1277,7 +1277,7 @@ pop_stack(context_type *context, int inumber, stack_info_type *new_stack_info)
         case opc_invokeinit:	/* invokenonvirtual call to <init> */
 	case opc_invokestatic: case opc_invokeinterface: {
 	    /* The top stuff on the stack depends on the method signature */
-	    cp_index_type operand = (cp_index_type) this_idata->operand.i;
+	    unsigned int operand = (unsigned int) this_idata->operand.i;
 	    char *signature = cp_index_to_signature(context, operand);
 	    char *ip = buffer;
 	    char *p;
@@ -1500,7 +1500,7 @@ pop_stack(context_type *context, int inumber, stack_info_type *new_stack_info)
 	case opc_putfield: 
 	case opc_getfield: 
         case opc_putstatic: {	
-	    cp_index_type operand = (cp_index_type) this_idata->operand.i;
+	    unsigned int operand = (unsigned int) this_idata->operand.i;
 	    fullinfo_type stack_object = stack_extra_info[0];
 	    if (opcode == opc_putfield || opcode == opc_getfield) {
 		if (!isAssignableTo(context, 
@@ -1543,7 +1543,7 @@ pop_stack(context_type *context, int inumber, stack_info_type *new_stack_info)
         case opc_invokevirtual: case opc_invokenonvirtual: 
         case opc_invokeinit:
 	case opc_invokeinterface: case opc_invokestatic: {
-	    cp_index_type operand = (cp_index_type) this_idata->operand.i;
+	    unsigned int operand = (unsigned int) this_idata->operand.i;
 	    char *signature = cp_index_to_signature(context, operand);
 	    int item;
 	    char *p;
@@ -1633,7 +1633,7 @@ update_registers(context_type *context, int inumber,
     instruction_data_type *idata = context->instruction_data;
     instruction_data_type *this_idata = &idata[inumber];
     opcode_type opcode = this_idata->opcode;
-    codepos_t operand = this_idata->operand.u;
+    unsigned long operand = this_idata->operand.u;
     int32_t register_count = this_idata->register_info.register_count;
     fullinfo_type *registers = this_idata->register_info.registers;
     stack_item_type *stack = this_idata->stack_info.stack;
@@ -1783,7 +1783,7 @@ push_stack(context_type *context, int inumber, stack_info_type *new_stack_info)
 
 	case opc_ldc: case opc_ldc_w: case opc_ldc2_w: {
 	    /* Look to constant pool to determine correct result. */
-	    union cp_item_type *cp = context->class->constantpool;
+	    union cp_item_type *cp = cbConstantPool(context->class);
 	    unsigned char *type_table = cp[CONSTANT_POOL_TYPE_TABLE_INDEX].p;
 	    switch (CONSTANT_POOL_TYPE_TABLE_GET_TYPE(type_table, operand)) {
 		case CONSTANT_Integer:   
@@ -1807,7 +1807,7 @@ push_stack(context_type *context, int inumber, stack_info_type *new_stack_info)
 
         case opc_getstatic: case opc_getfield: {
 	    /* Look to signature to determine correct result. */
-	    cp_index_type operand = (cp_index_type)this_idata->operand.i;
+	    unsigned int operand = (unsigned int)this_idata->operand.i;
 	    char *signature = cp_index_to_signature(context, operand);
 #ifdef DEBUG
 	    if (verify_verbose) {
@@ -1824,7 +1824,7 @@ push_stack(context_type *context, int inumber, stack_info_type *new_stack_info)
         case opc_invokeinit:
 	case opc_invokestatic: case opc_invokeinterface: {
 	    /* Look to signature to determine correct result. */
-	    cp_index_type operand = (cp_index_type) this_idata->operand.i;
+	    unsigned int operand = (unsigned int) this_idata->operand.i;
 	    char *signature = cp_index_to_signature(context, operand);
 	    char *result_signature = strchr(signature, SIGNATURE_ENDFUNC) + 1;
 	    if (result_signature[0] == SIGNATURE_VOID) {
@@ -2106,7 +2106,7 @@ merge_into_one_successor(context_type *context,
 	int32_t new_mask_count = new_register_info->mask_count;
 	mask_type *new_masks = new_register_info->masks;
 	int32_t operand = idata[from_inumber].operand.i;
-	codepos_t called_instruction = GET_EXTRA_INFO(new_registers[operand]);
+	unsigned long called_instruction = GET_EXTRA_INFO(new_registers[operand]);
 	instruction_data_type *jsr_idata = &idata[to_inumber - 1];
 	register_info_type *jsr_reginfo = &jsr_idata->register_info;
 	if (jsr_idata->operand2.i != from_inumber) {
@@ -2304,7 +2304,7 @@ merge_registers(context_type *context, int32_t from_inumber, int32_t to_inumber,
 	    int32_t last_match = -1;
 	    bool_t copy_needed = FALSE;
 	    for (i = 0; i < mask_count; i++) {
-		codepos_t entry = masks[i].entry;
+		unsigned long entry = masks[i].entry;
 		for (j = last_match + 1; j < new_mask_count; j++) {
 		    if (new_masks[j].entry == entry) {
 			/* We have a match */
@@ -2336,7 +2336,7 @@ merge_registers(context_type *context, int32_t from_inumber, int32_t to_inumber,
 		matches = 0;
 		last_match = -1;
 		for (i = 0; i < mask_count; i++) {
-		    codepos_t entry = masks[i].entry;
+		    unsigned long entry = masks[i].entry;
 		    for (j = last_match + 1; j < new_mask_count; j++) {
 			if (new_masks[j].entry == entry) {
 			    int32_t *prev1 = masks[i].modifies;
@@ -2532,9 +2532,9 @@ CCalloc(context_type *context, uint32_t size, bool_t zero)
  * the constant pool. 
  */
 static char *
-cp_index_to_signature(context_type *context, cp_index_type cp_index)
+cp_index_to_signature(context_type *context, unsigned int cp_index)
 {
-    union cp_item_type *cp = context->class->constantpool;
+    union cp_item_type *cp = cbConstantPool(context->class);
     int32_t index = cp[cp_index].i;     /* value of Fieldref field */
     int32_t key2 = index & 0xFFFF;	/* index to NameAndType  */
     int32_t signature_index = cp[key2].i & 0xFFFF; 
@@ -2543,12 +2543,12 @@ cp_index_to_signature(context_type *context, cp_index_type cp_index)
 }
 
 static char *
-cp_index_to_fieldname(context_type *context, cp_index_type cp_index)
+cp_index_to_fieldname(context_type *context, unsigned int cp_index)
 {
-    union cp_item_type *cp = context->class->constantpool;
+    union cp_item_type *cp = cbConstantPool(context->class);
     int32_t index = cp[cp_index].i;     /* value of Fieldref field */
     int32_t key2 = index & 0xFFFF;	/* index to NameAndType  */
-    int32_t name_index = (int32_t)(cp[key2].u >> 16);
+    int32_t name_index = (int32_t)(cp[key2].i >> 16);
     return cp[name_index].cp;
 }
 
@@ -2558,10 +2558,10 @@ cp_index_to_fieldname(context_type *context, cp_index_type cp_index)
  * false, we've got a class.
  */
 static fullinfo_type
-cp_index_to_class_fullinfo(context_type *context, cp_index_type cp_index, bool_t is_field)
+cp_index_to_class_fullinfo(context_type *context, unsigned int cp_index, bool_t is_field)
 {
-    union cp_item_type *cp = context->class->constantpool;
-    uint32_t classkey = is_field ? (cp[cp_index].u >> 16) : cp_index;
+    union cp_item_type *cp = cbConstantPool(context->class);
+    uint32_t classkey = is_field ? (cp[cp_index].i >> 16) : cp_index;
     char *classname = GetClassConstantClassName(cp, classkey);
     if (classname[0] == SIGNATURE_ARRAY) {
 	fullinfo_type result;
@@ -2586,7 +2586,7 @@ CCerror (context_type *context, char *format, ...)
     if (!verbose)
         longjmp(context->jump_buffer, 1);
     i += jio_snprintf(buf, BUF_LEN, "VERIFIER ERROR %s.%s%s:\n", 
-		      fieldclass(&mb->fb)->name, mb->fb.name, mb->fb.signature);
+		      cbName(fieldclass(&mb->fb)), mb->fb.name, mb->fb.signature);
     va_start(args, format);
 	i += jio_vsnprintf(buf + i, BUF_LEN - i, format, args);
     va_end(args);
@@ -2841,7 +2841,7 @@ merge_fullinfo_types(context_type *context,
 	if (for_assignment) {
 	    for (cb_super_value = cb_value; 
 		 cbSuperclass(cb_super_value) != NULL; 
-		 cb_super_value = unhand(cbSuperclass(cb_super_value))) {
+		 cb_super_value = cbSuperclass(cb_super_value)) {
 		if (cb_super_value == cb_target) {
 		    return target;
 		}
@@ -2860,31 +2860,31 @@ merge_fullinfo_types(context_type *context,
 		return target;
 	    if (cb_super_target == cb_value) 
 		return value;
-	    cb_super_value= unhand(cbSuperclass(cb_super_value));
-	    cb_super_target = unhand(cbSuperclass(cb_super_target));
+	    cb_super_value= cbSuperclass(cb_super_value);
+	    cb_super_target = cbSuperclass(cb_super_target);
 	} 
 	/* At most one of the following two while clauses will be executed. 
 	 * Bring the deeper of cb_target and cb_value to the depth of the 
 	 * shallower one. 
 	 */
 	while (cbSuperclass(cb_super_value)) { /* cb_value is deeper */
-	    cb_super_value= unhand(cbSuperclass(cb_super_value)); 
-	    cb_value= unhand(cbSuperclass(cb_value)); 
+	    cb_super_value= cbSuperclass(cb_super_value); 
+	    cb_value= cbSuperclass(cb_value); 
 	}
 	while (cbSuperclass(cb_super_target)) { /* cb_target is deeper */
-	    cb_super_target= unhand(cbSuperclass(cb_super_target)); 
-	    cb_target = unhand(cbSuperclass(cb_target)); 
+	    cb_super_target= cbSuperclass(cb_super_target); 
+	    cb_target = cbSuperclass(cb_target); 
 	}
 	
 	/* Walk both up, maintaining equal depth, until a join is found.  We
 	 * know that we will find one.  */
 	while (cb_value != cb_target) { 
-	    cb_value =  unhand(cbSuperclass(cb_value));
-	    cb_target =  unhand(cbSuperclass(cb_target));
+	    cb_value =  cbSuperclass(cb_value);
+	    cb_target =  cbSuperclass(cb_target);
 	}
 	/* Get the info for this guy.  We know its cb_value, so we should
 	 * fill that in, while we're at it.                      */
-	value_info = Str2ID(&context->classHash, cb_value->name, &addr, FALSE);
+	value_info = Str2ID(&context->classHash, cbName(cb_value), &addr, FALSE);
 	*addr = cb_value;
 	return MAKE_FULLINFO(ITEM_Object, 0, value_info);
     } /* both items are classes */
@@ -3034,17 +3034,17 @@ print_fullinfo_type(context_type *context, fullinfo_type type, bool_t verbose)
 
 
 static void 
-print_formatted_fieldname(context_type *context, cp_index_type index)
+print_formatted_fieldname(context_type *context, unsigned int index)
 {
-    union cp_item_type *constant_pool = context->class->constantpool;
+    union cp_item_type *constant_pool = cbConstantPool(context->class);
     unsigned char *type_table = 
 	    constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p;
     unsigned type = CONSTANT_POOL_TYPE_TABLE_GET_TYPE(type_table, index);
 
-    uint32_t key = constant_pool[index].u; 
+    uint32_t key = constant_pool[index].i; 
     uint32_t classkey = key >> 16; 
     uint32_t nametypekey = key & 0xFFFF;
-    uint32_t nametypeindex = constant_pool[nametypekey].u;
+    uint32_t nametypeindex = constant_pool[nametypekey].i;
     uint32_t fieldnameindex = nametypeindex >> 16;
     uint32_t fieldtypeindex = nametypeindex & 0xFFFF;
     printf("  <%s.%s%s%s>",

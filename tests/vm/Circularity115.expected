@@ -1,0 +1,5 @@
+Cycle115Self=java.lang.ClassCircularityError
+Cycle115A=java.lang.ClassCircularityError
+Cycle115B=java.lang.NoClassDefFoundError
+Cycle115A=java.lang.NoClassDefFoundError
+Cycle115Base=Cycle115Base

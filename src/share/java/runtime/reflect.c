@@ -9,10 +9,10 @@
 
 /* The Java fields and their order are confirmed by Sun's reflection classes
  * and the creation routines 100324B6, 100357C1 and 10036568. */
-typedef struct { HClass *clazz; long slot; HString *name; HClass *type; } ReflectField;
-typedef struct { HClass *clazz; long slot; HString *name; HClass *type;
+typedef struct { ClassClass *clazz; long slot; HString *name; ClassClass *type; } ReflectField;
+typedef struct { ClassClass *clazz; long slot; HString *name; ClassClass *type;
     HArrayOfObject *parameters; HArrayOfObject *exceptions; } ReflectMethod;
-typedef struct { HClass *clazz; long slot; HArrayOfObject *parameters;
+typedef struct { ClassClass *clazz; long slot; HArrayOfObject *parameters;
     HArrayOfObject *exceptions; } ReflectConstructor;
 typedef union { int32_t i; int64_t l; float f; double d; HObject *h; } ReflectValue;
 extern ClassClass *FindPrimitiveClass(char *);
@@ -38,10 +38,10 @@ HArrayOfObject *reflect_new_class_array(int length)
     return (HArrayOfObject *)reflect_new_array(classJavaLangClass, length);
 }
 
-long java_lang_Class_isArray(HClass *self)
-{ return classname(unhand(self))[0] == '['; }
-long java_lang_Class_getModifiers(HClass *self)
-{ return cbAccess(unhand(self)) & 0xfff; }
+long java_lang_Class_isArray(ClassClass *self)
+{ return cbName(self)[0] == '['; }
+long java_lang_Class_getModifiers(ClassClass *self)
+{ return cbAccess(self) & 0xfff; }
 
 ClassClass *reflect_find_class(char *signature, ClassClass *owner, char **next)
 {
@@ -88,11 +88,11 @@ ClassClass *reflect_find_class(char *signature, ClassClass *owner, char **next)
     return type;
 }
 
-HClass *java_lang_Class_getComponentType(HClass *self)
+ClassClass *java_lang_Class_getComponentType(ClassClass *self)
 {
-    ClassClass *cb = unhand(self), *component;
-    if (classname(cb)[0] != '[') return NULL;
-    component = reflect_find_class(classname(cb) + 1, cb, NULL);
+    ClassClass *cb = self, *component;
+    if (cbName(cb)[0] != '[') return NULL;
+    component = reflect_find_class(cbName(cb) + 1, cb, NULL);
     return component ? cbHandle(component) : NULL;
 }
 
@@ -125,10 +125,10 @@ static HArrayOfObject *reflect_exceptions(struct methodblock *mb)
     ClassClass *owner = mb->fb.clazz;
     if (!array) return NULL;
     for (i = 0; i < mb->nexceptions; i++) {
-        if (!ResolveClassConstant(owner->constantpool, mb->exceptions[i], EE(),
+        if (!ResolveClassConstant(cbConstantPool(owner), mb->exceptions[i], EE(),
                                   1 << CONSTANT_Class)) return NULL;
         unhand(array)->body[i] = (HObject *)cbHandle((ClassClass *)
-            owner->constantpool[mb->exceptions[i]].p);
+            cbConstantPool(owner)[mb->exceptions[i]].p);
     }
     return array;
 }
@@ -200,8 +200,8 @@ bool_t reflect_is_assignable(ClassClass *from, ClassClass *to, ExecEnv *ee)
 {
     cp_item_type *source, *destination;
     if (CCIs(from, Primitive) || CCIs(to, Primitive)) return from == to;
-    if (classname(from)[0] == '[') {
-        if (classname(to)[0] == '[') {
+    if (cbName(from)[0] == '[') {
+        if (cbName(to)[0] == '[') {
             source = cbConstantPool(from); destination = cbConstantPool(to);
             if (source[CONSTANT_POOL_ARRAY_DEPTH_INDEX].i != destination[CONSTANT_POOL_ARRAY_DEPTH_INDEX].i
                 || source[CONSTANT_POOL_ARRAY_TYPE_INDEX].i != destination[CONSTANT_POOL_ARRAY_TYPE_INDEX].i) return FALSE;
@@ -216,13 +216,13 @@ bool_t reflect_is_assignable(ClassClass *from, ClassClass *to, ExecEnv *ee)
     }
     return reflect_resolve(from) && is_subclass_of(from, to, ee);
 }
-long java_lang_Class_isAssignableFrom(HClass *self, HClass *from)
+long java_lang_Class_isAssignableFrom(ClassClass *self, ClassClass *from)
 {
     if (!from) { reflect_error(JAVAPKG "NullPointerException", NULL); return FALSE; }
-    return reflect_is_assignable(unhand(from), unhand(self), EE());
+    return reflect_is_assignable(from, self, EE());
 }
-long java_lang_Class_isInstance(HClass *self, HObject *object)
-{ return object && !CCIs(unhand(self), Primitive) && is_instance_of(object, unhand(self), EE()); }
+long java_lang_Class_isInstance(ClassClass *self, HObject *object)
+{ return object && !CCIs(self, Primitive) && is_instance_of(object, self, EE()); }
 
 /* deviation: recover the interface closure from current constant pools rather
  * than Sun 1.1's imethodtable, which the current ClassClass does not contain. */
@@ -236,13 +236,13 @@ static int reflect_add_interface(ClassClass *cb, ClassClass ***list, int *count)
         if (!expanded) { reflect_error(JAVAPKG "OutOfMemoryError", NULL); return FALSE; }
         *list = expanded; (*list)[(*count)++] = cb;
     }
-    for (i = 0; i < cb->implements_count; i++) {
-        if (!ResolveClassConstant(cb->constantpool, cb->implements[i], EE(), 1 << CONSTANT_Class)) return FALSE;
-        parent = cb->constantpool[cb->implements[i]].p;
+    for (i = 0; i < cbImplementsCount(cb); i++) {
+        if (!ResolveClassConstant(cbConstantPool(cb), cbImplements(cb)[i], EE(), 1 << CONSTANT_Class)) return FALSE;
+        parent = cbConstantPool(cb)[cbImplements(cb)[i]].p;
         if (!reflect_add_interface(parent, list, count)) return FALSE;
     }
     if (!cbIsInterface(cb) && cbSuperclass(cb))
-        return reflect_add_interface(unhand(cbSuperclass(cb)), list, count);
+        return reflect_add_interface(cbSuperclass(cb), list, count);
     return TRUE;
 }
 
@@ -257,8 +257,8 @@ static HArrayOfObject *reflect_public_members(ClassClass *cb, ClassClass *member
     if (kind == 0 || cbIsInterface(cb))
         if (!reflect_add_interface(cb, &interfaces, &ninterfaces)) goto failed;
     if (kind == 0 && !cbIsInterface(cb)) {
-        slots = makeslottable(cb);
-        if (!slots) { reflect_error(JAVAPKG "OutOfMemoryError", NULL); goto failed; }
+        if (!makeslottable(cb)) { reflect_error(JAVAPKG "OutOfMemoryError", NULL); goto failed; }
+        slots = cbSlotTable(cb);
     }
     for (pass = 0; pass < 2; pass++) {
         index = count;
@@ -276,8 +276,8 @@ static HArrayOfObject *reflect_public_members(ClassClass *cb, ClassClass *member
                 }
             }
             if (kind == 1) {
-                for (cursor = cb; cursor; cursor = cbSuperclass(cursor) ? unhand(cbSuperclass(cursor)) : NULL)
-                    for (i = cursor->methods_count - 1; i >= 0; i--) {
+                for (cursor = cb; cursor; cursor = cbSuperclass(cursor) ? cbSuperclass(cursor) : NULL)
+                    for (i = cbMethodsCount(cursor) - 1; i >= 0; i--) {
                         mb = &cbMethods(cursor)[i];
                         if ((mb->fb.access & (ACC_PUBLIC | ACC_STATIC)) != (ACC_PUBLIC | ACC_STATIC)
                             || mb->fb.name[0] == '<') continue;
@@ -292,7 +292,7 @@ static HArrayOfObject *reflect_public_members(ClassClass *cb, ClassClass *member
         }
         for (j = 0; j < ninterfaces; j++) {
             cursor = interfaces[j];
-            total = kind == 0 ? cursor->fields_count : cursor->methods_count;
+            total = kind == 0 ? cbFieldsCount(cursor) : cbMethodsCount(cursor);
             for (i = total - 1; i >= 0; i--) {
                 if (!pass) count++;
                 else {
@@ -325,14 +325,14 @@ static HArrayOfObject *reflect_members(ClassClass *cb, long which, int kind)
     memberclass = FindClass(0, kind == 0 ? JAVAPKG "reflect/Field" :
         kind == 1 ? JAVAPKG "reflect/Method" : JAVAPKG "reflect/Constructor", TRUE);
     if (!memberclass) return NULL;
-    if (CCIs(cb, Primitive) || (kind != 1 && classname(cb)[0] == '[')
+    if (CCIs(cb, Primitive) || (kind != 1 && cbName(cb)[0] == '[')
         || (kind == 2 && cbIsInterface(cb)))
         return (HArrayOfObject *)reflect_new_array(memberclass, 0);
     if (!which && kind != 2) return reflect_public_members(cb, memberclass, kind);
     for (pass = 0; pass < 2; pass++) {
         for (cursor = cb; cursor; cursor = (which || kind == 2 || !cbSuperclass(cursor))
-                ? NULL : unhand(cbSuperclass(cursor))) {
-            total = kind == 0 ? cursor->fields_count : cursor->methods_count;
+                ? NULL : cbSuperclass(cursor)) {
+            total = kind == 0 ? cbFieldsCount(cursor) : cbMethodsCount(cursor);
             for (i = 0; i < total; i++) {
                 fb = kind == 0 ? &cbFields(cursor)[i] : &cbMethods(cursor)[i].fb;
                 accept = which || (fb->access & ACC_PUBLIC);
@@ -356,12 +356,12 @@ static HArrayOfObject *reflect_members(ClassClass *cb, long which, int kind)
     return array;
 }
 
-HArrayOfObject *java_lang_Class_getFields0(HClass *self, long which)
-{ return reflect_members(unhand(self), which, 0); }
-HArrayOfObject *java_lang_Class_getMethods0(HClass *self, long which)
-{ return reflect_members(unhand(self), which, 1); }
-HArrayOfObject *java_lang_Class_getConstructors0(HClass *self, long which)
-{ return reflect_members(unhand(self), which, 2); }
+HArrayOfObject *java_lang_Class_getFields0(ClassClass *self, long which)
+{ return reflect_members(self, which, 0); }
+HArrayOfObject *java_lang_Class_getMethods0(ClassClass *self, long which)
+{ return reflect_members(self, which, 1); }
+HArrayOfObject *java_lang_Class_getConstructors0(ClassClass *self, long which)
+{ return reflect_members(self, which, 2); }
 
 static int reflect_match_parameters(struct methodblock *mb, HArrayOfObject *args)
 {
@@ -375,9 +375,9 @@ static int reflect_match_parameters(struct methodblock *mb, HArrayOfObject *args
     return i == count;
 }
 
-HObject *java_lang_Class_getField0(HClass *self, HString *name, long which)
+HObject *java_lang_Class_getField0(ClassClass *self, HString *name, long which)
 {
-    ClassClass *cb = unhand(self);
+    ClassClass *cb = self;
     char buffer[256]; int i;
     HArrayOfObject *publicfields;
     ReflectField *field;
@@ -388,23 +388,23 @@ HObject *java_lang_Class_getField0(HClass *self, HString *name, long which)
         if (!publicfields) return NULL;
         for (i = 0; i < (int)obj_length(publicfields); i++) {
             field = (ReflectField *)unhand(unhand(publicfields)->body[i]);
-            if (!strcmp(cbFields(unhand(field->clazz))[field->slot].name, buffer))
+            if (!strcmp(cbFields(field->clazz)[field->slot].name, buffer))
                 return unhand(publicfields)->body[i];
         }
         return reflect_error(JAVAPKG "NoSuchFieldException", buffer);
     }
-    for (; cb; cb = which || !cbSuperclass(cb) ? NULL : unhand(cbSuperclass(cb))) {
+    for (; cb; cb = which || !cbSuperclass(cb) ? NULL : cbSuperclass(cb)) {
         if (!reflect_resolve(cb)) return NULL;
-        for (i = 0; i < cb->fields_count; i++)
+        for (i = 0; i < cbFieldsCount(cb); i++)
             if (!strcmp(cbFields(cb)[i].name, buffer) && (which || (cbFields(cb)[i].access & ACC_PUBLIC)))
                 return reflect_make_field(&cbFields(cb)[i]);
     }
     return reflect_error(JAVAPKG "NoSuchFieldException", buffer);
 }
 
-static HObject *reflect_find_method(HClass *self, char *name, HArrayOfObject *args, long which, int ctor)
+static HObject *reflect_find_method(ClassClass *self, char *name, HArrayOfObject *args, long which, int ctor)
 {
-    ClassClass *cb = unhand(self); int i;
+    ClassClass *cb = self; int i;
     struct methodblock *mb;
     HArrayOfObject *publicmethods;
     ReflectMethod *member;
@@ -413,15 +413,15 @@ static HObject *reflect_find_method(HClass *self, char *name, HArrayOfObject *ar
         if (!publicmethods) return NULL;
         for (i = 0; i < (int)obj_length(publicmethods); i++) {
             member = (ReflectMethod *)unhand(unhand(publicmethods)->body[i]);
-            mb = &cbMethods(unhand(member->clazz))[member->slot];
+            mb = &cbMethods(member->clazz)[member->slot];
             if (!strcmp(mb->fb.name, name) && reflect_match_parameters(mb, args))
                 return unhand(publicmethods)->body[i];
         }
         return reflect_error(JAVAPKG "NoSuchMethodException", name);
     }
-    for (; cb; cb = which || ctor || !cbSuperclass(cb) ? NULL : unhand(cbSuperclass(cb))) {
+    for (; cb; cb = which || ctor || !cbSuperclass(cb) ? NULL : cbSuperclass(cb)) {
         if (!reflect_resolve(cb)) return NULL;
-        for (i = 0; i < cb->methods_count; i++) {
+        for (i = 0; i < cbMethodsCount(cb); i++) {
             mb = &cbMethods(cb)[i];
             if (!strcmp(mb->fb.name, name) && (which || (mb->fb.access & ACC_PUBLIC))
                 && reflect_match_parameters(mb, args)) return reflect_make_method(mb, ctor);
@@ -429,28 +429,28 @@ static HObject *reflect_find_method(HClass *self, char *name, HArrayOfObject *ar
     }
     return reflect_error(JAVAPKG "NoSuchMethodException", name);
 }
-HObject *java_lang_Class_getMethod0(HClass *self, HString *name, HArrayOfObject *args, long which)
+HObject *java_lang_Class_getMethod0(ClassClass *self, HString *name, HArrayOfObject *args, long which)
 {
     char buffer[256];
     if (!name) return reflect_error(JAVAPKG "NullPointerException", NULL);
     javaString2CString(name, buffer, sizeof(buffer));
     return reflect_find_method(self, buffer, args, which, 0);
 }
-HObject *java_lang_Class_getConstructor0(HClass *self, HArrayOfObject *args, long which)
+HObject *java_lang_Class_getConstructor0(ClassClass *self, HArrayOfObject *args, long which)
 { return reflect_find_method(self, "<init>", args, which, 1); }
 
 static struct methodblock *reflect_method_block(HObject *self)
 {
     ReflectMethod *m = (ReflectMethod *)unhand(self);
-    ClassClass *cb = unhand(m->clazz);
-    if (m->slot < 0 || m->slot >= cb->methods_count) return NULL;
+    ClassClass *cb = m->clazz;
+    if (m->slot < 0 || m->slot >= cbMethodsCount(cb)) return NULL;
     return &cbMethods(cb)[m->slot];
 }
 long java_lang_reflect_Field_getModifiers(HObject *self)
 {
     ReflectField *f = (ReflectField *)unhand(self);
-    ClassClass *cb = unhand(f->clazz);
-    return f->slot < 0 || f->slot >= cb->fields_count ? 0 : cbFields(cb)[f->slot].access & 0xfff;
+    ClassClass *cb = f->clazz;
+    return f->slot < 0 || f->slot >= cbFieldsCount(cb) ? 0 : cbFields(cb)[f->slot].access & 0xfff;
 }
 long java_lang_reflect_Method_getModifiers(HObject *self)
 { struct methodblock *mb = reflect_method_block(self); return mb ? mb->fb.access & 0xfff : 0; }
@@ -469,7 +469,7 @@ bool_t reflect_check_access(ExecEnv *ee, ClassClass *owner, int access, ClassCla
             && VerifyFieldAccess(caller, owner, access, FALSE)))
         && (!(access & ACC_PROTECTED) || caller == target
             || IsSameClassPackage(caller, owner) || is_subclass_of(target, caller, ee))) return TRUE;
-    reflect_error(JAVAPKG "IllegalAccessException", classname(owner));
+    reflect_error(JAVAPKG "IllegalAccessException", cbName(owner));
     return FALSE;
 }
 
@@ -548,7 +548,7 @@ static HObject *reflect_box(ReflectValue v, int type)
     if (!cb) return NULL;
     object = ObjAlloc(cb, 0);
     if (!object) return reflect_error(JAVAPKG "OutOfMemoryError", NULL);
-    for (i = 0, fb = cbFields(cb); i < cb->fields_count; i++, fb++)
+    for (i = 0, fb = cbFields(cb); i < cbFieldsCount(cb); i++, fb++)
         if (!strcmp(fb->name, "value")) {
             reflect_write((char *)unhand(object) + fb->u.offset, type, FALSE, v);
             return object;
@@ -563,8 +563,8 @@ static int reflect_unbox(HObject *object, ReflectValue *value)
     cb = obj_classblock(object);
     for (type = T_BOOLEAN; type <= T_LONG; type++) {
         name = reflect_wrapper(type);
-        if (name && !strcmp(classname(cb), name)) {
-            for (i = 0, fb = cbFields(cb); i < cb->fields_count; i++, fb++)
+        if (name && !strcmp(cbName(cb), name)) {
+            for (i = 0, fb = cbFields(cb); i < cbFieldsCount(cb); i++, fb++)
                 if (!strcmp(fb->name, "value")) {
                     *value = reflect_read((char *)unhand(object) + fb->u.offset, type, FALSE);
                     return type;
@@ -577,10 +577,10 @@ static int reflect_unbox(HObject *object, ReflectValue *value)
 static struct fieldblock *reflect_field_address(HObject *self, HObject *target, void **address, ClassClass **type)
 {
     ReflectField *field = (ReflectField *)unhand(self);
-    ClassClass *owner = unhand(field->clazz), *targetclass;
+    ClassClass *owner = field->clazz, *targetclass;
     struct fieldblock *fb;
-    if (field->slot < 0 || field->slot >= owner->fields_count) return NULL;
-    fb = &cbFields(owner)[field->slot]; *type = unhand(field->type);
+    if (field->slot < 0 || field->slot >= cbFieldsCount(owner)) return NULL;
+    fb = &cbFields(owner)[field->slot]; *type = field->type;
     if (fb->access & ACC_STATIC) {
         *address = CCIs(*type, Primitive) && cbSlotSize(*type) == 8
             ? twoword_static_address(fb) : normal_static_address(fb);
@@ -614,7 +614,7 @@ static ReflectValue reflect_field_get(HObject *self, HObject *target, int reques
 HObject *java_lang_reflect_Field_get(HObject *self, HObject *target)
 {
     ReflectField *field = (ReflectField *)unhand(self);
-    ClassClass *type = unhand(field->type);
+    ClassClass *type = field->type;
     ReflectValue v = reflect_field_get(self, target, 0);
     if (exceptionOccurred(EE())) return NULL;
     return reflect_box(v, CCIs(type, Primitive) ? cbTypeCode(type) : T_CLASS);
@@ -724,13 +724,13 @@ ARRAY_ACCESSORS(Long, int64_t, l, T_LONG)
 ARRAY_ACCESSORS(Float, float, f, T_FLOAT)
 ARRAY_ACCESSORS(Double, double, d, T_DOUBLE)
 
-HObject *java_lang_reflect_Array_newArray(HObject *unused, HClass *component, long length)
+HObject *java_lang_reflect_Array_newArray(HObject *unused, ClassClass *component, long length)
 {
     if (!component) return reflect_error(JAVAPKG "NullPointerException", NULL);
     if (length < 0) return reflect_error(JAVAPKG "NegativeArraySizeException", NULL);
-    return reflect_new_array(unhand(component), length);
+    return reflect_new_array(component, length);
 }
-HObject *java_lang_reflect_Array_multiNewArray(HObject *unused, HClass *component, HArrayOfInt *dimensions)
+HObject *java_lang_reflect_Array_multiNewArray(HObject *unused, ClassClass *component, HArrayOfInt *dimensions)
 {
     char signature[268], *p = signature, *name;
     stack_item sizes[255]; int count, i;
@@ -744,10 +744,10 @@ HObject *java_lang_reflect_Array_multiNewArray(HObject *unused, HClass *componen
         if (sizes[i].i < 0) return reflect_error(JAVAPKG "NegativeArraySizeException", NULL);
         *p++ = '[';
     }
-    cb = unhand(component);
+    cb = component;
     if (CCIs(cb, Primitive)) *p++ = cbTypeSig(cb);
     else {
-        name = classname(cb);
+        name = cbName(cb);
         if (strlen(name) + count >= 260) return reflect_error(JAVAPKG "InternalError", "signature overflow");
         if (*name != '[') *p++ = 'L';
         strcpy(p, name); p += strlen(name);
@@ -780,7 +780,7 @@ static JavaFrame *reflect_frame(ExecEnv *ee, int nargs)
         }
     }
     frame->prev = previous; frame->javastack = stack; frame->optop = frame->ostack;
-    frame->vars = NULL; frame->monitor = 0; frame->annotation = 0; frame->current_method = NULL;
+    frame->vars = NULL; frame->monitor = 0; frame->current_method = NULL;
     ee->current_frame = frame;
     return frame;
 }
@@ -802,7 +802,7 @@ static HObject *reflect_invoke(HObject *target, struct methodblock *mb,
     if (!frame) return NULL;
     if (!isstatic) (frame->optop++)->h = target;
     for (i = 0; i < count; i++) {
-        type = unhand((HClass *)unhand(parameters)->body[i]);
+        type = (ClassClass *)unhand(parameters)->body[i];
         argument = unhand(args)->body[i];
         if (CCIs(type, Primitive)) {
             to = cbTypeCode(type); from = reflect_unbox(argument, &value);
@@ -838,7 +838,7 @@ static HObject *reflect_invoke(HObject *target, struct methodblock *mb,
             /* deviation: locate the Java target field instead of assuming Sun's
              * Throwable layout has placed it at byte offset eight. */
             ClassClass *errorclass = obj_classblock(ee->exception.exc);
-            for (i = 0; i < errorclass->fields_count; i++)
+            for (i = 0; i < cbFieldsCount(errorclass); i++)
                 if (!strcmp(cbFields(errorclass)[i].name, "target"))
                     *(HObject **)((char *)unhand(ee->exception.exc) + cbFields(errorclass)[i].u.offset) = thrown;
         }
@@ -852,7 +852,7 @@ HObject *java_lang_reflect_Method_invoke(HObject *self, HObject *target, HArrayO
 {
     ReflectMethod *method = (ReflectMethod *)unhand(self);
     struct methodblock *mb = reflect_method_block(self), *selected;
-    ClassClass *owner = unhand(method->clazz), *targetclass;
+    ClassClass *owner = method->clazz, *targetclass;
     int i;
     if (!mb) return reflect_error(JAVAPKG "InternalError", "invoke");
     selected = mb;
@@ -872,18 +872,18 @@ HObject *java_lang_reflect_Method_invoke(HObject *self, HObject *target, HArrayO
     }
     if ((!(cbAccess(owner) & ACC_PUBLIC) || !(mb->fb.access & ACC_PUBLIC))
         && !reflect_check_access(EE(), owner, mb->fb.access, targetclass)) return NULL;
-    return reflect_invoke(target, selected, method->parameters, args, unhand(method->type));
+    return reflect_invoke(target, selected, method->parameters, args, method->type);
 }
 
 HObject *java_lang_reflect_Constructor_newInstance(HObject *self, HArrayOfObject *args)
 {
     ReflectConstructor *ctor = (ReflectConstructor *)unhand(self);
     struct methodblock *mb = reflect_method_block(self);
-    ClassClass *owner = unhand(ctor->clazz);
+    ClassClass *owner = ctor->clazz;
     HObject *object;
     if (!mb) return reflect_error(JAVAPKG "InternalError", "newInstance");
     if (cbAccess(owner) & (ACC_INTERFACE | ACC_ABSTRACT))
-        return reflect_error(JAVAPKG "InstantiationException", classname(owner));
+        return reflect_error(JAVAPKG "InstantiationException", cbName(owner));
     if ((!(cbAccess(owner) & ACC_PUBLIC) || !(mb->fb.access & ACC_PUBLIC))
         && !reflect_check_access(EE(), owner, mb->fb.access, owner)) return NULL;
     object = newobject(owner, NULL, EE());

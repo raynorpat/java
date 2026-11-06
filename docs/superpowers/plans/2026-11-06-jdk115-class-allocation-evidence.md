@@ -169,3 +169,124 @@ override was used. Captured JavaFrame is 44 bytes and ExecEnv is 76 bytes in
 both configurations, with JNI nativeInterface at20, seenclasses at52 and
 allocation cache at60. These are original layouts, not the transitional tree's.
 The regression is intentionally not wired into CTest until the ABI migration.
+
+## Loader migration implementation contract
+
+The migrated loader uses `allocClassClass()` and the original six-argument
+`createInternalClass(bytes, limit, cb, loader, expected_name, detail)`.
+Its first pass measures aligned allocations through temporary nodes; its
+second pass uses one main slab and one slab for `<clinit>()V` attributes.
+The constant-pool allocation is first in the main slab. Both successful
+parsing and synthetic-array creation register the class themselves; callers
+must remove their former extra `AddBinClass` calls.
+
+Primary Debug `1000EBE7` establishes the five-argument synthetic constructor:
+name, base type, depth, component class, loader. It allocates four CP words
+followed by four type bytes (20 bytes on x86), separately duplicates the name,
+sets classfile version 45.3, and stores an already-resolved component handle
+in CP slot 3 for reference arrays. Its access is PUBLIC inherited from the
+component plus FINAL|ABSTRACT; primitive arrays are PUBLIC|FINAL|ABSTRACT.
+There is no fifth class-name slot. The recovered FreeClass does not separately
+free the synthetic name; that apparent original ownership gap is retained,
+not hidden behind invented arena ownership.
+
+Primary parser `1000E2A9` dispatches the configured CompiledCodeAttribute to
+`ReadInCompiledCode` only for bootstrap-loaded classes and rejects argument
+word counts above 255. These branches are preserved along with Exceptions
+and Debug JCOV source/timestamp metadata. Standalone tools linking the loader
+must provide the compiler hooks or their existing tool-only equivalents.
+
+`FreeClass` releases native metadata only; GC owns body and handle reclamation.
+The helper `freeClassInitializer`, recovered from `1000FE54`, frees the lower
+code/Exceptions address when Exceptions exists, otherwise code; a valid
+initializer has Code. It clears both pointers and leaves code_length intact.
+This allows either classfile attribute order. Explicit transitional deviations: registry
+operations use the existing class lock instead of Sun's separate registry
+monitor; slab-size overflow is rejected; freed metadata pointers are cleared
+because the retained legacy source-retry path may leave the managed body
+reachable. Implementation is awaiting coordinated header/collector build and
+runtime verification; this note does not assert passing tests.
+
+Primary exported `NameAndTypeToHash` at `10012685` accepts only name and
+signature. Under monitor `100835CC`, it calls Str2ID (`1004E541`) twice on
+table `100835D4`, with NULL parameter output and copy enabled, returning
+`(nameID << 16) + signatureID`; either zero raises OutOfMemoryError and returns
+zero. There is no loader argument or loader-key construction. Str2ID allocates
+2003-slot chained tables at 80 percent occupancy; allocator `1004E897`
+creates a 20-byte header plus 8 bytes per slot. Hasher `1004E8F1` computes
+37 times the prior hash plus each signed byte and uses `(hash & 7) + 1` as
+the probe step. Existing compatibility reverse helpers must interpret the
+low half as signature and high half as name after this migration.
+
+`classhash115.c` implements the pair operation with a dedicated initialized
+monitor and the shared Str2ID, whose capacity is now 2003. Its private
+compatibility combined-string table does not alter member IDs. Initialize
+through `initializeClassHash115()` after monitor bootstrap and before any
+member resolution; the standalone tool requires the same call with its
+existing no-op monitor adapters. Shared Str2ID still aborts on allocation
+failure, unlike primary Str2ID's zero result; this existing limitation remains.
+
+Verification: MSVC x86 `/Zs` Debug+JCOV accepted classloader.c and classhash115.c
+without diagnostics against the migrated headers. The retained
+`tests/native/classhash115-probe.c` ran against Sun Debug Str2ID at RVA
+`0x4e541` using a fresh local table, then against classhash115 plus the real
+updated util/arena. Both executions returned zero and stdout bytes matched
+`classhash115-probe.expected`: 5000 names, several table expansions, repeated
+pairs, distinct signatures, and signed UTF-8 bytes. The normal probe also
+checks reverse compatibility strings. This isolated probe stubs monitors and
+does not claim concurrent VM coverage. Build commands are retained in
+`out/check-hash115.cmd`; it is not yet registered in CTest.
+
+## Implemented managed allocation/cache slice (integration pending)
+
+The shared collector now allocates Class bodies through `allocClassClass`,
+using `sizeof(Classjava_lang_Class)` and the current Class methodtable, and
+stores the returned managed handle in HandleToSelf. Platform `gc_md.c` files
+no longer supply the arena-backed `AllocClass` implementation. The normal
+marker traces object class handles, object-array element class handles and
+typed Class metadata, propagating the primary soft/hard mark strength.
+The depth-30/100-cell bounded worklist is retained for both object and class
+metadata recursion. NULL methodtables during bootstrap take the class metadata
+path explicitly; this defensive bootstrap handling is a port deviation.
+
+Registry roots honor `classgc`/Sticky. With the world stopped, unmarked registry
+entries move to the intrusive pending-free list via the dead finalizer field.
+After world resume, under the existing heap lock, FreeClass releases metadata
+and the collector returns the body and handle. Pending entries are rooted if
+cleanup triggers another collection. The existing port class-load lock is not
+acquired under heap lock; adding that inverse order could deadlock loaders.
+This retains the port's stopped-world registry mapping while separate Sun
+registry-monitor migration is pending.
+
+Isolated GCC Linux32 Debug and MSVC Win32 Debug+JCOV compilation succeeded
+against the adopted original headers. Runtime integration gates remain pending.
+
+## Managed-class lifetime oracle
+
+`tests/native/managed-class115.c` compiles against vendor headers and loads
+primary `javai_g.dll` with SUN_ORACLE. It creates a real custom loader and
+uses JNI DefineClass on `ManagedPayload115.class`. Both construction phases
+run on attached native worker threads that detach and exit, eliminating stale
+worker-stack roots before explicit GC. Registry inspection uses primary
+binclasses RVA83550 and count RVA8351c; GC uses RVA2c9a9.
+
+Fresh primary runs (exit0 each) establish:
+
+- Global Class reference keeps the custom class and its loader registered.
+- After deleting that Class reference, a global instance keeps its defining
+  class registered.
+- After deleting the instance, enableClassGC=1 unloads the class; disabling
+  class GC retains it.
+
+Outputs are respectively `managed-class=unloaded` and
+`managed-class=retained`. CMake targets `managed-class115-1` and
+`managed-class115-0` execute the same checks against the reconstruction.
+Helper Java sources were compiled with original Sun 1.1.5 javac.
+The class fixture also initializes a static byte-array marker before collection
+and checks its two values afterward, proving typed reference-static tracing
+rather than registry retention alone. Both primary modes still pass after this
+addition.
+
+Initial coordinated Linux Release runtime gates passed both managed-class
+modes, allocation-cache115, JNI invocation and stress; broader reflection
+migration failures are tracked separately by the coordinator.

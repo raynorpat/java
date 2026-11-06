@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)classloader.c	1.79 95/11/16  
  *
@@ -49,98 +50,58 @@
 
 
 int verbose_class_loading;
+extern char *CompiledCodeAttribute;
+extern ClassClass *allocClassClass(void);
 
 int LoadFile(char *fn, char *dir, char *SourceHint);
 int DoImport(char *name, char *SourceHint);
 char *stat_source(ClassClass *cb, struct stat *s, char *pathbuf, int maxlen);
 
 /* XXX: Should move declaration to interpreter.h... and include that header file */
-extern ClassClass * FindPreviouslyLoadedClass(char *name, HObject *loader);
+extern ClassClass * FindPreviouslyLoadedClass(char *name, struct Hjava_lang_ClassLoader *loader);
 
 
-void
-AddBinClass(ClassClass * cb)
+/* deviation: the existing class lock also protects the registry until the
+ * separate Sun registry monitor is adopted. */
+void AddBinClass(ClassClass *cb)
 {
-    int32_t i;
-    ClassClass **tcb = 0;
-
-    /* 
-    First phase worries about compacting the binclass list, since
-    the GC *could* put a hole in the list.
-    Better would be to mark the need for a compaction, and then really compact
-    when a lock is acquired (i.e., remove all holes).
-    Current code *looks* for holes when placing system classes.. which takes
-    lots of time when there are no holes.  :-(
-    Worse yet, it only looks for holes for placing system classes... which means most
-    holes don't get filled (there are only so many system classes)... and the array 
-    grows endlessly ('cause it always grows as a non-system class is added).
-    */
-    if (cb->loader == 0) {
-	for (i = nbinclasses; --i >= 0; ) {
-            if (!binclasses[i]) {
-                tcb = &binclasses[i];
+    long i = -1, capacity;
+    ClassClass **classes;
+    lock_classes();
+    if (cbLoader(cb) == NULL) {
+        for (i = nbinclasses - 1; i >= 0; --i)
+            if (binclasses[i] && !strcmp(cbName(binclasses[i]), cbName(cb)))
                 break;
-            }
-#if 0
-            /* XXX why did they do this? */
-            if (strcmp(classname(binclasses[i]), classname(cb)) == 0) {
-                tcb = &binclasses[i];
-                printf("Duplicate class name found: %s\n", classname(cb));
-            }
-#endif
-        }
     }
-
-    /* Second phase: If compacting insertion can't be done, just append */
-    if (!tcb) {
-	if (nbinclasses >= sizebinclasses)
-	    if (binclasses == 0)
-		binclasses = (ClassClass **)
-		    sysMalloc(sizeof(ClassClass *) * (sizebinclasses = 50));
-	    else
-		binclasses = (ClassClass **)
-		    realloc(binclasses, sizeof(ClassClass *)
-			    * (size_t)(sizebinclasses = nbinclasses * 2));
-	if (binclasses == 0) {
-		SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
-	    return;
+    if (i < 0) {
+        if (nbinclasses >= sizebinclasses) {
+            capacity = binclasses ? nbinclasses * 2 : 50;
+            classes = sysRealloc(binclasses, capacity * sizeof(*classes));
+            if (!classes) {
+                unlock_classes();
+                SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
+                return;
+            }
+            binclasses = classes;
+            sizebinclasses = capacity;
         }
-	tcb = &binclasses[nbinclasses++];
+        i = nbinclasses++;
     }
-
-    *tcb = cb;
-
-    /*
-    ** Set the CCF_IsResolving bit on the class to prevent it from being 
-    ** GCed during class initialization.  This is necessary, because at
-    ** various points during the initialization process there are NO
-    ** references to the new class where the GC looks...
-    **
-    ** Once the class has been fully initialized, the CCF_IsResolving bit
-    ** is cleared.
-    */
-    sysAssert( !CCIs(cb, Resolving) );
-    CCSet(cb, Resolving);
-
-    /* printf("Loaded %s %d %s with %s   %p\n",
-                   cb->loader ? " " : "*", 
-                      tcb-binclasses, 
-                         (tcb != &binclasses[nbinclasses-1]) ? "Hole" : "    ",
-                                 classname(cb),
-                                      cb->loader); */
+    binclasses[i] = cb;
+    unlock_classes();
 }
 
-void
-DelBinClass(ClassClass * cb)
+void DelBinClass(ClassClass *cb)
 {
-    register int32_t i;
-    for (i = nbinclasses; --i >= 0; )
-	if (binclasses[i] == cb) {
-	    if (verbose_class_loading)
-		fprintf(stderr, "Deleting class %s #%ld\n", classname(cb), i);
-	    binclasses[i] = binclasses[--nbinclasses];
-	    break;
-	}
+    long i;
+    lock_classes();
+    for (i = nbinclasses - 1; i >= 0; --i) {
+        if (binclasses[i] == cb) {
+            binclasses[i] = binclasses[--nbinclasses];
+            break;
+        }
+    }
+    unlock_classes();
 }
 
 /* LoadFile is shared by the compiler and the interpreter.  It does
@@ -181,6 +142,7 @@ LoadFile(char *fn, char *dir, char *SourceHint)
     int codefd = -1;
     int	retryCount = 0;
     unsigned char *external_class;
+    char *detail;
 
     codefd = OpenCode(fn, SourceHint, dir, &st);
 
@@ -201,47 +163,49 @@ again:
         goto failed;
     sysClose(codefd);
     codefd = -1;
-    cb = AllocClass();
-    if (!createInternalClass(external_class, external_class + st.st_size, cb)) {
+    cb = allocClassClass();
+    if (!cb || !createInternalClass(external_class, external_class + st.st_size,
+                                    cb, NULL, NULL, &detail)) {
 	sysFree(external_class);
 	goto failed;
     }
     sysFree(external_class);
-    /* Valid class - let's put it in the class table. */
-    AddBinClass(cb);
+
     
     /* Now, if we're checking sources, and there's a source file
        name in the .class file we just loaded, check to see if we
        should recompile this class.  If so, call try again. */
 
-    if (!SkipSourceChecks && cb->source_name) {
+    if (!SkipSourceChecks && cbSourceName(cb)) {
 	struct stat st2;
 	char pathbuf[255];
 
-	if (cb->major_version != JAVA_VERSION) {
+	if (cbMajorVersion(cb) != JAVA_VERSION) {
 	    fprintf(stderr, "Warning: Not using %s because it was\n"
 		    "\t compiled with version %d.%d of javac.  "
 		    "Current version is %d.%d.\n",
-		    classname(cb),
-		    cb->major_version, cb->minor_version, 
+		    cbName(cb),
+		    cbMajorVersion(cb), cbMinorVersion(cb), 
 		    JAVA_VERSION, JAVA_MINOR_VERSION);
 	}
 	if (stat_source(cb, &st2, pathbuf, sizeof(pathbuf)) != 0
-	    && (st2.st_mtime > st.st_mtime || cb->major_version != JAVA_VERSION)
+	    && (st2.st_mtime > st.st_mtime || cbMajorVersion(cb) != JAVA_VERSION)
 	    && ++retryCount < 2) {
-	    if (cb->major_version != JAVA_VERSION) {
+	    if (cbMajorVersion(cb) != JAVA_VERSION) {
 		fprintf(stderr, "Warning: Attempting to recompile from %s...\n",
-			classsrcname(cb));
+			cbSourceName(cb));
 		unlink(fn);
 	    }
 	    /* remove the class we just defined - we're going again;  */
 	    codefd = OpenCode(fn, pathbuf, dir, &st);
 	    DelBinClass(cb);
+            FreeClass(cb);
 	    goto again;
-	} else if (cb->major_version != JAVA_VERSION) {
+	} else if (cbMajorVersion(cb) != JAVA_VERSION) {
 	    /* remove the class we just defined - we're going
 	       to try again (once) */
 	    DelBinClass(cb);
+            FreeClass(cb);
 	    goto failed;
 	}
     }
@@ -265,6 +229,7 @@ LoadFileZip(char *fn, zip_t *zip)
     struct stat st;
     ClassClass *cb;
     unsigned char *clazz;
+    char *detail;
 
     if (!zip_stat(zip, fn, &st)) {
 		return 0;
@@ -276,17 +241,16 @@ LoadFileZip(char *fn, zip_t *zip)
 	sysFree(clazz);
 		return 0;
     }
-    if ((cb = AllocClass()) == 0) {
+    if ((cb = allocClassClass()) == 0) {
 		sysFree(clazz);
 		return 0;
     }
-    if (!createInternalClass(clazz, clazz + st.st_size, cb)) {
+    if (!createInternalClass(clazz, clazz + st.st_size, cb, NULL, NULL, &detail)) {
 		sysFree(clazz);
 		/* sysFree(cb); */
 		return 0;
     }
     sysFree(clazz);
-    AddBinClass(cb);
 #ifdef DEBUG
     if (verbose) {
 	fprintf(stderr, "[Loaded %s from %s]\n", fn, zip->fn);
@@ -303,8 +267,37 @@ DoImport(char *name, char *SourceHint)
     cpe_t **cpp;
 
     if (name[0] == SIGNATURE_ARRAY) {
-	AddBinClass(createFakeArrayClass(name));
-	return 1;
+        /* Compatibility entry for old local-load callers; the resolver
+         * normally supplies these decoded arguments directly. */
+        char *part = name, *component;
+        int depth = 0, base_type;
+        size_t length;
+        ClassClass *inner = NULL;
+        while (*part == SIGNATURE_ARRAY) { ++depth; ++part; }
+        switch (*part) {
+        case SIGNATURE_BOOLEAN: base_type = T_BOOLEAN; break;
+        case SIGNATURE_BYTE: base_type = T_BYTE; break;
+        case SIGNATURE_CHAR: base_type = T_CHAR; break;
+        case SIGNATURE_SHORT: base_type = T_SHORT; break;
+        case SIGNATURE_INT: base_type = T_INT; break;
+        case SIGNATURE_LONG: base_type = T_LONG; break;
+        case SIGNATURE_FLOAT: base_type = T_FLOAT; break;
+        case SIGNATURE_DOUBLE: base_type = T_DOUBLE; break;
+        case SIGNATURE_CLASS:
+            base_type = T_CLASS;
+            length = strlen(++part);
+            if (!length || part[length - 1] != SIGNATURE_ENDCLASS) return 0;
+            component = sysMalloc(length);
+            if (!component) return 0;
+            memcpy(component, part, length - 1);
+            component[length - 1] = 0;
+            inner = FindClassFromClass(EE(), component, TRUE, NULL);
+            sysFree(component);
+            if (!inner) return 0;
+            break;
+        default: return 0;
+        }
+        return createFakeArrayClass(name, base_type, depth, inner, NULL) != NULL;
     }
     if (name[0] == DIR_SEPARATOR) {
 	return 0;
@@ -342,9 +335,9 @@ stat_source(ClassClass *cb, struct stat *s, char *pathbuf, int maxlen)
 
     /* don't bother searching if absolute */
     /* REMIND: only here for compatibility */
-    if (sysIsAbsolute(classsrcname(cb))) {
-	if (sysStat(classsrcname(cb), s) == 0) {
-	    if (jio_snprintf(pathbuf, maxlen, "%s", classsrcname(cb)) == -1) {
+    if (sysIsAbsolute(cbSourceName(cb))) {
+	if (sysStat(cbSourceName(cb), s) == 0) {
+	    if (jio_snprintf(pathbuf, maxlen, "%s", cbSourceName(cb)) == -1) {
 		return 0;
 	    }
 	    return pathbuf;
@@ -354,7 +347,7 @@ stat_source(ClassClass *cb, struct stat *s, char *pathbuf, int maxlen)
     }
 
     /* parse the package name */
-    p = classname(cb);
+    p = cbName(cb);
     if (strlen(p) > NAMEBUFLEN - 1) {
 	return 0;
     }
@@ -368,7 +361,7 @@ stat_source(ClassClass *cb, struct stat *s, char *pathbuf, int maxlen)
     }
 
     /* append the source file name */
-    p = classsrcname(cb);
+    p = cbSourceName(cb);
     if (strlen(p) + (lp - nm) > NAMEBUFLEN - 1) {
 	return 0;
     }
@@ -399,6 +392,18 @@ struct CICcontext {
     ClassClass *cb;
     jmp_buf jump_buffer;
     char **detail;
+    int pass;
+    size_t main_size, clinit_size;
+    int in_clinit;
+    struct CICallocation *temporary;
+    unsigned char *main_base, *main_next;
+    unsigned char *clinit_base, *clinit_next;
+};
+
+/* First-pass allocations have an eight-byte prefix on the target ABI. */
+struct CICallocation {
+    struct CICallocation *next;
+    unsigned long spare;
 };
 
 typedef struct CICcontext CICcontext;
@@ -411,13 +416,13 @@ static unsigned long get4bytes(CICcontext *);
 #define get1byteU8(x)\
 	((unsigned char)(get1byte(x)))
 #define get2bytesI16(x)\
-	((int16_t)(get2bytes(x)))
+	((short)(get2bytes(x)))
 #define get2bytesU16(x)\
-	((uint16_t)(get2bytes(x)))
+	((unsigned short)(get2bytes(x)))
 #define get4bytesI32(x)\
 	((int32_t)(get4bytes(x)))
 static char *getAsciz(CICcontext *);
-static char *getAscizFromClass(CICcontext *, cp_index_type i);
+static char *getAscizFromClass(CICcontext *, unsigned int i);
 static void ValidateClassName(CICcontext *context, char *name) ;
 static void getNbytes(CICcontext *, int32_t count, char *buffer);
 static bool_t LoadConstantPool(CICcontext *);
@@ -437,59 +442,144 @@ static bool_t InitializeStaticVar(struct fieldblock *fb, CICcontext *context);
                         longjmp(context->jump_buffer, 1); }
 #endif
 
-bool_t 
-createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
+static void CICfree(CICcontext *context)
+{
+    struct CICallocation *item, *next;
+    if (context->pass == 1) {
+        for (item = context->temporary; item; item = next) {
+            next = item->next;
+            sysFree(item);
+        }
+        context->temporary = NULL;
+    } else {
+        sysFree(context->main_base);
+        sysFree(context->clinit_base);
+        context->main_base = context->clinit_base = NULL;
+    }
+}
+
+static void *CICalloc(CICcontext *context, size_t size)
+{
+    struct CICallocation *item;
+    unsigned char *result;
+    size_t aligned;
+    /* deviation: reject size overflow rather than corrupting the slabs. */
+    if (size > (size_t)-1 - 8) ERROR("Out of memory");
+    aligned = (size + 7) & ~(size_t)7;
+    if (context->pass == 1) {
+        item = sysCalloc(1, sizeof(*item) + size);
+        if (!item) ERROR("Out of memory");
+        item->next = context->temporary;
+        context->temporary = item;
+        if (context->in_clinit) {
+            if (context->clinit_size > (size_t)-1 - aligned) ERROR("Out of memory");
+            context->clinit_size += aligned;
+        } else {
+            if (context->main_size > (size_t)-1 - aligned) ERROR("Out of memory");
+            context->main_size += aligned;
+        }
+        return item + 1;
+    }
+    if (context->in_clinit) {
+        result = context->clinit_next;
+        context->clinit_next += aligned;
+        sysAssert(context->clinit_next <= context->clinit_base + context->clinit_size);
+    } else {
+        result = context->main_next;
+        context->main_next += aligned;
+        sysAssert(context->main_next <= context->main_base + context->main_size);
+    }
+    return result;
+}
+
+static bool_t ParseInternalClass(CICcontext *, ClassClass *,
+                                struct Hjava_lang_ClassLoader *, char *);
+
+bool_t createInternalClass(unsigned char *bytes, unsigned char *limit,
+                          ClassClass *cb, struct Hjava_lang_ClassLoader *loader,
+                          char *utfname, char **detail)
+{
+    CICcontext context_block;
+    CICcontext *context = &context_block;
+    memset(context, 0, sizeof(*context));
+    context->ptr = bytes;
+    context->end_ptr = limit;
+    context->cb = cb;
+    context->detail = detail;
+    context->pass = 1;
+    *detail = NULL;
+    if (setjmp(context->jump_buffer)) {
+        CICfree(context);
+        /* Do not leave dangling native metadata in the managed class body. */
+        cbConstantPool(cb) = NULL;
+        cbFields(cb) = NULL;
+        cbMethods(cb) = NULL;
+        cbImplements(cb) = NULL;
+        cbName(cb) = cbSuperName(cb) = cbSourceName(cb) = NULL;
+        cbConstantPoolCount(cb) = cbFieldsCount(cb) = cbMethodsCount(cb) = 0;
+        cbImplementsCount(cb) = 0;
+        return FALSE;
+    }
+    if (!ParseInternalClass(context, cb, loader, utfname)) ERROR("Out of memory");
+    cbConstantPool(cb) = NULL;
+    cbFields(cb) = NULL;
+    cbMethodsCount(cb) = 0;
+    CICfree(context);
+    context->ptr = bytes;
+    context->pass = 2;
+    context->main_base = sysCalloc(1, context->main_size);
+    if (!context->main_base) ERROR("Out of memory");
+    if (context->clinit_size) {
+        context->clinit_base = sysCalloc(1, context->clinit_size);
+        if (!context->clinit_base) ERROR("Out of memory");
+    }
+    context->main_next = context->main_base;
+    context->clinit_next = context->clinit_base;
+    if (!ParseInternalClass(context, cb, loader, utfname)) ERROR("Out of memory");
+    AddBinClass(cb);
+    return TRUE;
+}
+
+static bool_t
+ParseInternalClass(CICcontext *context, ClassClass *cb,
+                   struct Hjava_lang_ClassLoader *loader, char *expected_name)
 {
     int32_t i, j;
     union cp_item_type *constant_pool;
     unsigned char *type_table;
-    uint16_t attribute_count;
+    unsigned short attribute_count;
     unsigned fields_count;
     struct methodblock *mb;
     struct fieldblock *fb;
-    struct CICcontext context_block;
-    struct CICcontext *context = &context_block;
-    char *detail = 0;
-    char * expected_name = cb->name;
+    cbLoader(cb) = loader;
 
-    cb->name = NULL;   /* avoid dangling pointers */
-
-    context->ptr = ptr;
-    context->end_ptr = end_ptr;
-    context->cb = cb;
-    context->detail = &detail;
-    if (setjmp(context->jump_buffer)) {
-	/* Indicate an error of some sort */
-	return FALSE;
-    }
-    
     if (get4bytes(context) != JAVA_CLASSFILE_MAGIC) 
 	ERROR("Bad magic number");
 
-    cb->minor_version = get2bytesU16(context);
-    cb->major_version = get2bytesU16(context);
-    if (cb->major_version != JAVA_VERSION) 
+    cbMinorVersion(cb) = get2bytesU16(context);
+    cbMajorVersion(cb) = get2bytesU16(context);
+    if (cbMajorVersion(cb) != JAVA_VERSION) 
 	ERROR("Bad major version number");
 
     if (!LoadConstantPool(context)) {
  	SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
   	return FALSE;
     }
-    constant_pool = cb->constantpool;
+    constant_pool = cbConstantPool(cb);
     type_table = constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p;
 
-    cb->access = get2bytesU16(context) & ACC_WRITTEN_FLAGS;
+    cbAccess(cb) = get2bytesU16(context) & ACC_WRITTEN_FLAGS;
 
     /* Get the name of the class */
     i = get2bytesU16(context);	/* index in constant pool of class */
-    cb->name = getAscizFromClass(context, i);
-    if (expected_name && strcmp(expected_name, cb->name)) {
-            /* printf("Mismatch: Inner name: %s, file name %s\n", cb->name, expected_name); */
+    cbName(cb) = getAscizFromClass(context, i);
+    if (expected_name && strcmp(expected_name, cbName(cb))) {
+            /* printf("Mismatch: Inner name: %s, file name %s\n", cbName(cb), expected_name); */
             ERROR("Internal/External class name mismatch");
     }
-    ValidateClassName(context, cb->name);
+    ValidateClassName(context, cbName(cb));
 
-    if (FindPreviouslyLoadedClass(cb->name, cb->loader)) {
+    if (cbLoader(cb) && FindPreviouslyLoadedClass(cbName(cb), cbLoader(cb))) {
             ERROR("Class already loaded");  /* internal bug (unicode? race?) + (probable) security attack */
     }
 
@@ -499,53 +589,53 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
     /* Get the super class name. */
     i = get2bytesU16(context);	/* index in constant pool of class */
     if (i > 0) {
-	cb->super_name = getAscizFromClass(context, i);
-        /* printf("%s super class  = %s\n", cb->name, 
-               cb->super_name? cb->super_name : "Missing name"); */
-        if (cb->super_name)
-          ValidateClassName(context, cb->super_name);
+	cbSuperName(cb) = getAscizFromClass(context, i);
+        /* printf("%s super class  = %s\n", cbName(cb), 
+               cbSuperName(cb)? cbSuperName(cb) : "Missing name"); */
+        if (cbSuperName(cb))
+          ValidateClassName(context, cbSuperName(cb));
     }
     else
-      /* should be strcmp cb->name with java/lang/Object?? */
+      /* should be strcmp cbName(cb) with java/lang/Object?? */
       ;
 
-    i = cb->implements_count = get2bytesU16(context);
+    i = cbImplementsCount(cb) = get2bytesU16(context);
     if (i > 0) {
 	uint32_t j;
 	uint32_t sizeOfAllocation = i * sizeof(short);
 	
-	cb->implements = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
-	if (cb->implements == NULL) {
+	cbImplements(cb) = CICalloc(context, sizeOfAllocation);
+	if (cbImplements(cb) == NULL) {
 	    SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
   	    return FALSE;
    	}
    	else {
-   	    memset(cb->implements, 0, sizeOfAllocation);
+   	    memset(cbImplements(cb), 0, sizeOfAllocation);
    	}
 
 	for (j = 0; j < i; j++) {
-            cp_index_type temp =
-              cb->implements[j] = get2bytesI16(context); /* XXX: We should use get2bytesU16 and "implements" should be cp_index_type */
-            /* printf(" %s has interface %s\n", cb->name, getAscizFromClass(context, temp)); */
+            unsigned int temp =
+              cbImplements(cb)[j] = get2bytesI16(context); /* XXX: We should use get2bytesU16 and "implements" should be unsigned int */
+            /* printf(" %s has interface %s\n", cbName(cb), getAscizFromClass(context, temp)); */
             ValidateClassName(context, getAscizFromClass(context, temp));
 	}
     }
 
-    fields_count = cb->fields_count = get2bytesU16(context);
+    fields_count = cbFieldsCount(cb) = get2bytesU16(context);
     if (fields_count > 0) { 
- 	uint32_t sizeOfAllocation = cb->fields_count * sizeof(struct fieldblock);
+ 	uint32_t sizeOfAllocation = cbFieldsCount(cb) * sizeof(struct fieldblock);
  	
- 	cb->fields = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
-	if (cb->fields == NULL) {
+ 	cbFields(cb) = CICalloc(context, sizeOfAllocation);
+	if (cbFields(cb) == NULL) {
 	    SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
   	    return FALSE;
 	}
 	else {
-	    memset(cb->fields, 0, sizeOfAllocation);
+	    memset(cbFields(cb), 0, sizeOfAllocation);
 	}
 	
     }
-    for (i = fields_count, fb = cb->fields; --i >= 0; fb++) {
+    for (i = fields_count, fb = cbFields(cb); --i >= 0; fb++) {
 	fieldclass(fb) = cb;
 	fb->access = get2bytesU16(context) & ACC_WRITTEN_FLAGS;
 	fb->name = getAsciz(context);
@@ -566,7 +656,6 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
 	    }
 	}
 	if (fb->access & ACC_STATIC) {
-	    cb->flags |= CCF_HasStatics;
 	    if (!InitializeStaticVar(fb, context)) {
 		SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
   	 	return FALSE;
@@ -574,32 +663,38 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
 	}
     }
 
-    if ((cb->methods_count = get2bytesU16(context)) > 0) {
- 	uint32_t sizeOfAllocation = cb->methods_count * sizeof(struct methodblock);
+    if ((cbMethodsCount(cb) = get2bytesU16(context)) > 0) {
+ 	uint32_t sizeOfAllocation = cbMethodsCount(cb) * sizeof(struct methodblock);
  	
- 	cb->methods = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
-	if (cb->methods == NULL) {
+ 	cbMethods(cb) = CICalloc(context, sizeOfAllocation);
+	if (cbMethods(cb) == NULL) {
 	    SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
  	    return FALSE;
  	}
 	else {
-	    memset(cb->methods, 0, sizeOfAllocation);
+	    memset(cbMethods(cb), 0, sizeOfAllocation);
 	}
 
     }
-    cb->classStorageArena->methods = cb->methods;
-    cb->classStorageArena->methods_count = cb->methods_count;
-    for (i = cb->methods_count, mb = cb->methods; --i >= 0; mb++) {
+    for (i = cbMethodsCount(cb), mb = cbMethods(cb); --i >= 0; mb++) {
 	fieldclass(&mb->fb) = cb;
 	mb->fb.access = get2bytesU16(context) & ACC_WRITTEN_FLAGS;
 	mb->fb.name = getAsciz(context);
 	mb->fb.signature = getAsciz(context);
+	context->in_clinit = !strcmp(mb->fb.name, "<clinit>") &&
+            !strcmp(mb->fb.signature, "()V");
 	mb->args_size = Signature2ArgsSize(mb->fb.signature) 
 	                + ((mb->fb.access & ACC_STATIC) ? 0 : 1);
+	if (mb->args_size > 255) ERROR("Too many arguments");
 	attribute_count = get2bytesU16(context);
 	for (j = 0; j < (int32_t) attribute_count; j++) {
 	    char *name = getAsciz(context);
-	    if ((strcmp(name, "Code") == 0) 
+	    if (CompiledCodeAttribute && !strcmp(name, CompiledCodeAttribute) &&
+                cbLoader(cb) == NULL) {
+                int32_t length = get4bytes(context);
+                ReadInCompiledCode(context, mb, length, get1byte, get2bytes,
+                                   get4bytes, getNbytes);
+	    } else if ((strcmp(name, "Code") == 0) 
 		&& ((mb->fb.access & (ACC_NATIVE | ACC_ABSTRACT))==0)) {
 			if (!ReadInCode(context, mb)) {
 	  		     SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
@@ -612,8 +707,7 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
                 if (length != 2 + 2 * mb->nexceptions)
                     ERROR("Wrong size for Exceptions attribute");
                 if (mb->nexceptions) {
-                    mb->exceptions = ArenaAlloc(&cb->classStorageArena->pool,
-                        mb->nexceptions * sizeof(unsigned short));
+                    mb->exceptions = CICalloc(context, mb->nexceptions * sizeof(unsigned short));
                     if (mb->exceptions == NULL) {
                         SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
                         return FALSE;
@@ -621,9 +715,9 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
                 }
                 for (k = 0; k < mb->nexceptions; k++) {
                     index = get2bytesU16(context);
-                    if (index == 0 || index >= cb->constantpool_count ||
+                    if (index == 0 || index >= cbConstantPoolCount(cb) ||
                         (CONSTANT_POOL_TYPE_TABLE_GET_TYPE(
-                            cb->constantpool[0].p, index)) != CONSTANT_Class)
+                            cbConstantPool(cb)[0].p, index)) != CONSTANT_Class)
                         ERROR("Bad Exceptions constant pool index");
                     mb->exceptions[k] = (unsigned short)index;
                 }
@@ -634,6 +728,8 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
 	}
     }
 
+    context->in_clinit = 0;
+
     /* See if there are class attributes */
     attribute_count = get2bytesU16(context); 
     for (j = 0; j < (int32_t) attribute_count; j++) {
@@ -643,7 +739,15 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
 	    if (length != 2) {
 		ERROR("Wrong size for VALUE attribute");
 	    }
-	    cb->source_name = getAsciz(context);
+	    cbSourceName(cb) = getAsciz(context);
+#ifdef JCOV
+        } else if (!strcmp(name, "AbsoluteSourcePath") && length == 2) {
+            cbAbsoluteSourceName(cb) = getAsciz(context);
+        } else if (!strcmp(name, "TimeStamp") && length == 8) {
+            unsigned long high = get4bytes(context);
+            unsigned long low = get4bytes(context);
+            cbTimestamp(cb) = ll_add(ll_shl(uint2ll(high), 32), uint2ll(low));
+#endif
 	} else {
 	    getNbytes(context, length, NULL);
 	}
@@ -658,19 +762,19 @@ static bool_t InitializeStaticVar(struct fieldblock *fb, CICcontext *context) {
     char isig = fb->signature[0];
     if (fb->access & ACC_VALKNOWN) { 
 	ClassClass *cb = context->cb;
-	cp_index_type index = fb->u.offset; /* set by "VALUE" attribute */
-	union cp_item_type *constant_pool = cb->constantpool;
+	unsigned int index = fb->u.offset; /* set by "VALUE" attribute */
+	union cp_item_type *constant_pool = cbConstantPool(cb);
 	unsigned char *type_table = 
 	      constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p;
 
-	if (index <= 0 || index >= cb->constantpool_count) 
+	if (index <= 0 || index >= cbConstantPoolCount(cb)) 
 	    ERROR("Bad initial value");
 	switch (isig) { 
 	    case SIGNATURE_DOUBLE: 
 		if (type_table[index] != 
 		    (CONSTANT_Double | CONSTANT_POOL_ENTRY_RESOLVED))
 		    ERROR("Bad index into constant pool");
-		twoword_static_address(fb) = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
+		twoword_static_address(fb) = CICalloc(context, (size_t)(2 * sizeof(int32_t)));
 		if (twoword_static_address(fb) == NULL)
 			return FALSE;
 		SET_DOUBLE(t1, twoword_static_address(fb),
@@ -681,7 +785,7 @@ static bool_t InitializeStaticVar(struct fieldblock *fb, CICcontext *context) {
 		if (type_table[index] != 
 		    (CONSTANT_Long | CONSTANT_POOL_ENTRY_RESOLVED))
 		    ERROR("Bad index into constant pool");
-		twoword_static_address(fb) = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
+		twoword_static_address(fb) = CICalloc(context, (size_t)(2 * sizeof(int32_t)));
 		if (twoword_static_address(fb) == NULL)
 			return FALSE;
 		SET_INT64(t1, twoword_static_address(fb),
@@ -758,14 +862,14 @@ static bool_t InitializeStaticVar(struct fieldblock *fb, CICcontext *context) {
 		break;
 
 	    case SIGNATURE_LONG: 
-		twoword_static_address(fb) = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
+		twoword_static_address(fb) = CICalloc(context, (size_t)(2 * sizeof(int32_t)));
 		if (twoword_static_address(fb) == NULL)
 			return FALSE;
 		SET_INT64(t1, twoword_static_address(fb), ll_zero_const);
 		break;
 
 	    case SIGNATURE_DOUBLE: 
-		twoword_static_address(fb) = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
+		twoword_static_address(fb) = CICalloc(context, (size_t)(2 * sizeof(int32_t)));
 		if (twoword_static_address(fb) == NULL)
 			return FALSE;
 		SET_DOUBLE(t1, twoword_static_address(fb), 0.0);
@@ -785,14 +889,11 @@ static bool_t InitializeStaticVar(struct fieldblock *fb, CICcontext *context) {
 static bool_t LoadConstantPool(CICcontext *context) 
 {
     ClassClass *cb = context->cb;
-    uint16_t nconstants = get2bytesU16(context);
-    unsigned char *initial_ptr = context->ptr;
+    unsigned short nconstants = get2bytesU16(context);
     cp_item_type *constant_pool;
     unsigned char *type_table;
-    char *malloced_space;
-    uint16_t malloc_size;
     uint32_t sizeOfAllocation;
-    uint16_t i;
+    unsigned short i;
 #if defined(HAVE_ALIGNED_DOUBLES)
     Java8 t1;
 #endif
@@ -802,72 +903,30 @@ static bool_t LoadConstantPool(CICcontext *context)
     }
     
     sizeOfAllocation = nconstants * sizeof(cp_item_type);
-    constant_pool = ArenaAlloc(&(context->cb->classStorageArena->pool), sizeOfAllocation);
+    constant_pool = CICalloc(context, sizeOfAllocation);
     if (constant_pool == NULL)
     	return FALSE;
     else
         memset(constant_pool, 0, sizeOfAllocation);
     	
     sizeOfAllocation = nconstants * sizeof(char);
-    type_table = ArenaAlloc(&(context->cb->classStorageArena->pool), sizeOfAllocation);
+    type_table = CICalloc(context, sizeOfAllocation);
     if (type_table == NULL)
     	return FALSE;
      else
         memset(type_table, 0, sizeOfAllocation);
    	
-    cb->constantpool = constant_pool;
-    cb->constantpool_count = nconstants;
+    cbConstantPool(cb) = constant_pool;
+    cbConstantPoolCount(cb) = nconstants;
 
     constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p = type_table;
-    for (malloc_size = 0, i = CONSTANT_POOL_UNUSED_INDEX; i < nconstants; i++) {
-	int type = get1byteI8(context);
-	switch (type) {
-	  case CONSTANT_Utf8: {
-	      uint16_t length = get2bytesU16(context);
-	      malloc_size += length + 1;
-	      getNbytes(context, length, NULL);
-	      break;
-	  }
-	    
-	  case CONSTANT_Class:
-	  case CONSTANT_String:
-	      getNbytes(context, 2, NULL);
-	      break;
-
-	  case CONSTANT_Fieldref:
-	  case CONSTANT_Methodref:
-	  case CONSTANT_InterfaceMethodref:
-	  case CONSTANT_NameAndType:
-	  case CONSTANT_Integer:
-	  case CONSTANT_Float:
-	      getNbytes(context, 4, NULL);
-	      break;
-
-	  case CONSTANT_Long:
-	  case CONSTANT_Double: 
-	      i++;
-	      getNbytes(context, 8, NULL);
-	      break;
-
-	  default: 
-	      ERROR("Illegal constant pool type");
-	}
-    }
-
-    malloced_space = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)malloc_size);
-    if (malloced_space == NULL)
-    	return FALSE;
-    
-    context->ptr = initial_ptr;
-
     for (i = CONSTANT_POOL_UNUSED_INDEX; i < nconstants; i++) {
 	int type = get1byteI8(context);
 	CONSTANT_POOL_TYPE_TABLE_PUT(type_table, i, type);
 	switch (type) {
 	  case CONSTANT_Utf8: {
-	      uint16_t length = get2bytesU16(context);
-	      char *result = malloced_space;
-	      malloced_space += (length + 1);
+	      unsigned short length = get2bytesU16(context);
+	      char *result = CICalloc(context, (size_t)length + 1);
 	      getNbytes(context, length, result);
 	      result[length] = '\0';
 	      constant_pool[i].p = result;
@@ -895,9 +954,11 @@ static bool_t LoadConstantPool(CICcontext *context)
 
 	  case CONSTANT_Long:
 	  case CONSTANT_Double: {
-	      uint32_t high = get4bytes(context);
-	      uint32_t low = get4bytes(context);
+	      uint32_t high, low;
 	      int64_t value;
+	      if (i + 1 >= nconstants) ERROR("Illegal constant pool index");
+	      high = get4bytes(context);
+	      low = get4bytes(context);
 	      value = ll_add(ll_shl(uint2ll(high), 32), uint2ll(low));
 	      SET_INT64(t1, &constant_pool[i], value);
 	      CONSTANT_POOL_TYPE_TABLE_SET_RESOLVED(type_table, i);
@@ -922,14 +983,17 @@ static bool_t LoadConstantPool(CICcontext *context)
 static bool_t ReadInCode(CICcontext *context, struct methodblock *mb)
 {
     uint32_t attribute_length = get4bytes(context);
-    unsigned char *end_ptr = context->ptr + attribute_length;
-    uint16_t attribute_count;
+    unsigned char *end_ptr;
+    unsigned short attribute_count;
     uint32_t code_length;
     uint32_t i;
 
-    if (context->cb->minor_version <= 2) { 
-	mb->maxstack = (uint16_t) get1byte(context);
-	mb->nlocals = (uint16_t) get1byte(context);
+    if (attribute_length > (unsigned long)(context->end_ptr - context->ptr))
+        ERROR("Truncated class file");
+    end_ptr = context->ptr + attribute_length;
+    if (cbMinorVersion(context->cb) <= 2) { 
+	mb->maxstack = (unsigned short) get1byte(context);
+	mb->nlocals = (unsigned short) get1byte(context);
 	code_length = mb->code_length = get2bytes(context);
     } else { 
 	mb->maxstack = get2bytesU16(context);
@@ -937,7 +1001,7 @@ static bool_t ReadInCode(CICcontext *context, struct methodblock *mb)
 	code_length = mb->code_length = get4bytes(context);
     }
 
-    mb->code = ArenaAlloc(&(context->cb->classStorageArena->pool), code_length);
+    mb->code = CICalloc(context, code_length);
     if (mb->code == NULL)
         return FALSE;
 
@@ -946,7 +1010,7 @@ static bool_t ReadInCode(CICcontext *context, struct methodblock *mb)
 	uint32_t exception_table_size = mb->exception_table_length 
 	                                  * sizeof(struct CatchFrame);
 
-	mb->exception_table = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)exception_table_size);
+	mb->exception_table = CICalloc(context, (size_t)exception_table_size);
 	if (mb->exception_table == NULL)
 		return FALSE;
 
@@ -980,11 +1044,14 @@ static bool_t ReadInCode(CICcontext *context, struct methodblock *mb)
 static bool_t ReadLineTable(CICcontext *context, struct methodblock *mb)
 {
     int32_t attribute_length = get4bytes(context);
-    unsigned char *end_ptr = context->ptr  + attribute_length;
+    unsigned char *end_ptr;
     int32_t i;
+    if (attribute_length > (unsigned long)(context->end_ptr - context->ptr))
+        ERROR("Truncated class file");
+    end_ptr = context->ptr + attribute_length;
     if ((mb->line_number_table_length = get2bytes(context)) > 0) {
 	struct lineno *ln = NULL;
-	ln = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(mb->line_number_table_length * sizeof(struct lineno)));
+	ln = CICalloc(context, (size_t)(mb->line_number_table_length * sizeof(struct lineno)));
 	if (ln == NULL)
 		return FALSE;
 	mb->line_number_table = ln;
@@ -1001,11 +1068,14 @@ static bool_t ReadLineTable(CICcontext *context, struct methodblock *mb)
 static bool_t ReadLocalVars(CICcontext *context, struct methodblock *mb)
 {
     int32_t attribute_length = get4bytes(context);
-    unsigned char *end_ptr = context->ptr  + attribute_length;
+    unsigned char *end_ptr;
     int32_t i;
+    if (attribute_length > (unsigned long)(context->end_ptr - context->ptr))
+        ERROR("Truncated class file");
+    end_ptr = context->ptr + attribute_length;
     if ((mb->localvar_table_length = get2bytes(context)) > 0) {
 	struct localvar *lv = NULL;
-	lv = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(mb->localvar_table_length * sizeof(struct localvar)));
+	lv = CICalloc(context, (size_t)(mb->localvar_table_length * sizeof(struct localvar)));
 	if (lv == NULL)
 		return FALSE;
 	mb->localvar_table = lv;
@@ -1064,104 +1134,87 @@ unsigned Signature2ArgsSize(char *method_signature)
 }
 
 
-ClassClass*
-createFakeArrayClass(char *name) 
+/* Primary 1000EBE7: four CP words followed by four type bytes. */
+ClassClass *createFakeArrayClass(char *name, int base_type, int depth,
+                               ClassClass *inner_cb,
+                               struct Hjava_lang_ClassLoader *loader)
 {
-    char *name_p;
-    ClassClass *cb = AllocClass();
-    int depth, base_type = 0;
-    char buffer_space[256];
-    char *buffer = buffer_space;
-    cp_item_type *constant_pool = NULL;
-    unsigned char *type_table = NULL;
-    uint32_t sizeOfAllocation;
-    
-    sizeOfAllocation = CONSTANT_POOL_ARRAY_LENGTH * sizeof(cp_item_type);
-	constant_pool = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
-	if (constant_pool == NULL)
-		return NULL;
-	else
-		memset(constant_pool, 0, sizeOfAllocation);
-		
-    sizeOfAllocation = CONSTANT_POOL_ARRAY_LENGTH * sizeof(char);
-	type_table = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
-	if (type_table == NULL)
-		return NULL;
-	else
-		memset(type_table, 0, sizeOfAllocation);
-    
+    ClassClass *cb = allocClassClass();
+    cp_item_type *pool;
+    unsigned char *types;
+    char *copy;
+    if (!cb) return NULL;
+    pool = sysCalloc(CONSTANT_POOL_ARRAY_LENGTH, sizeof(*pool) + 1);
+    if (!pool) return NULL;
+    copy = sysMalloc(strlen(name) + 1);
+    if (!copy) { sysFree(pool); return NULL; }
+    strcpy(copy, name);
     sysAssert(name[0] == SIGNATURE_ARRAY);
-
-    if (strlen(name) + 1 > sizeof(buffer_space)) { 
-	/* don't allow buffer overflow  */
-	buffer = sysMalloc((size_t)strlen(name));
-    }
-
-    for (name_p = name, depth = 0; *name_p == SIGNATURE_ARRAY; 
-	 name_p++, depth++);
-    switch(*name_p) {
-        case SIGNATURE_INT:    base_type = T_INT; break;
-	case SIGNATURE_LONG:   base_type = T_LONG; break;
-	case SIGNATURE_FLOAT:  base_type = T_FLOAT; break;
-	case SIGNATURE_DOUBLE: base_type = T_DOUBLE; break;
-	case SIGNATURE_BOOLEAN:base_type = T_BOOLEAN; break; 
-	case SIGNATURE_BYTE:   base_type = T_BYTE; break;
-	case SIGNATURE_CHAR:   base_type = T_CHAR; break;
-	case SIGNATURE_SHORT:  base_type = T_SHORT; break;
-	case SIGNATURE_CLASS: {
-	    char *bp;
-	    for (bp = buffer, name_p++; /* skip over SIGNATURE_ARRAY */
-		 *name_p != SIGNATURE_ENDCLASS; *bp++ = *name_p++);
-	    *bp = '\0';
-	    base_type = T_CLASS;
-	}
-    }
-    cb->major_version = JAVA_VERSION;
-    cb->minor_version = JAVA_MINOR_VERSION;
-    cb->access = ACC_FINAL | ACC_ABSTRACT | ACC_PUBLIC;
-
-    sizeOfAllocation = strlen(name) + 1;
-	cb->name = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
-	if (cb->name == NULL)
-		return NULL;
-	else
-		strcpy(cb->name, name);
-
-    cb->super_name = JAVAPKG "Object";
-    cb->constantpool = constant_pool;
-    cb->constantpool_count = CONSTANT_POOL_ARRAY_LENGTH;
-
-    constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p = type_table;
-    constant_pool[CONSTANT_POOL_ARRAY_DEPTH_INDEX].i = depth;     
-    constant_pool[CONSTANT_POOL_ARRAY_TYPE_INDEX].i = base_type;
-    type_table[CONSTANT_POOL_ARRAY_DEPTH_INDEX] = 
-	type_table[CONSTANT_POOL_ARRAY_TYPE_INDEX] = 
-	    CONSTANT_Integer | CONSTANT_POOL_ENTRY_RESOLVED;
-    
+    cbMajorVersion(cb) = JAVA_VERSION;
+    cbMinorVersion(cb) = JAVA_MINOR_VERSION;
+    cbName(cb) = copy;
+    cbSuperName(cb) = JAVAPKG "Object";
+    cbConstantPool(cb) = pool;
+    cbConstantPoolCount(cb) = CONSTANT_POOL_ARRAY_LENGTH;
+    cbLoader(cb) = loader;
+    types = (unsigned char *)(pool + CONSTANT_POOL_ARRAY_LENGTH);
+    pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p = types;
+    pool[CONSTANT_POOL_ARRAY_DEPTH_INDEX].i = depth;
+    pool[CONSTANT_POOL_ARRAY_TYPE_INDEX].i = base_type;
+    types[CONSTANT_POOL_ARRAY_DEPTH_INDEX] =
+        types[CONSTANT_POOL_ARRAY_TYPE_INDEX] = CONSTANT_Integer | CONSTANT_POOL_ENTRY_RESOLVED;
     if (base_type == T_CLASS) {
-	constant_pool[CONSTANT_POOL_ARRAY_CLASS_INDEX].i = 
-	      CONSTANT_POOL_ARRAY_CLASSNAME_INDEX;
-	      
-    sizeOfAllocation = strlen(buffer) + 1;
-	constant_pool[CONSTANT_POOL_ARRAY_CLASSNAME_INDEX].cp = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
-	if (constant_pool[CONSTANT_POOL_ARRAY_CLASSNAME_INDEX].cp == NULL)
-		return NULL;
-	else
-		strcpy(constant_pool[CONSTANT_POOL_ARRAY_CLASSNAME_INDEX].cp, buffer);
-
-	type_table[CONSTANT_POOL_ARRAY_CLASS_INDEX] = CONSTANT_Class;
-	type_table[CONSTANT_POOL_ARRAY_CLASSNAME_INDEX] = 
-	      CONSTANT_Utf8 | CONSTANT_POOL_ENTRY_RESOLVED;
+        pool[CONSTANT_POOL_ARRAY_CLASS_INDEX].p = inner_cb;
+        types[CONSTANT_POOL_ARRAY_CLASS_INDEX] = CONSTANT_Class | CONSTANT_POOL_ENTRY_RESOLVED;
+        cbAccess(cb) = (cbAccess(inner_cb) & ACC_PUBLIC) | ACC_FINAL | ACC_ABSTRACT;
     } else {
-	type_table[CONSTANT_POOL_ARRAY_CLASS_INDEX] = 
-	    type_table[CONSTANT_POOL_ARRAY_CLASSNAME_INDEX] = 
-		CONSTANT_Integer | CONSTANT_POOL_ENTRY_RESOLVED;
+        types[CONSTANT_POOL_ARRAY_CLASS_INDEX] = CONSTANT_Integer | CONSTANT_POOL_ENTRY_RESOLVED;
+        cbAccess(cb) = ACC_PUBLIC | ACC_FINAL | ACC_ABSTRACT;
     }
-    if (buffer != buffer_space) { 
-	/* free buffer, if we malloc'ed it */
-	sysFree(buffer);
-    } 
+    AddBinClass(cb);
     return cb;
+}
+
+/* Primary 1000FE54: Code and Exceptions may appear in either order. */
+void freeClassInitializer(struct methodblock *mb)
+{
+    unsigned char *base = mb->code;
+    if (mb->exceptions && (unsigned char *)mb->exceptions <= base)
+        base = (unsigned char *)mb->exceptions;
+    sysFree(base);
+    mb->code = NULL;
+    mb->exceptions = NULL;
+}
+
+/* Free only native metadata. The collector owns the class body and handle. */
+void FreeClass(ClassClass *cb)
+{
+    struct methodblock *mb;
+    unsigned int i;
+    CompilerFreeClass(cb);
+    for (i = 0, mb = cbMethods(cb); i < cbMethodsCount(cb); ++i, ++mb) {
+        if (!strcmp(mb->fb.name, "<clinit>") &&
+            !strcmp(mb->fb.signature, "()V") && mb->code_length) {
+            freeClassInitializer(mb);
+        }
+    }
+    sysFree(cbConstantPool(cb));
+    sysFree(cbMethodTableMem(cb));
+    sysFree(cbSlotTable(cb));
+    if (cbImplementsCount(cb) || cbIsInterface(cb))
+        sysFree(cbIntfMethodTable(cb));
+    /* deviation: legacy source-retry callers can leave the managed body
+     * reachable after freeing metadata; keep subsequent GC scans safe. */
+    cbConstantPool(cb) = NULL;
+    cbFields(cb) = NULL;
+    cbMethods(cb) = NULL;
+    cbImplements(cb) = NULL;
+    cbName(cb) = cbSuperName(cb) = cbSourceName(cb) = NULL;
+    cbConstantPoolCount(cb) = cbFieldsCount(cb) = cbMethodsCount(cb) = 0;
+    cbImplementsCount(cb) = 0;
+    cbMethodTableMem(cb) = NULL;
+    cbSlotTable(cb) = NULL;
+    cbIntfMethodTable(cb) = NULL;
 }
 
 static unsigned long get1byte(CICcontext *context)
@@ -1215,7 +1268,7 @@ static unsigned long get4bytes(CICcontext *context)
 static void getNbytes(CICcontext *context, int32_t count, char *buffer) 
 {
     unsigned char *ptr = context->ptr;
-    if (context->end_ptr - ptr < count)
+    if (count < 0 || context->end_ptr - ptr < count)
 	ERROR("Truncated class file");
     if (buffer != NULL) 
 	memcpy(buffer, ptr, (size_t) count);
@@ -1226,22 +1279,22 @@ static void getNbytes(CICcontext *context, int32_t count, char *buffer)
 static char *getAsciz(CICcontext *context) 
 {
     ClassClass *cb = context->cb;
-    union cp_item_type *constant_pool = cb->constantpool;
-    cp_index_type nconstants = cb->constantpool_count;
+    union cp_item_type *constant_pool = cbConstantPool(cb);
+    unsigned int nconstants = cbConstantPoolCount(cb);
     unsigned char *type_table = constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p;
 
-    cp_index_type value = get2bytesU16(context);
+    unsigned int value = get2bytesU16(context);
     if ((value == 0) || (value >= nconstants) || 
 	   type_table[value] != (CONSTANT_Utf8 | CONSTANT_POOL_ENTRY_RESOLVED))
 	ERROR("Illegal constant pool index");
     return constant_pool[value].cp;
 }
 
-static char *getAscizFromClass(CICcontext *context, cp_index_type value) 
+static char *getAscizFromClass(CICcontext *context, unsigned int value) 
 {
     ClassClass *cb = context->cb;
-    union cp_item_type *constant_pool = cb->constantpool;
-    cp_index_type nconstants = cb->constantpool_count;
+    union cp_item_type *constant_pool = cbConstantPool(cb);
+    unsigned int nconstants = cbConstantPoolCount(cb);
     unsigned char *type_table = constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p;
     if ((value <= 0) || (value >= nconstants) 
 	|| (type_table[value] != CONSTANT_Class))
@@ -1266,17 +1319,17 @@ static void ValidateClassName(CICcontext *context, char *name)
  * the class reference if it isn't, already. 
  */
 
-char *GetClassConstantClassName(cp_item_type *constant_pool, cp_index_type index)
+char *GetClassConstantClassName(cp_item_type *constant_pool, int index)
 {
     unsigned char *type_table = constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p;
     switch(type_table[index]) {
         case CONSTANT_Class | CONSTANT_POOL_ENTRY_RESOLVED: {
 	    ClassClass *cb = constant_pool[index].p;
-	    return classname(cb);
+	    return cbName(cb);
 	}
 
         case CONSTANT_Class: {
-	    cp_index_type name_index = constant_pool[index].i;
+	    unsigned int name_index = constant_pool[index].i;
 	    return constant_pool[name_index].cp;
 	}
 	    
@@ -1284,3 +1337,4 @@ char *GetClassConstantClassName(cp_item_type *constant_pool, cp_index_type index
 	    return (char *)0;
     }
 }
+

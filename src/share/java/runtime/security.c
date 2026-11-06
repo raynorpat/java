@@ -53,7 +53,7 @@ getClassContext(void)
     /* fill the array */
     for (n = 0, frame = EE()->current_frame ; frame != 0 ; ) {
 	if (frame->current_method != 0) {
-	    ctxdata[n++] = (HObject *)(fieldclass(&frame->current_method->fb)->HandleToSelf);
+	    ctxdata[n++] = (HObject *)(fieldclass(&frame->current_method->fb));
             frame = frame->current_method->fb.access & ACC_MACHINE_COMPILED ?
 		CompiledFramePrev(frame, &frame_buf) : frame->prev;
 	} else {
@@ -129,7 +129,7 @@ java_lang_SecurityManager_classDepth(Hjava_lang_SecurityManager *this, HString *
     for (frame = EE()->current_frame ; frame != 0 ; ) {
 	if (frame->current_method != 0) {
 	    cb = fieldclass(&frame->current_method->fb);
-	    if (cb && !strcmp(classname(cb), buf)) {
+	    if (cb && !strcmp(cbName(cb), buf)) {
 		return depth;
 	    }
             frame = frame->current_method->fb.access & ACC_MACHINE_COMPILED ?
@@ -172,88 +172,21 @@ java_lang_SecurityManager_checkClassLoader(Hjava_lang_SecurityManager *this, lon
 }
 
 long /*boolean*/
-java_lang_SecurityManager_checkScopePermission(Hjava_lang_SecurityManager *this, long arg_depth)
-{
-    struct javaframe *frame, frame_buf;
-    ClassClass	*cb;
-    int depth = 0;
-
-    if (!java_lang_SecurityManager_checkInitialized(this)) {
-        /* exceptionOccurred */
-        return FALSE;
+java_lang_SecurityManager_checkInitialized(Hjava_lang_SecurityManager *this) {
+    if (this == NULL) {
+        SignalError(0, JAVAPKG "NullPointerException", 0);
+        return (FALSE);
     }
 
-    for (frame = EE()->current_frame ; frame != 0 ;) {
-	if (frame->current_method != 0) {
-            if (depth >= arg_depth) {
-                if (frame->annotation == (JHandle *)1) {
-                    return TRUE;
-                }
-                if (frame->annotation == (JHandle *)2) {
-                    /* simulated applet permissions */
-                    return FALSE;
-                }
-                cb = fieldclass(&frame->current_method->fb);
-                if (cb && cbLoader(cb)) {
-                    return FALSE;
-                }
-	    }
-            frame = frame->current_method->fb.access & ACC_MACHINE_COMPILED ?
-		CompiledFramePrev(frame, &frame_buf) : frame->prev;
-            depth++;
-	} else {
-	    frame = frame->prev;
-	}
+    if (!unhand(this)->initialized) {
+        SignalError(0, JAVAPKG "SecurityException", "Attempted use of uninitialized Security Manager");
+        return (FALSE);
     }
-    /* Entire stack is without a classloader... assume super powers */
-    /* XXX perhaps we should get this default from Thread object?? */
-    return TRUE;
-}
-
-static void
-setScopePermission(Hjava_lang_SecurityManager *this, JHandle *permission, int checkClassLoader)
-{
-    struct javaframe *frame;
-    ClassClass	*cb;
-
-    for (frame = EE()->current_frame ; frame != 0 ;) {
-	if (frame->current_method != 0) {
-            if (checkClassLoader 
-                && (cb = fieldclass(&frame->current_method->fb))
-                && cbLoader(cb)) {
-                break;
-            }
-            if (frame->current_method->fb.access & ACC_MACHINE_COMPILED) {
-                SetCompiledFrameAnnotation(frame, permission);
-            } else {
-                frame->annotation = permission;
-            }
-            return;
-	} else {
-	    frame = frame->prev;
-	} 
-    }
-    SignalError(0, JAVAPKG "SecurityException", "setScopePermission is restricted");
+    return (TRUE);
 }
 
 
-void
-java_lang_SecurityManager_setScopePermission(Hjava_lang_SecurityManager *this)
-{
-    setScopePermission(this, (JHandle *)1, TRUE);
-}
 
-void
-java_lang_SecurityManager_setAppletScopePermission(Hjava_lang_SecurityManager *this)
-{
-    setScopePermission(this, (JHandle *)2, FALSE);
-}
-
-void
-java_lang_SecurityManager_resetScopePermission(Hjava_lang_SecurityManager *this)
-{
-    setScopePermission(this, (JHandle *)0, FALSE);
-}
 
 long
 java_lang_SecurityManager_classLoaderDepth(Hjava_lang_SecurityManager *this)
@@ -282,21 +215,5 @@ java_lang_SecurityManager_classLoaderDepth(Hjava_lang_SecurityManager *this)
     }
     return -1;
 }
-
-
-long /*boolean*/
-java_lang_SecurityManager_checkInitialized(Hjava_lang_SecurityManager *this) {
-    if (this == NULL) {
-        SignalError(0, JAVAPKG "NullPointerException", 0);
-        return (FALSE);
-    }
-
-    if (!unhand(this)->initialized) {
-        SignalError(0, JAVAPKG "SecurityException", "Attempted use of uninitialized Security Manager");
-        return (FALSE);
-    }
-    return (TRUE);
-}
-
 
 

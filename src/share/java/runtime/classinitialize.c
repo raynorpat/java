@@ -1,3 +1,4 @@
+#include "classhash115.h"
 /*
  * @(#)classinitialize.c	1.62 95/12/02  
  *
@@ -33,7 +34,7 @@
 #include "tree.h"
 #include "interpreter.h"
 #include "bool.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "monitor.h"
 #include "exceptions.h"
 #include "javaString.h"
@@ -48,10 +49,10 @@ void InitializeForCompiler(ClassClass *cb);
 static bool_t Locked_ResolveClassConstantField(unsigned type,
 					       ClassClass *class,
 					       cp_item_type *constant_pool, 
-					       cp_index_type index, 
+					       unsigned int index, 
 					       struct execenv *ee);
 static bool_t Locked_ResolveClassConstant(ClassClass *Class, cp_item_type *, 
-					  cp_index_type, struct execenv *, unsigned);
+					  unsigned int, struct execenv *, unsigned);
 
 
 
@@ -68,7 +69,7 @@ sysAssert(i>=0);
 sysAssert(i<=0xFFFF);
     CONSTANT_POOL_TYPE_TABLE_GET(cp,i) = (v);
 }
-void CONSTANT_POOL_TYPE_TABLE_SET_RESOLVED(unsigned char *cp,cp_index_type i) {
+void CONSTANT_POOL_TYPE_TABLE_SET_RESOLVED(unsigned char *cp,unsigned int i) {
 sysAssert(cp != 0);
 /*sysAssert(i>=0);*/	/* i is unsigned */
 sysAssert(i<=0xFFFF);
@@ -94,7 +95,8 @@ RuntimeInitClass(struct execenv *ee, ClassClass * cb)
 	if (!VerifyClass(cb))
 	    return JAVAPKG "VerifyError";
     }
-    return RunStaticInitializers(cb);
+    RunStaticInitializers(cb);
+    return NULL;
 }
 
 /* ResolveClassStringConstant is called by the classloader to resolve the
@@ -106,7 +108,7 @@ RuntimeInitClass(struct execenv *ee, ClassClass * cb)
  */
 
 bool_t
-ResolveClassStringConstant(ClassClass *cb, cp_index_type index, struct execenv *ee)
+ResolveClassStringConstant(ClassClass *cb, unsigned int index, struct execenv *ee)
 {
     /* This function is called before the verifier has ever had a chance
      * to look at the class.  So we should be extra careful.
@@ -116,9 +118,9 @@ ResolveClassStringConstant(ClassClass *cb, cp_index_type index, struct execenv *
     if (type_table[index] == CONSTANT_String | CONSTANT_POOL_ENTRY_RESOLVED)
 	return TRUE; 
     else if (type_table[index] == CONSTANT_String) { 
-    cp_index_type string_index = CPIndexAt(constant_pool,index);
+    unsigned int string_index = ((unsigned int)(constant_pool)[index].i);
     if ((string_index < 1) || 
-	(string_index >= (cp_index_type)cb->constantpool_count) ||
+	(string_index >= (unsigned int)cbConstantPoolCount(cb)) ||
 	(type_table[string_index] != 
 	     (CONSTANT_Utf8 | CONSTANT_POOL_ENTRY_RESOLVED)))
 	return FALSE;
@@ -149,7 +151,7 @@ ResolveClassConstantFromClass(ClassClass *class, unsigned index,
     
 
 bool_t
-ResolveClassConstant(cp_item_type *constant_pool, cp_index_type index, 
+ResolveClassConstant(cp_item_type *constant_pool, unsigned int index, 
 		     struct execenv *ee, unsigned mask)
 {
     bool_t ret;
@@ -174,7 +176,7 @@ ResolveClassConstant(cp_item_type *constant_pool, cp_index_type index,
 static bool_t
 Locked_ResolveClassConstant(ClassClass *current_class, 
 			    cp_item_type *constant_pool, 
-			    cp_index_type index, 
+			    unsigned int index, 
 			    struct execenv *ee, unsigned mask)
 {
     unsigned char *type_table = constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p;
@@ -192,7 +194,7 @@ Locked_ResolveClassConstant(ClassClass *current_class,
         */
 	switch(type) {
 	  case CONSTANT_Class: {
-	      cp_index_type name_index = CPIndexAt(constant_pool,index);
+	      unsigned int name_index = ((unsigned int)(constant_pool)[index].i);
 	      char *name = constant_pool[name_index].cp;
 	      ClassClass *class;
 
@@ -214,7 +216,7 @@ Locked_ResolveClassConstant(ClassClass *current_class,
 		  SignalError(ee, JAVAPKG "IllegalAccessError", name);
 		  return FALSE;
 	      }
-	      if (class->name[0] == SIGNATURE_ARRAY)
+	      if (cbName(class)[0] == SIGNATURE_ARRAY)
 		  ResolveClassConstantFromClass(class, 
 						CONSTANT_POOL_ARRAY_CLASS_INDEX,
 						ee, 
@@ -224,7 +226,7 @@ Locked_ResolveClassConstant(ClassClass *current_class,
 	  }
 
 	  case CONSTANT_String:  {
-	      cp_index_type value_index = CPIndexAt(constant_pool, index);
+	      unsigned int value_index = ((unsigned int)(constant_pool)[ index].i);
 	      char *value = constant_pool[value_index].cp;
 	      int length = utfstrlen(value);
 	      int i;
@@ -251,20 +253,19 @@ Locked_ResolveClassConstant(ClassClass *current_class,
 	  }
 	    
 	  case CONSTANT_NameAndType: {
-	      uint32_t key = constant_pool[index].u;
-	      cp_index_type name_index = key >> 16;
-	      cp_index_type type_index = key & 0xFFFF;
+	      uint32_t key = constant_pool[index].i;
+	      unsigned int name_index = key >> 16;
+	      unsigned int type_index = key & 0xFFFF;
 	      char *name = constant_pool[name_index].cp;
 	      char *type = constant_pool[type_index].cp;
-	      constant_pool[index].i = NameAndTypeToHash(name, type,
-                                                         current_class);
+	      constant_pool[index].i = NameAndTypeToHash(name, type);
 	      break;
 	  }
 
 	  case CONSTANT_InterfaceMethodref: {
 	      /* The verifier needs to worry about the class.  We don't care. */
 		  uint32_t key = constant_pool[index].i;
-		  cp_index_type name_type_index = key & 0xFFFF;
+		  unsigned int name_type_index = key & 0xFFFF;
 	      Locked_ResolveClassConstant(current_class, 
 					  constant_pool, name_type_index, ee, 
 					  1 << CONSTANT_NameAndType);
@@ -287,12 +288,12 @@ static bool_t
 Locked_ResolveClassConstantField(unsigned type,
 				 ClassClass *class, 
 				 cp_item_type *constant_pool, 
-				 cp_index_type index, 
+				 unsigned int index, 
 				 struct execenv *ee)
 {
     uint32_t key = constant_pool[index].i;
-    cp_index_type class_index = key >> 16;
-    cp_index_type name_type_index = key & 0xFFFF;
+    unsigned int class_index = key >> 16;
+    unsigned int name_type_index = key & 0xFFFF;
     uint32_t ID;
     char buf[256];
     int len;
@@ -308,7 +309,7 @@ Locked_ResolveClassConstantField(unsigned type,
     cb = constant_pool[class_index].p;
     switch (type) {
         case CONSTANT_Methodref: {
-	    int n = cb->methods_count;
+	    int n = cbMethodsCount(cb);
 	    struct methodblock *mb = cbMethods(cb);
 	    for (; --n >= 0; mb++) {
 		if (mb->fb.ID == ID) {
@@ -316,7 +317,7 @@ Locked_ResolveClassConstantField(unsigned type,
 			constant_pool[index].p = mb;
 			return TRUE;
 		    } else {
-			classname2string(classname(cb), buf, sizeof(buf));
+			classname2string(cbName(cb), buf, sizeof(buf));
 			len = strlen(buf);
 			/* On buffer overflow truncate string quietly */
 			(void) jio_snprintf(buf + len, sizeof(buf)-len, ".%s",
@@ -326,7 +327,7 @@ Locked_ResolveClassConstantField(unsigned type,
 		    }
 		}
 	    }
-	    classname2string(classname(cb), buf, sizeof(buf));
+	    classname2string(cbName(cb), buf, sizeof(buf));
 	    len = strlen(buf);
 	    /* On buffer overflow truncate string quietly */
 	    (void) jio_snprintf(buf + len, sizeof(buf)-len,
@@ -337,7 +338,7 @@ Locked_ResolveClassConstantField(unsigned type,
 	}
 	
         case CONSTANT_Fieldref: {
-	    int n = cb->fields_count;
+	    int n = cbFieldsCount(cb);
 	    struct fieldblock *fb = cbFields(cb);
 	    for (; --n >= 0; fb++) {
 		if (fb->ID == ID) {
@@ -345,7 +346,7 @@ Locked_ResolveClassConstantField(unsigned type,
 			constant_pool[index].p = fb;
 			return TRUE;
 		    } else {
-			classname2string(classname(cb), buf, sizeof(buf));
+			classname2string(cbName(cb), buf, sizeof(buf));
 			len = strlen(buf);
 			/* Reporting error, so truncate string quietly */
 			(void) jio_snprintf(buf + len, sizeof(buf)-len, ".%s",
@@ -355,7 +356,7 @@ Locked_ResolveClassConstantField(unsigned type,
 		    }
 		}
 	    }
-	    classname2string(classname(cb), buf, sizeof(buf));
+	    classname2string(cbName(cb), buf, sizeof(buf));
 	    len = strlen(buf);
 	    /* Reporting error, so truncate string quietly */
 	    (void) jio_snprintf(buf + len, sizeof(buf)-len, ": field %s not found",
@@ -411,8 +412,8 @@ VerifyFieldAccess(ClassClass *current_class, ClassClass *field_class,
     if (IsProtected(access)) {
 	/* See if current_class is a subclass of field_class */
 	ClassClass *cb;
-	for (  cb = unhand(cbSuperclass(current_class)); ;
-	       cb = unhand(cbSuperclass(cb))) {
+	for (  cb = cbSuperclass(current_class); ;
+	       cb = cbSuperclass(cb)) {
 	    if (cb == field_class) 
 		return TRUE;
 	    if (cbSuperclass(cb) == 0) 

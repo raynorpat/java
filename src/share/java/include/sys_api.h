@@ -1,20 +1,23 @@
 /*
- * @(#)sys_api.h	1.39 95/10/25  
- *
- * Copyright (c) 1994 Sun Microsystems, Inc. All Rights Reserved.
- *
- * Permission to use, copy, modify, and distribute this software
- * and its documentation for NON-COMMERCIAL purposes and without
- * fee is hereby granted provided that this copyright notice
- * appears in all copies. Please refer to the file "copyright.html"
- * for further important copyright and licensing information.
- *
- * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF
- * THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
- * TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR
- * ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR
- * DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
+ * @(#)sys_api.h	1.63 97/10/07
+ * 
+ * Copyright (c) 1995, 1996 Sun Microsystems, Inc. All Rights Reserved.
+ * 
+ * This software is the confidential and proprietary information of Sun
+ * Microsystems, Inc. ("Confidential Information").  You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Sun.
+ * 
+ * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+ * SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
+ * SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+ * THIS SOFTWARE OR ITS DERIVATIVES.
+ * 
+ * CopyrightVersion 1.1_beta
+ * 
  */
 
 /*
@@ -30,16 +33,6 @@
  * any macros for HPI functions have been moved to "sysmacros_md.h"
  */
 #include "typedefs_md.h"
-#include <stdio.h>	/* FILE */
-
-/*
- * Some platforms, notably Windows, require that extra keywords
- * be prepended for things that can be called from other libs.
- * The default is just to declare things "extern".
- */
-#ifndef EXPORTED
-#define EXPORTED extern
-#endif
 
 /*
  * Miscellaneous system utility APIs that fall outside the POSIX.1
@@ -49,137 +42,167 @@
  * time struct definitions found in timeval.h.
  */
 #include "timeval.h"
-EXPORTED long 	sysGetMilliTicks(void);
-EXPORTED long    sysTime(long *);
-EXPORTED int64_t sysTimeMillis(void);
+long 	sysGetMilliTicks(void);
+long    sysTime(long *);
+int64_t sysTimeMillis(void);
 
-#include <time.h>
-EXPORTED struct tm * sysLocaltime(time_t *, struct tm*);
-EXPORTED struct tm * sysGmtime(time_t *, struct tm*);
-EXPORTED void sysStrftime(char *, int, char *, struct tm *);
-EXPORTED time_t sysMktime(struct tm*);
+#include "time.h"
+struct tm * sysLocaltime(time_t *, struct tm*);
+struct tm * sysGmtime(time_t *, struct tm*);
+void        sysStrftime(char *, int, char *, struct tm *);
+time_t      sysMktime(struct tm*);
 
 /*
  * System API for general allocations
  */
-EXPORTED void *	sysMalloc(size_t);
-EXPORTED void *	sysRealloc(void*, size_t);
-EXPORTED void	sysFree(void*);
-EXPORTED void *	sysCalloc(size_t, size_t);
+void *	sysMalloc(size_t);
+void *	sysRealloc(void*, size_t);
+void	sysFree(void*);
+void *	sysCalloc(size_t, size_t);
+#ifdef PAGED_HEAPS
+void *  sysAllocBlock(size_t, void**);
+void    sysFreeBlock(void *);
+#endif /* PAGED_HEAPS */
 
 /*
  * System API for dynamic linking libraries into the interpreter
  */
-EXPORTED char * sysInitializeLinker(void);
-EXPORTED int    sysAddDLSegment(char *);
-EXPORTED void   sysSaveLDPath(char *);
-EXPORTED long   sysDynamicLink(char *);
-EXPORTED void	sysBuildLibName(char *, int, char *, char *);
+char *  sysInitializeLinker(void);
+int     sysAddDLSegment(char *);
+void    sysSaveLDPath(char *);
+long    sysDynamicLink(char *);
+void	sysBuildLibName(char *, int, char *, char *);
+int     sysBuildFunName(char *, int, void *, int);
+long *  sysInvokeNative(void *, void *, long *, char *, int, void *);
+
+/*
+ * System API for invoking the interpreter from native applications
+ */
+void    sysGetDefaultJavaVMInitArgs(void *);
+int     sysInitializeJavaVM(void *, void *);
+int     sysFinalizeJavaVM(void *);
+void    sysAttachThreadLock();
+void    sysAttachThreadUnlock();
 
 /*
  * System API for threads
  */
-typedef struct   sys_thread sys_thread_t;
-typedef struct   sys_mon sys_mon_t;
-typedef void   * stackp_t;
+typedef struct  sys_thread sys_thread_t;
+typedef struct  sys_mon sys_mon_t;
+typedef void *  stackp_t;
 
-EXPORTED int 	 sysThreadBootstrap(sys_thread_t **, void *);
-EXPORTED void 	 sysThreadInitializeSystemThreads(void);
-EXPORTED int 	 sysThreadCreate(long, uint_t flags, 
-				     void *(*)(void *), 
-				     sys_thread_t **,
-	 			     void *);
-EXPORTED  void	 sysThreadExit(void);
-EXPORTED  sys_thread_t * sysThreadSelf(void);
-EXPORTED  void	 sysThreadYield(void);
-EXPORTED  int	 sysThreadSuspend(sys_thread_t *);
-EXPORTED  int	 sysThreadResume(sys_thread_t *);
-EXPORTED  int	 sysThreadSetPriority(sys_thread_t *, int32_t);
-EXPORTED  int	 sysThreadGetPriority(sys_thread_t *, int32_t *);
-EXPORTED  void * sysThreadStackPointer(sys_thread_t *); 
-EXPORTED  stackp_t sysThreadStackBase(sys_thread_t *); 
-EXPORTED  int	 sysThreadSingle(void);
-EXPORTED  void	 sysThreadMulti(void);
-EXPORTED  int    sysThreadEnumerateOver(int (*)(sys_thread_t *, void *), void *);
-EXPORTED  void	 sysThreadInit(sys_thread_t *, stackp_t);
-EXPORTED  void	 sysThreadSetBackPtr(sys_thread_t *, void *);
-EXPORTED  void * sysThreadGetBackPtr(sys_thread_t *);
-EXPORTED  int    sysThreadCheckStack(void);
-EXPORTED  int    sysInterruptsPending(void);
-EXPORTED  void	 sysThreadPostException(sys_thread_t *, void *);
-EXPORTED void sysThreadInterrupt(sys_thread_t *);
-EXPORTED int sysThreadIsInterrupted(sys_thread_t *, long);
-EXPORTED  void ** sysThreadRegisters(sys_thread_t *, int *count);
-JAVA_PUBLIC_API(void)	 sysThreadDumpInfo(sys_thread_t *);
+int 	sysThreadBootstrap(sys_thread_t **, void *);
+void 	sysThreadInitializeSystemThreads(void);
+int 	sysThreadCreate(long, uint_t flags, void *(*)(void *),
+			sys_thread_t **, void *);
+void	sysThreadExit(void);
+sys_thread_t * sysThreadSelf(void);
+void    sysThreadYield(void);
+int     sysThreadVMSuspend(sys_thread_t *, sys_thread_t *);
+void    sysThreadVMSuspendMe(void);
+int     sysThreadVMUnsuspend(sys_thread_t *);
+int	sysThreadSuspend(sys_thread_t *);
+int	sysThreadResume(sys_thread_t *);
+int	sysThreadSetPriority(sys_thread_t *, int);
+int	sysThreadGetPriority(sys_thread_t *, int *);
+void *  sysThreadStackPointer(sys_thread_t *); 
+stackp_t sysThreadStackBase(sys_thread_t *); 
+void    sysThreadSetStackBase(sys_thread_t *, stackp_t); 
+int	sysThreadSingle(void);
+void	sysThreadMulti(void);
+int     sysThreadEnumerateOver(int (*)(sys_thread_t *, void *), void *);
+void	sysThreadInit(sys_thread_t *, stackp_t);
+void *  sysThreadGetBackPtr(sys_thread_t *);
+int     sysThreadCheckStack(void);
+int     sysInterruptsPending(void);
+void	sysThreadPostException(sys_thread_t *, void *);
+void	sysThreadDumpInfo(sys_thread_t *);
+void    sysThreadInterrupt(sys_thread_t *);
+int     sysThreadIsInterrupted(sys_thread_t *, long);
+int     sysThreadAlloc(sys_thread_t **, stackp_t, void *);
+int     sysThreadFree(sys_thread_t *);
 
 /*
  * System API for monitors
  */
-EXPORTED int     sysMonitorSizeof(void);
-EXPORTED int     sysMonitorInit(sys_mon_t *);
-EXPORTED int     sysMonitorEnter(sys_mon_t *);
-EXPORTED bool_t  sysMonitorEntered(sys_mon_t *);
-EXPORTED int     sysMonitorExit(sys_mon_t *);
-EXPORTED int     sysMonitorNotify(sys_mon_t *);
-EXPORTED int     sysMonitorNotifyAll(sys_mon_t *);
-EXPORTED int 	 sysMonitorWait(sys_mon_t *, int, bool_t);
-EXPORTED int	 sysMonitorDestroy(sys_mon_t *);
-EXPORTED void    sysMonitorDumpInfo(sys_mon_t *);
-EXPORTED bool_t sysMonitorInUse(sys_mon_t *);
-/* deviation: old shared thread-exit cleanup, distinct from resource destruction. */
-EXPORTED int sysMonitorCleanup(sys_mon_t *, sys_thread_t *);
-
-#define SYS_TIMEOUT_INFINITY -1
-#define SYS_INTRPT      -2
+int     sysMonitorSizeof(void);
+int     sysMonitorInit(sys_mon_t *);
+int     sysMonitorDestroy(sys_mon_t *);
+int     sysMonitorEnter(sys_mon_t *);
+bool_t  sysMonitorEntered(sys_mon_t *);
+int     sysMonitorExit(sys_mon_t *);
+int     sysMonitorNotify(sys_mon_t *);
+int     sysMonitorNotifyAll(sys_mon_t *);
+int 	sysMonitorWait(sys_mon_t *, int, bool_t);
+void    sysMonitorDumpInfo(sys_mon_t *);
+bool_t  sysMonitorInUse(sys_mon_t *);
 
 #define SYS_OK	        0
-#define SYS_TIMEOUT    -3
 #define SYS_ERR	       -1
-#define SYS_INVALID    -2    /* invalid arguments */
-#define SYS_NOTHREAD   -3    /* no such thread */
-#define SYS_MINSTACK   -4    /* supplied stack size less than min stack size */
-#define SYS_NOMEM      -5
-#define SYS_NORESOURCE -6
-#define SYS_DESTROY    -7
+#define SYS_INTRPT     -2    /* Operation was interrupted */
+#define SYS_TIMEOUT    -3    /* A timer ran out */
+#define SYS_NOMEM      -5    /* Ran out of memory */
+#define SYS_NORESOURCE -6    /* Ran out of some system resource */
+
+/*
+ * Symbolic constant to be used when waiting indefinitly on a condition
+ * variable
+ */
+#define SYS_TIMEOUT_INFINITY -1
 
 /*
  * System API for raw memory allocation
  */
-EXPORTED void * sysMapMem(long, long *);
-EXPORTED void * sysUnmapMem(void *, long, long *);
-EXPORTED void * sysCommitMem(void *, long, long *);
-EXPORTED void * sysUncommitMem(void *, long, long *);
+void *  sysMapMem(long, long *);
+void *  sysUnmapMem(void *, long, long *);
+void *  sysCommitMem(void *, long, long *);
+void *  sysUncommitMem(void *, long, long *);
 
 /*
  * System API for termination
  */
-EXPORTED void sysExit(int);
-EXPORTED int sysAtexit(void (*func)(void));
-EXPORTED void sysAbort(void);
+void	sysExit(int);
+int	sysAtexit(void (*func)(void));
+void	sysAbort(void);
 
 /*
- * System API for filesystem access
+ * System API for files
  */
-EXPORTED int sysOpen(const char *name, int flags, int mode);
-EXPORTED long sysRead(int fd, void *buf, long amount);
-EXPORTED long sysWrite(int fd, const void *buf, long amount);
-EXPORTED long sysSeek(int fd, long offset, int whence);
-EXPORTED int sysClose(int fd);
+extern int sysIsAbsolute(const char* path);
+extern int sysAccess(const char* pFile, int perm);
 
-EXPORTED int sysAccess(const char *path, int mode);
-struct stat;
-EXPORTED int sysStat(const char *path, struct stat *buf);
-EXPORTED int sysFStat(int fd, struct stat *buf);
-EXPORTED int sysAvailable(int fd, long *bytes);
-EXPORTED int sysRename(const char *source, const char *destination);
-EXPORTED int sysRmdir(const char *path);
-EXPORTED int sysCanonicalPath(char *path, char *result, int result_len);
-EXPORTED int sysIsMP(void);
-EXPORTED void sysMemoryFlush(void);
-EXPORTED void sysStoreBarrier(void);
-EXPORTED int sysIsAbsolute(const char *path);
-EXPORTED int sysMkdir(const char *path, int mode);
-EXPORTED int sysUnlink(const char *path);
+extern int sysStat(const char *path, struct stat *sbuf);
+extern int sysFStat(int fd, struct stat * sbuf);
+
+extern int sysOpen(const char *name, int openMode, int filePerm);
+extern int sysClose(int fd);
+
+extern long sysSeek(int fd, long offset, int whence);
+extern int sysAvailable(int fd, long* bytes);
+extern size_t sysRead(int fd, void *buf, unsigned int nBytes);
+extern size_t sysWrite(int fd, const void *buf, unsigned int nBytes);
+
+extern int sysRename(const char* srcName, const char* dstName);
+extern int sysUnlink(const char* file);
+
+extern int sysMkdir(const char* path, int mode);
+extern int sysRmdir(const char* path);
+extern int sysCanonicalPath(char *path, char *result, int result_len);
+
+#include "io_md.h"
+extern DIR* sysOpenDir(const char* path);
+extern int sysCloseDir(DIR* dp);
+extern struct dirent* sysReadDir(DIR* dp);
+
+/*
+ * API support needed for various multiprocessor related syncronization
+ * primitives.  Systems that don't use real threads can just define
+ * these to be 0 in their sysmacros_md.h.
+ */
+
+int sysIsMP();
+void sysMemoryFlush();
+void sysStoreBarrier();
 
 /*
  * Include platform specific macros to override these

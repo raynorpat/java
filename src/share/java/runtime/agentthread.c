@@ -23,7 +23,7 @@
  */
 
 #include <oobj.h>
-#include <javaThreads.h>
+#include <threads.h>
 #include <threads_md.h>
 #include <opcodes.h>
 

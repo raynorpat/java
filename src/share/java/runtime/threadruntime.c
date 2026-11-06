@@ -27,7 +27,7 @@
 #include "tree.h"
 #include "monitor.h"
 #include "signature.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "exceptions.h"
 #include "log.h"
 #include "javaString.h"
@@ -37,12 +37,12 @@
  */
 ClassClass *Thread_classblock;
 
-uint32_t JavaStackSize = JAVASTACKSIZE;
+long JavaStackSize = JAVASTACKSIZE;
 
 long *
-getclassvariable(struct ClassClass *cb, char *fname)
+getclassvariable(ClassClass *cb, char *fname)
 {
-    int    n = cb->fields_count;
+    int    n = cbFieldsCount(cb);
     struct fieldblock *fb;
 
     for (fb = cbFields(cb); --n >= 0; fb++)

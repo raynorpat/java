@@ -9,16 +9,15 @@
 #include "monitor.h"
 #include "exceptions.h"
 #include "path.h"
+extern ClassClass *allocClassClass(void);
 extern sys_mon_t *_heap_lock;
 #define HEAP_LOCK() sysMonitorEnter(_heap_lock)
 #define HEAP_UNLOCK() sysMonitorExit(_heap_lock)
 
-typedef struct { unsigned int count; JHandle *object; } RefCell;
-typedef struct { RefCell *cells; int base, top, capacity; } RefTable;
+typedef JNIRefCell RefCell;
+typedef JNIRefTable RefTable;
 typedef struct JNIState {
-    const struct JNINativeInterface_ *functions;
     ExecEnv *ee;
-    RefTable refs;
     struct JNIState *next;
 } JNIState;
 typedef struct Pinned {
@@ -29,10 +28,10 @@ typedef struct Pinned {
 
 static const struct JNINativeInterface_ jni_NativeInterface;
 static JNIState *environments;
-static RefTable globalRefs;
+JNIRefTable globalRefTable;
+#define globalRefs globalRefTable
 static Pinned *pinned;
-#define STATE(env) ((JNIState *)(env))
-#define JEE(env) (STATE(env)->ee)
+#define JEE(env) JNIEnv2EE(env)
 
 /* deviation: the current heap lock protects tables and pin counts, so the
  * old collector never suspends a thread while it owns a separate JNI lock. */
@@ -40,32 +39,34 @@ JNIEnv *jni_Env(ExecEnv *ee)
 {
     JNIState *state;
     HEAP_LOCK();
-    state = (JNIState *)ee->jni_state;
-    if (state == NULL) {
+    if (!ee->nativeInterface.functions) {
         state = (JNIState *)calloc(1, sizeof(*state));
-        if (state != NULL) {
-            state->functions = &jni_NativeInterface;
-            state->ee = ee;
-            state->next = environments;
-            environments = state;
-            ee->jni_state = state;
+        if (!state) {
+            HEAP_UNLOCK();
+            SignalError(ee, JAVAPKG "OutOfMemoryError", NULL);
+            return NULL;
         }
+        state->ee = ee;
+        state->next = environments;
+        environments = state;
+        ee->nativeInterface.functions = &jni_NativeInterface;
     }
     HEAP_UNLOCK();
-    if (state == NULL) SignalError(ee, JAVAPKG "OutOfMemoryError", NULL);
-    return (JNIEnv *)state;
+    return EE2JNIEnv(ee);
 }
 
 void jni_FreeEnv(ExecEnv *ee)
 {
-    JNIState *state = (JNIState *)ee->jni_state, **link;
-    if (state == NULL) return;
+    JNIState **link, *state;
     HEAP_LOCK();
-    for (link = &environments; *link != state; link = &(*link)->next) {}
-    *link = state->next;
-    free(state->refs.cells);
-    free(state);
-    ee->jni_state = NULL;
+    for (link = &environments; *link && (*link)->ee != ee; link = &(*link)->next) {}
+    state = *link;
+    if (state) {
+        *link = state->next;
+        free(JNIEnvGetLocalRefs(EE2JNIEnv(ee))->elements);
+        memset(&ee->nativeInterface, 0, sizeof(ee->nativeInterface));
+        free(state);
+    }
     HEAP_UNLOCK();
 }
 
@@ -76,10 +77,10 @@ void jni_EnumerateRoots(void (*mark)(void *))
     Pinned *pin;
     int i;
     for (i = 0; i < globalRefs.top; i++)
-        if (globalRefs.cells[i].count) mark(globalRefs.cells[i].object);
+        if (globalRefs.elements[i].refCount) mark(globalRefs.elements[i].content);
     for (state = environments; state; state = state->next) {
-        for (i = 0; i < state->refs.top; i++)
-            if (state->refs.cells[i].count) mark(state->refs.cells[i].object);
+        for (i = 0; i < JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->top; i++)
+            if (JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->elements[i].refCount) mark(JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->elements[i].content);
         if (exceptionOccurred(state->ee)) mark(state->ee->exception.exc);
     }
     for (pin = pinned; pin; pin = pin->next) {
@@ -95,24 +96,24 @@ static int addRef(RefTable *table, JHandle *object)
     RefCell *cells;
     if (object == NULL) return 0;
     for (i = table->top - 1; i >= table->base; i--) {
-        if (table->cells[i].object == object) {
-            table->cells[i].count++;
+        if (table->elements[i].content == object) {
+            table->elements[i].refCount++;
             return i + 1;
         }
-        if (empty < 0 && table->cells[i].count == 0) empty = i;
+        if (empty < 0 && table->elements[i].refCount == 0) empty = i;
     }
     if (empty < 0) {
-        if (table->top == table->capacity) {
-            capacity = table->capacity ? table->capacity * 2 : 4;
-            cells = (RefCell *)realloc(table->cells, capacity * sizeof(*cells));
+        if (table->top == table->size) {
+            capacity = table->size ? table->size * 2 : 4;
+            cells = (RefCell *)realloc(table->elements, capacity * sizeof(*cells));
             if (cells == NULL) return 0;
-            table->cells = cells;
-            table->capacity = capacity;
+            table->elements = cells;
+            table->size = capacity;
         }
         empty = table->top++;
     }
-    table->cells[empty].object = object;
-    table->cells[empty].count = 1;
+    table->elements[empty].content = object;
+    table->elements[empty].refCount = 1;
     return empty + 1;
 }
 
@@ -120,7 +121,7 @@ static jobject localRef(JNIEnv *env, JHandle *object)
 {
     int index;
     HEAP_LOCK();
-    index = addRef(&STATE(env)->refs, object);
+    index = addRef(JNIEnvGetLocalRefs(env), object);
     HEAP_UNLOCK();
     if (object != NULL && index == 0)
         SignalError(JEE(env), JAVAPKG "OutOfMemoryError", NULL);
@@ -133,8 +134,8 @@ static JHandle *resolveRef(JNIEnv *env, jobject ref)
     JHandle *object;
     if (index == 0) return NULL;
     HEAP_LOCK();
-    object = index > 0 ? STATE(env)->refs.cells[index - 1].object
-                      : globalRefs.cells[-index - 1].object;
+    object = index > 0 ? JNIEnvGetLocalRefs(env)->elements[index - 1].content
+                      : globalRefs.elements[-index - 1].content;
     HEAP_UNLOCK();
     return object;
 }
@@ -161,7 +162,7 @@ static ClassClass *classRef(JNIEnv *env, jclass ref)
                                   : "JNI received a null class");
         return NULL;
     }
-    return unhand((HClass *)object);
+    return (ClassClass *)object;
 }
 
 static int pinObject(JNIEnv *env, JHandle *object)
@@ -204,12 +205,12 @@ static jobject JNICALL jni_NewGlobalRef(JNIEnv *env, jobject ref)
 static void JNICALL jni_DeleteGlobalRef(JNIEnv *env, jobject ref)
 {
     if ((int)ref > 0) jni_FatalError(env, "DeleteGlobalRef received a local ref");
-    if (ref) { HEAP_LOCK(); globalRefs.cells[-(int)ref - 1].count--; HEAP_UNLOCK(); }
+    if (ref) { HEAP_LOCK(); globalRefs.elements[-(int)ref - 1].refCount--; HEAP_UNLOCK(); }
 }
 static void JNICALL jni_DeleteLocalRef(JNIEnv *env, jobject ref)
 {
     if ((int)ref < 0) jni_FatalError(env, "DeleteLocalRef received a global ref");
-    if (ref) { HEAP_LOCK(); STATE(env)->refs.cells[(int)ref - 1].count--; HEAP_UNLOCK(); }
+    if (ref) { HEAP_LOCK(); JNIEnvGetLocalRefs(env)->elements[(int)ref - 1].refCount--; HEAP_UNLOCK(); }
 }
 static jboolean JNICALL jni_IsSameObject(JNIEnv *env, jobject a, jobject b)
 { return resolveRef(env, a) == resolveRef(env, b); }
@@ -246,7 +247,7 @@ static jobject JNICALL jni_AllocObject(JNIEnv *env, jclass clazz)
     ClassClass *cb = classRef(env, clazz);
     HObject *object;
     if (cbAccess(cb) & (ACC_INTERFACE | ACC_ABSTRACT)) {
-        SignalError(JEE(env), JAVAPKG "InstantiationException", classname(cb));
+        SignalError(JEE(env), JAVAPKG "InstantiationException", cbName(cb));
         return NULL;
     }
     object = ObjAlloc(cb, 0);
@@ -255,7 +256,7 @@ static jobject JNICALL jni_AllocObject(JNIEnv *env, jclass clazz)
 }
 static jclass JNICALL jni_GetObjectClass(JNIEnv *env, jobject object)
 {
-    extern HClass *java_lang_Object_getClass(HObject *);
+    extern ClassClass *java_lang_Object_getClass(HObject *);
     return localRef(env, (JHandle *)java_lang_Object_getClass(resolveRef(env, object)));
 }
 static jboolean JNICALL jni_IsInstanceOf(JNIEnv *env, jobject object, jclass clazz)
@@ -276,8 +277,8 @@ static struct methodblock *findMethod(ClassClass *cb, const char *name, const ch
 {
     int i;
     struct methodblock *mb;
-    for (; cb; cb = cbSuperclass(cb) ? unhand(cbSuperclass(cb)) : NULL)
-        for (i = 0, mb = cbMethods(cb); i < cb->methods_count; i++, mb++)
+    for (; cb; cb = cbSuperclass(cb) ? cbSuperclass(cb) : NULL)
+        for (i = 0, mb = cbMethods(cb); i < cbMethodsCount(cb); i++, mb++)
             if (!strcmp(fieldname(&mb->fb), name) && !strcmp(fieldsig(&mb->fb), sig))
                 return mb;
     return NULL;
@@ -304,13 +305,13 @@ static struct fieldblock *findField(JNIEnv *env, ClassClass *cb, const char *nam
     ClassClass *current;
     struct fieldblock *fb;
     int i;
-    for (current = cb; current; current = cbSuperclass(current) ? unhand(cbSuperclass(current)) : NULL) {
-        for (i = 0, fb = cbFields(current); i < current->fields_count; i++, fb++)
+    for (current = cb; current; current = cbSuperclass(current) ? cbSuperclass(current) : NULL) {
+        for (i = 0, fb = cbFields(current); i < cbFieldsCount(current); i++, fb++)
             if (!strcmp(fieldname(fb), name) && !strcmp(fieldsig(fb), sig)) return fb;
     }
     /* deviation: recover Sun's interface table through current constant pools. */
-    if (interfaces) for (current = cb; current; current = cbSuperclass(current) ? unhand(cbSuperclass(current)) : NULL) {
-        for (i = 0; i < current->implements_count; i++) {
+    if (interfaces) for (current = cb; current; current = cbSuperclass(current) ? cbSuperclass(current) : NULL) {
+        for (i = 0; i < cbImplementsCount(current); i++) {
             int index = cbImplements(current)[i];
             if (!ResolveClassConstantFromClass(current, index, JEE(env), 1 << CONSTANT_Class)) return NULL;
             fb = findField(env, cbConstantPool(current)[index].p, name, sig, 1);
@@ -669,7 +670,7 @@ static jint JNICALL jni_UnregisterNatives(JNIEnv *env, jclass clazz)
 {
     ClassClass *cb = classRef(env, clazz);
     int i;
-    for (i = 0; i < cb->methods_count; i++) {
+    for (i = 0; i < cbMethodsCount(cb); i++) {
         struct methodblock *mb = &cbMethods(cb)[i];
         if (mb->fb.access & ACC_NATIVE) { mb->code = NULL; mb->invoker = invokeLazyNativeMethod; }
     }
@@ -680,32 +681,30 @@ static jint JNICALL jni_MonitorEnter(JNIEnv *env, jobject ref)
 static jint JNICALL jni_MonitorExit(JNIEnv *env, jobject ref)
 { monitorExit(obj_monitor(resolveRef(env, ref))); return 0; }
 static jint JNICALL jni_GetJavaVM(JNIEnv *env, JavaVM **vm)
-{ *vm = &jni_vm; return 0; }
+{ *vm = (JavaVM *)&jni_vm; return 0; }
 
 static jclass JNICALL jni_DefineClass(JNIEnv *env, const char *name, jobject loader,
                                      const jbyte *bytes, jsize length)
 {
-    ClassClass *cb = AllocClass();
+    ClassClass *cb = allocClassClass();
     JHandle *object = resolveRef(env, loader);
     char *error, *detail;
     int i, ok;
     if (!cb) { SignalError(JEE(env), JAVAPKG "OutOfMemoryError", NULL); return NULL; }
-    cb->loader = object;
+    cbLoader(cb) = (struct Hjava_lang_ClassLoader *)object;
     lock_classes();
     if (name) for (i = 0; i < nbinclasses; i++) {
-        if (cbLoader(binclasses[i]) == object && !strcmp(name, classname(binclasses[i]))) {
+        if (cbLoader(binclasses[i]) == object && !strcmp(name, cbName(binclasses[i]))) {
             unlock_classes();
             SignalError(JEE(env), JAVAPKG "ClassFormatError", "duplicate name"); return NULL;
         }
     }
-    cb->name = (char *)name;
-    ok = createInternalClass((unsigned char *)bytes, (unsigned char *)bytes + length, cb);
+    ok = createInternalClass((unsigned char *)bytes, (unsigned char *)bytes + length, cb,
+                             (struct Hjava_lang_ClassLoader *)object, (char *)name, &detail);
     if (!ok) {
         if (!exceptionOccurred(JEE(env))) SignalError(JEE(env), JAVAPKG "ClassFormatError", NULL);
         unlock_classes(); return NULL;
     }
-    AddBinClass(cb);
-    CCClear(cb, Resolving);
     unlock_classes();
     error = InitializeClass(cb, &detail);
     if (error) { SignalError(JEE(env), error, detail); return NULL; }
@@ -722,10 +721,10 @@ bool_t invokeJNINativeMethod(JHandle *object, struct methodblock *mb, int size, 
     jobject clazz = NULL;
     int savedBase, savedTop;
     if (!env) { SignalError(ee, JAVAPKG "OutOfMemoryError", NULL); return FALSE; }
-    state = STATE(env);
+    for (state = environments; state->ee != JEE(env); state = state->next) {}
     HEAP_LOCK();
-    savedBase = state->refs.base; savedTop = state->refs.top;
-    state->refs.base = state->refs.top;
+    savedBase = JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->base; savedTop = JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->top;
+    JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->base = JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->top;
     HEAP_UNLOCK();
     slot = args;
     if (mb->fb.access & ACC_STATIC) clazz = localRef(env, (JHandle *)cbHandle(fieldclass(&mb->fb)));
@@ -736,7 +735,7 @@ bool_t invokeJNINativeMethod(JHandle *object, struct methodblock *mb, int size, 
     }
     result = args;
     if (!exceptionOccurred(ee)) {
-        result = sysInvokeNative(env, mb->code, args, (char *)sig + 1, size, clazz);
+        result = (stack_item *)sysInvokeNative(env, mb->code, (long *)args, (char *)sig + 1, size, clazz);
         switch (sig[1]) {
         case 'L': case '[': args->h = resolveRef(env, (jobject)args->p); break;
         case 'B': args->i = (jbyte)args->i; break;
@@ -746,7 +745,7 @@ bool_t invokeJNINativeMethod(JHandle *object, struct methodblock *mb, int size, 
         }
     }
     HEAP_LOCK();
-    state->refs.base = savedBase; state->refs.top = savedTop;
+    JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->base = savedBase; JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->top = savedTop;
     HEAP_UNLOCK();
     frame->optop = result;
     return !exceptionOccurred(ee);
@@ -778,7 +777,7 @@ static char *jniMangle(char *out, const char *text, int length)
 bool_t dynoLinkJNI(struct methodblock *mb)
 {
     char *name, *end, *sig = fieldsig(&mb->fb), *close = strchr(sig, ')');
-    const char *className = classname(fieldclass(&mb->fb)), *methodName = fieldname(&mb->fb);
+    const char *className = cbName(fieldclass(&mb->fb)), *methodName = fieldname(&mb->fb);
     int capacity = 32 + 6 * (strlen(className) + strlen(methodName) + strlen(sig));
     int overload;
     name = (char *)malloc(capacity);

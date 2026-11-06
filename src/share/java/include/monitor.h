@@ -1,20 +1,23 @@
 /*
- * @(#)monitor.h	1.23 95/08/30
- *
- * Copyright (c) 1994 Sun Microsystems, Inc. All Rights Reserved.
- *
- * Permission to use, copy, modify, and distribute this software
- * and its documentation for NON-COMMERCIAL purposes and without
- * fee is hereby granted provided that this copyright notice
- * appears in all copies. Please refer to the file "copyright.html"
- * for further important copyright and licensing information.
- *
- * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF
- * THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
- * TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR
- * ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR
- * DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
+ * @(#)monitor.h	1.34 97/10/07
+ * 
+ * Copyright (c) 1995, 1996 Sun Microsystems, Inc. All Rights Reserved.
+ * 
+ * This software is the confidential and proprietary information of Sun
+ * Microsystems, Inc. ("Confidential Information").  You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Sun.
+ * 
+ * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+ * SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
+ * SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+ * THIS SOFTWARE OR ITS DERIVATIVES.
+ * 
+ * CopyrightVersion 1.1_beta
+ * 
  */
 
 /*
@@ -30,9 +33,23 @@
  * Used by the monitor caching machanism to mark monitors as being
  * in-use.
  */
-#define MON_IN_USE			0x1
+#define MON_LOCAL_CACHE_REF		(1 << 0)
 
-/* The monitor data structure */
+/*
+ * The monitor data structure:
+ *
+ * The use_count field counts the number of createMonitor calls yet
+ * unmatched by monitorExit calls; that is, it is a count of outstanding
+ * monitor entries of all threads regardless of whether those threads
+ * own the monitor or are waiting on it.
+ *
+ * Note that because the mid[] array will hold the system-specific
+ * sys_mon_t, it needs to start on a four-byte boundary lest the fields
+ * of the sys_mon_t aren't properly aligned.  Otherwise the flags field
+ * would be shorter than a long.
+ */
+/* deviation: retain legacy cache bookkeeping until reclamation migrates. */
+#define MON_IN_USE 0x1
 typedef struct monitor_t {
     unsigned int	key;		/* monitor hash key */
     struct monitor_t   *next;
@@ -76,11 +93,11 @@ extern sys_mon_t *_registry_lock;
  */
 void monitorInit(monitor_t *mon);
 void monitorCacheInit(void);
-JAVA_PUBLIC_API(void) monitorEnter(uint32_t);
-JAVA_PUBLIC_API(void) monitorExit(uint32_t);
-JAVA_PUBLIC_API(void) monitorWait(uint32_t, int32_t);
-JAVA_PUBLIC_API(void) monitorNotify(uint32_t);
-JAVA_PUBLIC_API(void) monitorNotifyAll(uint32_t);
+void monitorEnter(unsigned int);
+void monitorExit(unsigned int);
+void monitorWait(unsigned int, int);
+void monitorNotify(unsigned int);
+void monitorNotifyAll(unsigned int);
 
 /* Registry of static monitors */
 extern reg_mon_t *MonitorRegistry;
@@ -89,10 +106,57 @@ void monitorRegistryInit(void);
 void monitorRegister(sys_mon_t *, char *);
 void monitorUnregister(sys_mon_t *);
 void registeredEnumerate(void (*)(reg_mon_t *, void *), void *); 
+void registeredEnumerate_unlocked(void (*)(reg_mon_t *, void *), void *); 
+
 
 /*
- * Support for the async part of async GC
+ * Random non-local locks without obviously better homes 
  */
+
+/* The class loading lock */
+
+extern sys_mon_t *_loadclass_lock;
+#define LOADCLASS_LOCK_INIT() \
+    monitorRegister(_loadclass_lock, "Class loading lock")
+#define LOADCLASS_LOCK()     sysMonitorEnter(_loadclass_lock)
+#define LOADCLASS_LOCKED()   sysMonitorEntered(_loadclass_lock)
+#define LOADCLASS_UNLOCK()   sysMonitorExit(_loadclass_lock)
+
+/* The global class table (binclasses) lock */
+extern sys_mon_t *_binclass_lock;
+#define BINCLASS_LOCK_INIT() monitorRegister(_binclass_lock, "BinClass lock")
+#define BINCLASS_LOCK()	     sysMonitorEnter(_binclass_lock)
+#define BINCLASS_LOCKED()    sysMonitorEntered(_binclass_lock)
+#define BINCLASS_UNLOCK()    sysMonitorExit(_binclass_lock)
+
+/* Locks on the interned string hash table */
+
+extern sys_mon_t *_stringhash_lock;
+#define STRINGHASH_INIT()    monitorRegister(_stringhash_lock, \
+					     "String intern lock")
+#define STRINGHASH_LOCK()    sysMonitorEnter(_stringhash_lock)
+#define STRINGHASH_LOCKED()  sysMonitorEntered(_stringhash_lock)
+#define STRINGHASH_UNLOCK()  sysMonitorExit(_stringhash_lock)
+
+/* Locks on the method info (name and signature) hash table */
+
+extern sys_mon_t *_nametypehash_lock;
+#define NAMETYPEHASH_INIT()   monitorRegister(_nametypehash_lock, \
+					      "Name and type hash table lock")
+#define NAMETYPEHASH_LOCK()   sysMonitorEnter(_nametypehash_lock)
+#define NAMETYPEHASH_LOCKED() sysMonitorEntered(_nametypehash_lock)
+#define NAMETYPEHASH_UNLOCK() sysMonitorExit(_nametypehash_lock)
+
+/* JNI global reference locks */
+
+extern sys_mon_t *_globalref_lock;
+#define GLOBALREF_LOCK_INIT() \
+          monitorRegister(_globalref_lock, "JNI global reference lock")
+#define GLOBALREF_LOCK()	    sysMonitorEnter(_globalref_lock)
+#define GLOBALREF_LOCKED()	    sysMonitorEntered(_globalref_lock)
+#define GLOBALREF_UNLOCK()	    sysMonitorExit(_globalref_lock)
+
+/* deviation: retained asynchronous collector polling hook. */
 #define INTERRUPTS_PENDING() sysInterruptsPending()
 
 #endif	/* !_MONITOR_H_ */

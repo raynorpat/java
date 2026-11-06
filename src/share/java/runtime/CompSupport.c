@@ -24,7 +24,7 @@
 #include <stdarg.h>
 #include "oobj.h"
 #include "interpreter.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "typecodes.h"
 #include "tree.h"
 
@@ -109,7 +109,7 @@ CompSupport_checkcast(ClassClass * cb, HObject *h)
 {
     if (!is_instance_of(h, cb, EE())) {
 	char buf[128];
-	classname2string(classname(obj_array_classblock(h)), 
+	classname2string(cbName(obj_array_classblock(h)), 
 			 buf, sizeof(buf));
 	SignalError(0, JAVAPKG "ClassCastException", buf);
 	ErrorUnwind();

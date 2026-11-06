@@ -3,6 +3,8 @@
 
 #include "bool.h"
 #include <sys/types.h>
+/* Required before the original sys_api.h stat prototypes. */
+#include <sys/stat.h>
 #include <stdlib.h>
 
 /* Win32 (MSVC): native 64-bit integers */

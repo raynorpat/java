@@ -1,3 +1,4 @@
+#include "classhash115.h"
 /*
  * @(#)compiler.c	1.8 96/04/26
  *
@@ -296,7 +297,7 @@ java_lang_Compiler_compileClass(Hjava_lang_Compiler *this,
 	SignalError(0, JAVAPKG "NullPointerException", 0);
 	return FALSE;
     } else if (p_CompilerCompileClass != NULL) {
-	return p_CompilerCompileClass(unhand(clazz));
+	return p_CompilerCompileClass(clazz);
     } else {
 	return FALSE;
     }

@@ -96,6 +96,11 @@ int main(int argc, char **argv)
     args.abort = abortHook;
     args.vfprintf = printHook;
     if (create(&vm, &env, &args)) return 6;
+    /* Original JavaVM_ holds the main EE, whose JNI interface is at +20. */
+    if (!((struct JavaVM_ *)vm)->reserved0 ||
+        ((char *)env - (char *)((struct JavaVM_ *)vm)->reserved0) != 20 ||
+        ((struct JavaVM_ *)vm)->reserved1 || ((struct JavaVM_ *)vm)->reserved2)
+        return 10;
     list(&found, 1, &count);
     printf("created=%ld/%d\n", (long)count, found == vm);
     cls = (*env)->FindClass(env, "java/lang/System");

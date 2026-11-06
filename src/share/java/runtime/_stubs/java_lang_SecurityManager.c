@@ -50,35 +50,3 @@ Java_java_lang_SecurityManager_checkInitialized_stub(stack_item* _P_, struct exe
 	return _P_ + 1;
 }
 
-/* SYMBOL: "java/lang/SecurityManager/checkScopePermission(I)Z", Java_java_lang_SecurityManager_checkScopePermission_stub */
-JAVA_PUBLIC_API(stack_item*)
-Java_java_lang_SecurityManager_checkScopePermission_stub(stack_item* _P_, struct execenv* _EE_) {
-	extern long java_lang_SecurityManager_checkScopePermission(void *, long);
-	_P_[0].i = (java_lang_SecurityManager_checkScopePermission(_P_[0].p,((_P_[1].i))) ? 1 : 0);
-	return _P_ + 1;
-}
-
-/* SYMBOL: "java/lang/SecurityManager/setScopePermission()V", Java_java_lang_SecurityManager_setScopePermission_stub */
-JAVA_PUBLIC_API(stack_item*)
-Java_java_lang_SecurityManager_setScopePermission_stub(stack_item* _P_, struct execenv* _EE_) {
-	extern void java_lang_SecurityManager_setScopePermission(void *);
-	(void) java_lang_SecurityManager_setScopePermission(NULL);
-	return _P_;
-}
-
-/* SYMBOL: "java/lang/SecurityManager/setAppletScopePermission()V", Java_java_lang_SecurityManager_setAppletScopePermission_stub */
-JAVA_PUBLIC_API(stack_item*)
-Java_java_lang_SecurityManager_setAppletScopePermission_stub(stack_item* _P_, struct execenv* _EE_) {
-	extern void java_lang_SecurityManager_setAppletScopePermission(void *);
-	(void) java_lang_SecurityManager_setAppletScopePermission(NULL);
-	return _P_;
-}
-
-/* SYMBOL: "java/lang/SecurityManager/resetScopePermission()V", Java_java_lang_SecurityManager_resetScopePermission_stub */
-JAVA_PUBLIC_API(stack_item*)
-Java_java_lang_SecurityManager_resetScopePermission_stub(stack_item* _P_, struct execenv* _EE_) {
-	extern void java_lang_SecurityManager_resetScopePermission(void *);
-	(void) java_lang_SecurityManager_resetScopePermission(NULL);
-	return _P_;
-}
-

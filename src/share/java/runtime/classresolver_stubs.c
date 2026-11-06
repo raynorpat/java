@@ -26,6 +26,7 @@
 
 #include <oobj.h>
 #include "interpreter.h"
+#include "sys_api.h"
 
 int verify_in_progress;
 
@@ -73,6 +74,26 @@ EE() {
 }
 
 char *CompiledCodeAttribute = 0;
+
+/* Standalone header generation neither loads a JIT nor owns compiled code. */
+void CompilerFreeClass(ClassClass *cb)
+{
+    (void)cb;
+}
+
+void ReadInCompiledCode(void *context, struct methodblock *mb,
+                        int attribute_length,
+                        unsigned long (*get1byte)(),
+                        unsigned long (*get2bytes)(),
+                        unsigned long (*get4bytes)(),
+                        void (*getNbytes)())
+{
+    (void)mb;
+    (void)get1byte;
+    (void)get2bytes;
+    (void)get4bytes;
+    getNbytes(context, attribute_length, NULL);
+}
 
 int sysMonitorSizeof()
 {

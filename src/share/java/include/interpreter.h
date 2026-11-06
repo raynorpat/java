@@ -1,20 +1,23 @@
 /*
- * @(#)interpreter.h	1.70 96/04/02
- *
- * Copyright (c) 1994 Sun Microsystems, Inc. All Rights Reserved.
- *
- * Permission to use, copy, modify, and distribute this software
- * and its documentation for NON-COMMERCIAL purposes and without
- * fee is hereby granted provided that this copyright notice
- * appears in all copies. Please refer to the file "copyright.html"
- * for further important copyright and licensing information.
- *
- * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF
- * THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
- * TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR
- * ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR
- * DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
+ * @(#)interpreter.h	1.116 97/10/07
+ * 
+ * Copyright (c) 1995, 1996 Sun Microsystems, Inc. All Rights Reserved.
+ * 
+ * This software is the confidential and proprietary information of Sun
+ * Microsystems, Inc. ("Confidential Information").  You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Sun.
+ * 
+ * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+ * SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
+ * SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+ * THIS SOFTWARE OR ITS DERIVATIVES.
+ * 
+ * CopyrightVersion 1.1_beta
+ * 
  */
 
 /*
@@ -28,23 +31,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(XP_PC) && !defined(_WIN32)
-#define JAVA_PREEMPT_USING_COUNT
-#endif
-
 #include "bool.h"
 #include "config.h"
-#include "standardlib.h"
+#include "jni.h"
+#include "alloc_cache.h"
 
 extern char *progname;
-extern int verbose;
-extern int verbosegc;
-extern int noasyncgc;
-extern int debugagent;
+extern bool_t debugging;
+extern bool_t verbose;
+extern bool_t verbosegc;
+extern bool_t noasyncgc;
+extern bool_t classgc;
 
 extern ClassClass *classJavaLangClass;	   /* class java/lang/Class */
 extern ClassClass *classJavaLangObject;	   /* class java/lang/Object */
-extern ClassClass *classJavaLangString;	   /* class java/lang/Object */
+extern ClassClass *classJavaLangString;	   /* class java/lang/String */
 
 extern ClassClass *classJavaLangThrowable;
 extern ClassClass *classJavaLangException;
@@ -52,7 +53,8 @@ extern ClassClass *classJavaLangError;
 extern ClassClass *classJavaLangRuntimeException;
 extern ClassClass *classJavaLangThreadDeath;
 
-extern ClassClass *interfaceJavaLangCloneable; /* class java/lang/Object */
+extern ClassClass *interfaceJavaLangCloneable; /* class java/lang/Cloneable */
+extern ClassClass *interfaceJavaIoSerializable; /* class java/io/Serializable */
 
 enum { VERIFY_NONE, VERIFY_REMOTE, VERIFY_ALL };
 
@@ -64,7 +66,6 @@ extern int verifyclasses;
 #ifdef TRACING
   extern int trace;
   extern int tracem;
-  extern char *opnames[256];
   extern void trace_method(struct execenv*, struct methodblock*, int, int);
   enum { TRACE_METHOD_ENTER, TRACE_METHOD_RETURN, TRACE_METHOD_NATIVE_RETURN };
 # define TRACE_METHOD(ee, mb, args_size, type) \
@@ -76,14 +77,15 @@ extern int verifyclasses;
 # define TRACE_METHOD(ee, mb, args_size, type) 
 #endif
 
+extern char *opnames[];
 
 /* Get a constant pool index, from a pc */
 #define GET_INDEX(ptr) (((int)((ptr)[0]) << 8) | (ptr)[1])
 
 extern char *Object2CString(JHandle *);
 
-#define METHOD_FLAG_BITS 5L
-#define FLAG_MASK       ((1<<METHOD_FLAG_BITS)-1L)  /* valid flag bits */
+#define METHOD_FLAG_BITS 5
+#define FLAG_MASK       ((1<<METHOD_FLAG_BITS)-1)  /* valid flag bits */
 #define METHOD_MASK     (~FLAG_MASK)  /* valid mtable ptr bits */
 #define LENGTH_MASK     METHOD_MASK
 
@@ -114,7 +116,7 @@ extern char *Object2CString(JHandle *);
 #define obj_getslot(o, slot) uobj_getslot(unhand(o), slot)
 #define obj_setslot(o, slot, v) (obj_getslot(o, slot) = (v))
 
-#define obj_monitor(handlep) ((uint32_t) handlep)
+#define obj_monitor(handlep) ((int) handlep)
 
 
 struct arrayinfo {
@@ -126,17 +128,13 @@ struct arrayinfo {
 
 typedef union stack_item {
     /* Non pointer items */
-    int32_t        i;
+    int            i;
     float          f;
     OBJECT         o;
     /* Pointer items */
     JHandle       *h;
     void          *p;
     unsigned char *addr;
-#ifdef OSF1
-    double         d;
-    long           l;		/* == 64bits! */
-#endif
 } stack_item;
 
 struct execenv {
@@ -149,24 +147,18 @@ struct execenv {
 	unsigned char *addr;	    /* holds pc for stack overflow */
     } exception;
 
-#ifdef JAVA_PREEMPT_USING_COUNT
-    unsigned int      opcodeCount;  /* # of opcodes executed since yielding */
-#endif
+    /* Stuff for the JNI: */
+    struct JNIEnv_    nativeInterface;
 
-#ifdef DEBUG
-    unsigned int      debugFlags;
-#endif
-    /* deviation: JNI state appended while the old ExecEnv layout remains. */
-    void *jni_state;
+    /* Detecting class circularities */
+    struct seenclass {
+	ClassClass    *cb;
+	struct seenclass *next;
+    } seenclasses;
+
+    /* Per-thread allocation cache */
+    struct alloc_cache alloc_cache;
 };
-
-#ifdef DEBUG
-#define EE_DEBUG_OPTOP_CACHED   1
-#endif
-
-#ifdef JAVA_PREEMPT_USING_COUNT
-#define JAVA_YIELD_COUNT    100
-#endif
 
 typedef struct execenv ExecEnv;
 
@@ -178,7 +170,7 @@ struct javastack {
     struct javastack *prev;          /* previous stack of this execenv */
     struct javastack *next;          /* next stack of this execenv */
     stack_item      *end_data;      /* address of end of data */
-    uint32_t	     stack_so_far;  /* total space used by this chunk and
+    unsigned int     stack_so_far;  /* total space used by this chunk and
 				     * all previous chunks. */
     stack_item       data[JAVASTACK_CHUNK_SIZE];    /* actual data */
 
@@ -197,15 +189,14 @@ struct javaframe {
     unsigned char      *returnpc;      /* pc of next instruction */
     /* REGNAD REGNAD REGNAD REGNAD REGNAD REGNAD REGNAD REGNAD REGNAD REGNAD */
 
-    struct methodblock *current_method;/* method currently executing */
-    struct javaframe   *prev;          /* previous java frame. */
     stack_item         *optop;	       /* current top of stack */
     stack_item         *vars;	       /* pointer to this frame's vars */
+    struct javaframe   *prev;          /* previous java frame. */
     struct javastack   *javastack;					  
     unsigned char      *lastpc;	       /* pc of last executed instruction */
+    struct methodblock *current_method;/* method currently executing */
     JHandle            *monitor;       /* object locked by this method */
-    int32_t             mon_starttime; /* time this method began */
-    JHandle            *annotation;    /* an object to indcate the privilege */
+    int	                mon_starttime; /* time this method began */
     stack_item ostack[1];	       /* start of this frame's stack */
 };
 
@@ -216,20 +207,27 @@ typedef struct javaframe JavaFrame;
  * Javaframe.exceptionKind is used to signal why the interpreter
  * loop was exited.
  */
-#define EXCKIND_YIELD		-1		/* yield the cpu */
 #define EXCKIND_NONE            0               /* return */
 #define EXCKIND_THROW		1		/* throw */
 #define EXCKIND_STKOVRFLW       2               /* stack overflow */
 
-
-#define exceptionClear(ee)	\
+/*
+ * Be sure to use these macros to access the exception structure.  Do
+ * not access the fields directly.
+ */
+#define exceptionClear(ee)			\
     ((ee)->exceptionKind = EXCKIND_NONE);
 
-#define exceptionOccurred(ee)	\
-    ((ee)->exceptionKind > EXCKIND_NONE)
+#define exceptionOccurred(ee)			\
+    ((ee)->exceptionKind != EXCKIND_NONE)
 
-#define exceptionThrow(ee, obj)	\
-    (ee)->exceptionKind = EXCKIND_THROW;		    \
+#define exceptionThrow(ee, obj)			\
+    (ee)->exceptionKind = EXCKIND_THROW;	\
+    (ee)->exception.exc = (obj);
+
+/* Macro for handling specific kinds of exceptions */
+#define exceptionThrowSpecial(ee, obj, kind)	\
+    (ee)->exceptionKind = kind;			\
     (ee)->exception.exc = (obj);
 
 
@@ -249,7 +247,7 @@ long get_nbinclasses(void);
 
 /* gc.c */
 
-int InitializeAlloc(long max, long min);
+bool_t InitializeAlloc(long max, long min);
 HObject *AllocHandle(struct methodtable *, ClassObject *);
 extern struct arrayinfo arrayinfo[];
 extern int64_t TotalObjectMemory(void);
@@ -258,6 +256,8 @@ extern int64_t TotalHandleMemory(void);
 extern int64_t FreeHandleMemory(void);
 extern int tracegc;
 
+extern void gc(int async, unsigned int spaceRequested);
+
 
 /* interpreter.c */
 
@@ -265,30 +265,25 @@ extern int tracegc;
  * Indicate that that error occurred.
  */
 extern bool_t UseLosslessQuickOpcodes;
-void SignalError1(struct execenv *, ClassClass *, char *);
-JAVA_PUBLIC_API(void) SignalError(struct execenv *, char *, char *);
+void SignalError(struct execenv *, char *, char *);
 
 JavaStack *CreateNewJavaStack(ExecEnv *ee, JavaStack *previous_stack);
 
 void InitializeExecEnv(ExecEnv *ee, JHandle *thread);
-void DeleteExecEnv(ExecEnv *ee, JHandle *thread);
+void DeleteExecEnv(ExecEnv *ee);
 extern ExecEnv *DefaultExecEnv;
 
 
-HObject *execute_java_constructor_vararg(struct execenv *ee,
-				  char *classname,
-				  ClassClass *cb,
-				  char *signature, va_list args);
-JAVA_PUBLIC_API(HObject *)execute_java_constructor(ExecEnv *,
+HObject *execute_java_constructor(ExecEnv *,
 				 char *classname,
 				 ClassClass *cb,
 				 char *signature, ...);
 long execute_java_static_method(ExecEnv *, ClassClass *cb,
 			       char *method_name, char *signature, ...);
-JAVA_PUBLIC_API(long) execute_java_dynamic_method(ExecEnv *, HObject *obj,
+long execute_java_dynamic_method(ExecEnv *, HObject *obj,
 				char *method_name, char *signature, ...);
      
-JAVA_PUBLIC_API(long) do_execute_java_method(ExecEnv *ee, void *obj, 
+long do_execute_java_method(ExecEnv *ee, void *obj, 
 			   char *method_name, char *signature, 
 			   struct methodblock *mb,
 			   bool_t isStaticCall, ...);
@@ -303,28 +298,59 @@ long now(void);
 bool_t isSpecialSuperCall(ClassClass *current_class, struct methodblock *mb);
 
 void InitializeInterpreter(void);
-JAVA_PUBLIC_API(bool_t) is_instance_of(JHandle * h, ClassClass *dcb, ExecEnv *ee);
+bool_t is_instance_of(JHandle * h, ClassClass *dcb, ExecEnv *ee);
 bool_t is_subclass_of(ClassClass *cb, ClassClass *dcb, ExecEnv *ee);
-bool_t array_is_instance_of_array_type(JHandle * h, ClassClass *cb,
+bool_t array_is_instance_of_array_type(JHandle * h, ClassClass *cb, 
 				       ExecEnv *ee);
 bool_t ImplementsInterface(ClassClass *cb, ClassClass *icb, ExecEnv *ee);
 HObject *MultiArrayAlloc(int dimensions, ClassClass *, stack_item *sizes);
 bool_t ExecuteJava(unsigned char  *, ExecEnv *ee);
 
+/*
+ * Called from ExecuteJava.
+ *    -1:   rewrite signalled an error
+ *     0:   rewrite went okay
+ *    +1:   opcode changed underneath us.  Redo
+ */
+
+int quickFieldAccess( int opcode, unsigned char * pc, struct fieldblock *fb,
+			ExecEnv *ee );
+int quickStaticAccess( int opcode, unsigned char * pc, struct fieldblock *fb,
+			ExecEnv *ee );
+int quickInvocation( int opcode, unsigned char * pc, struct methodblock *mb,
+			ExecEnv *ee );
+void FixupQuickInvocation(unsigned char *pc, 
+			  struct methodblock *currentMethod,
+			  struct methodblock *targetMethod);
+
+bool_t
+invokeInterfaceError(ExecEnv *ee, unsigned char *pc, 
+		     ClassClass *cb, ClassClass *intf);
+
+unsigned char *
+ProcedureFindThrowTag(ExecEnv *ee, 
+		      JavaFrame *frame, JHandle *object, unsigned char *pc);
+
+void *
+ResolveClassConstantFromPC(unsigned char *pc, unsigned char opcode, 
+			       cp_item_type *, struct execenv *ee, unsigned mask);
+
+
 
 struct stat;
 
 bool_t dynoLink(struct methodblock *);
+bool_t dynoLinkJNI(struct methodblock *);
 char *str2rd(char *);
 char *unicode2rd(unicode *, long);
 
 /* classruntime.c */
 HArrayOfChar *MakeString(char *, long);
-extern int ImportAcceptable;
 
-JAVA_PUBLIC_API(ClassClass *) FindClass(struct execenv *, char *, bool_t resolve);
-JAVA_PUBLIC_API(ClassClass *)FindClassFromClass(struct execenv *, char *, bool_t resolve, ClassClass *from);
-char* RunStaticInitializers(ClassClass *cb);
+ClassClass *FindClass(struct execenv *, char *, bool_t resolve);
+ClassClass *FindStickySystemClass(struct execenv *, char *, bool_t resolve);
+ClassClass *FindClassFromClass(struct execenv *, char *, bool_t resolve, ClassClass *from);
+void RunStaticInitializers(ClassClass *cb);
 void InitializeInvoker(ClassClass *cb);
 
 bool_t
@@ -335,6 +361,10 @@ bool_t invokeNativeMethod(JHandle *o, struct methodblock *mb, int args_size,
 			  ExecEnv *ee);
 bool_t invokeSynchronizedNativeMethod(JHandle *o, struct methodblock *mb, 
 				      int args_size, ExecEnv *ee);
+bool_t invokeJNINativeMethod(JHandle *o, struct methodblock *mb, int args_size, 
+			     ExecEnv *ee);
+bool_t invokeJNISynchronizedNativeMethod(JHandle *o, struct methodblock *mb, 
+					 int args_size, ExecEnv *ee);
 bool_t invokeLazyNativeMethod(JHandle *o, struct methodblock *mb, int args_size, 
 			      ExecEnv *ee);
 bool_t invokeAbstractMethod(JHandle *o, struct methodblock *mb, int args_size, 
@@ -344,35 +374,36 @@ bool_t invokeCompiledMethod(JHandle *o, struct methodblock *mb, int args_size,
 
 
 void LoadClassConstants(ClassClass *cb);
-bool_t ResolveClassStringConstant(ClassClass *, cp_index_type, struct execenv *);
-bool_t ResolveClassConstant(cp_item_type *, cp_index_type index, struct execenv *ee,
+bool_t ResolveClassStringConstant(ClassClass *, unsigned, struct execenv *);
+bool_t ResolveClassConstant(cp_item_type *, unsigned index, struct execenv *ee,
 			    unsigned mask);
 bool_t ResolveClassConstantFromClass(ClassClass *, unsigned index, 
 				     struct execenv *ee, unsigned mask);
+
+void InitializeClassConstantResolver();
 
 bool_t VerifyClassAccess(ClassClass *, ClassClass *, bool_t);
 bool_t VerifyFieldAccess(ClassClass *, ClassClass *, int, bool_t);
 bool_t IsSameClassPackage(ClassClass *class1, ClassClass *class2); 
 
-typedef uint32_t hash_t;
-char *GetClassConstantClassName(cp_item_type *constant_pool, cp_index_type index);
-JAVA_PUBLIC_API(hash_t) NameAndTypeToHash(char *name, char *type, ClassClass *from);
-JAVA_PUBLIC_API(char *) IDToNameAndTypeString(hash_t ID);
-JAVA_PUBLIC_API(char *) IDToType(hash_t ID);
-
+char *GetClassConstantClassName(cp_item_type *constant_pool, int index);
+unsigned NameAndTypeToHash(char *name, char *type);
 HObject *newobject(ClassClass *cb, unsigned char *pc, struct execenv *ee);
 
 
 char *pc2string(unsigned char *pc, struct methodblock *mb, char *buf, char *limit);
 
-extern int InhibitExecute;
-JAVA_PUBLIC_API(JHandle *)ArrayAlloc(int32_t, int32_t);
+JHandle *ArrayAlloc(int, int);
 JHandle *ObjAlloc(ClassClass *, long);
-int32_t sizearray(int32_t, int32_t);
+int sizearray(int, int);
 extern char *remote_classname(JHandle *);
 extern JHandle *remote_clone(struct execenv *);
 extern long remote_cast(JHandle *, ClassClass *);
-int32_t pc2lineno(struct methodblock *, unsigned int);
+int pc2lineno(struct methodblock *, unsigned int);
+
+/* From verify_class.c */
+bool_t VerifyClass(ClassClass *cb);
+bool_t IsLegalClassname(char *name, bool_t allowArrayClass);
 
 /* From verify_code.c */
 bool_t verify_class_codes(ClassClass *cb);
@@ -381,36 +412,61 @@ bool_t verify_class_codes(ClassClass *cb);
 /* from profiler.c */
 extern int java_monitor;
 void javamon(int i);
-void java_mon(struct methodblock *caller, struct methodblock *callee, int32_t time);
+void java_mon(struct methodblock *caller, struct methodblock *callee, int time);
 void java_mon_dump(void);
 
+#ifdef JCOV
+#include "jcov.h"
+#endif /* JCOV */
+
 /* from classloader.c */
+void FreeClass(ClassClass *cb);
 void AddBinClass(ClassClass * cb);
 void DelBinClass(ClassClass * cb);
-int LoadFile(char *fn, char *dir, char *SourceHint);
-int DoImport(char *name, char *SourceHint);
-ClassClass* createFakeArrayClass(char *name);
-
-
+ClassClass *LoadClassLocally(char *name);
+bool_t createInternalClass(unsigned char *bytes, unsigned char *limit,
+                           ClassClass *cb, struct Hjava_lang_ClassLoader *,
+                            char *utfname, char **detail);
+ClassClass *createFakeArrayClass(char *name, int base_type, int depth, 
+				 ClassClass *inner_cb, 
+				 struct Hjava_lang_ClassLoader *);
+ClassClass *createPrimitiveClass(char *name, char sig, unsigned char typecode,
+    unsigned char slotsize, unsigned char elementsize);
 unsigned Signature2ArgsSize(char *method_signature);
 
 /* from classresolver.c */
 char *InitializeClass(ClassClass * cb, char **detail);
 char *ResolveClass(ClassClass * cb, char **detail);
-JAVA_PUBLIC_API(ClassClass *)FindClass(struct execenv *ee, char *name, bool_t resolve);
-JAVA_PUBLIC_API(ClassClass *)FindClassFromClass(struct execenv *ee, char *name, 
+ClassClass *FindClass(struct execenv *ee, char *name, bool_t resolve);
+ClassClass *FindClassFromClass(struct execenv *ee, char *name, 
 			       bool_t resolve, ClassClass *from);
-struct fieldblock **makeslottable(ClassClass * clb);
+ClassClass *ClassLoaderFindClass(ExecEnv *ee, 
+				 struct Hjava_lang_ClassLoader *loader, 
+				 char *name, bool_t resolve);
+
+int  makeslottable(ClassClass * clb);
 void lock_classes(void);
 void unlock_classes(void);
 
-extern JAVA_PUBLIC_API(const char*) CLASSPATH(void);
-extern JAVA_PUBLIC_API(void) setCLASSPATH(const char*);
+extern ClassClass *class_void;
+extern ClassClass *class_boolean;
+extern ClassClass *class_byte;
+extern ClassClass *class_char;
+extern ClassClass *class_short;
+extern ClassClass *class_int;
+extern ClassClass *class_long;
+extern ClassClass *class_float;
+extern ClassClass *class_double;
+
+extern ClassClass *FindPrimitiveClass(char *);
+
+/* from path_md.c */
+char **CLASSPATH(void);
 
 /* from threadruntime.c */
 struct Hjava_lang_Thread *InitializeClassThread(ExecEnv *ee, char **errmsg);
 void InitializeMainThread(void);
-long *getclassvariable(struct ClassClass *cb, char *fname);
+long *getclassvariable(ClassClass *cb, char *fname);
 struct Hjava_lang_Thread;
 char *thread_name(struct Hjava_lang_Thread *tid); 
 
@@ -420,11 +476,6 @@ HArrayOfChar *getThreadName(void);
 /* from exception.c */
 struct Hjava_lang_Throwable;
 void fillInStackTrace(struct Hjava_lang_Throwable *handle, ExecEnv *ee);
-typedef int (*StackPrinter)(void* env,
-			    void* dest, size_t destLen,
-			    const char* srcBuf, size_t srcLen);
-void printStackTrace(struct Hjava_lang_Throwable *o, StackPrinter printer,
-					 void* stream, size_t len);
 
 /* from CompSupport.c */
 long CallInterpreted(register struct methodblock * mb, void *obj,...);
@@ -434,21 +485,31 @@ extern struct methodtable *remote_methodtable;
 
 void unicode2str(unicode *, char *, long);
 unicode *str2unicode(char *, unicode *, long);
-void mangleMethodName(struct methodblock *mb, char *buffer, int buflen,
-		      char *suffix);
 
-enum { MangleUTF_Class, MangleUTF_Field, MangleUTF_FieldStub };
+enum {
+    MangleMethodName_JDK_1,
+    MangleMethodName_JNI_SHORT,
+    MangleMethodName_JNI_LONG
+};
+void mangleMethodName(struct methodblock *mb, char *buffer, int buflen,
+		      int mangleType);
+
+enum { 
+    MangleUTF_Class, 
+    MangleUTF_Field, 
+    MangleUTF_FieldStub, 
+    MangleUTF_Signature,
+    MangleUTF_JNI
+};
 int mangleUTFString(char *name, char *buffer, int buflen, int mangleType);
 
 /* string hash support */
 struct StrIDhash;
-hash_t Str2ID(struct StrIDhash **, char *, void ***, int);
+unsigned short Str2ID(struct StrIDhash **, char *, void ***, int);
 char *ID2Str(struct StrIDhash *, unsigned short, void ***);
 void Str2IDFree(struct StrIDhash **);
-void Str2IDApply(struct StrIDhash *hash_ptr,
-		 void (*f)(struct StrIDhash *h, void *arg, void *param),
-		 void *arg);
-JAVA_PUBLIC_API(ExecEnv *)EE(void);
+void Str2IDCallback(struct StrIDhash **hash_ptr, void (*)(char *, void *));
+ExecEnv *EE(void);
 
 /* Miscellaneous functions in util.c */
 char *unicode2rd(unicode *s, long len);
@@ -458,29 +519,120 @@ void printus(unicode *str, long len);
 int jio_snprintf(char *str, size_t count, const char *fmt, ...);
 int jio_vsnprintf(char *str, size_t count, const char *fmt, va_list args);
 
+int jio_printf(const char *fmt, ...);
+int jio_fprintf(FILE *, const char *fmt, ...);
+int jio_vfprintf(FILE *, const char *fmt, va_list args);
+
+
 /* allows you to override panic & oom "functionality" */
 typedef void (*PanicHook)(const char* panicString);
 typedef void (*OutOfMemoryHook) ();
 
 extern PanicHook panic_hook;
 extern OutOfMemoryHook out_of_memory_hook;
-extern void PrintToConsole(const char* bytes);
 
 /* Stuff from compiler.c */
 
 void InitializeForCompiler(ClassClass *cb);
 void CompilerFreeClass(ClassClass *cb);
 void CompilerCompileClass(ClassClass *cb);
-void ReadInCompiledCode(void *context, struct methodblock *mb,
-			int attribute_length,
+void ReadInCompiledCode(void *context, struct methodblock *mb, 
+			int attribute_length, 
 			unsigned long (*get1byte)(),
-			unsigned long (*get2bytes)(),
-			unsigned long (*get4bytes)(),
+			unsigned long (*get2bytes)(), 
+			unsigned long (*get4bytes)(), 
 			void (*getNbytes)());
 
 bool_t PCinCompiledCode(unsigned char *pc, struct methodblock *mb);
 unsigned char *CompiledCodePC(JavaFrame *frame, struct methodblock *mb);
-JAVA_PUBLIC_API(JavaFrame *)CompiledFramePrev(JavaFrame *frame, JavaFrame *buf);
-JAVA_PUBLIC_API(void)SetCompiledFrameAnnotation(JavaFrame *frame, JHandle *obj);
+JavaFrame *CompiledFramePrev(JavaFrame *frame, JavaFrame *buf);
+
+
+/* Stuff from simplify.c */
+bool_t MethodCallInline(unsigned char *pc, struct methodblock *sourceMethod,
+			struct methodblock *mb, unsigned char *result);
+
+#define KEEP_POINTER_ALIVE(p) if ((p) == 0) EE()
+/* 
+ * BEGIN JNI STUFF: 
+ * Only the stuff used by the JNI implementation, but not by JNI 
+ * programmers. jni.h contains the types and function prototypes
+ * used by JNI programmers
+ */
+
+int InitializeJNI();
+
+void InitializeJNIRootFrame(ExecEnv *ee);
+void DeleteJNIRootFrame(ExecEnv *ee);
+
+/*
+ * Reference tables
+ */
+
+#define JNI_REF_COUNT_MASK 0x1fffffff
+
+#define JNI_REF_TAG_MASK 0x60000000
+
+#define JNI_REF_HANDLE_TAG 0x00000000
+
+#define JNI_REF_FB_TAG 0x20000000
+
+#define JNI_REF_MB_TAG 0x40000000
+
+typedef struct JNIRefCell {
+    uint32_t refCount;
+    void *content;
+} JNIRefCell;
+
+typedef struct JNIRefTable {
+    JNIRefCell *elements;
+    int base;
+    int top;
+    int size;
+} JNIRefTable;
+
+extern jref jni_AddRefCell(JNIRefTable *table, void *entry, int kind);
+extern JNIRefTable globalRefTable;
+
+/*
+ * JNIEnv <-> ExecEnv conversion
+ */
+
+#define JNIEnv2EE(env) \
+    ((ExecEnv*)((char*)(env) - offsetof(ExecEnv, nativeInterface)))
+
+#define EE2JNIEnv(ee) ((JNIEnv *)(&(ee)->nativeInterface))
+
+/*
+ * References
+ * The local reference table is stored in field reserved1.
+ */
+
+#define JNIEnvGetLocalRefs(env) \
+    ((JNIRefTable *)(((struct JNIEnv_ *)(env))->reserved1))
+
+#define MkRefLocal(env, jobj, tag) \
+    ((jref)(jni_AddRefCell(JNIEnvGetLocalRefs(env), (void *)(jobj), tag)))
+
+#define DeRef(env, ref) \
+    ((int)(ref) > 0 ? \
+         JNIEnvGetLocalRefs(env)->elements[(int)(ref) - 1].content \
+       : ((ref) ? \
+              globalRefTable.elements[-((int)(ref)) - 1].content \
+            : 0))
+
+/* 
+ * JavaVM <-> main EE conversion
+ * The main EE is stored in field reserved0.
+ */
+#define JavaVMGetEE(vm) ((ExecEnv *)(((struct JavaVM_ *)vm)->reserved0))
+
+/* used in java_main */
+struct methodblock *
+JNI_FindMainMethod(ClassClass *cb, char **error_message_p);
+/*
+ * END JNI STUFF
+ */
+
 #endif /* ! _INTERPRETER_H_ */
 

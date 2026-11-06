@@ -28,7 +28,7 @@
 #include <common_exceptions.h>
 #include <oobj.h>
 #include <interpreter.h>
-#include <javaThreads.h>
+#include <threads.h>
 
 #include "java_lang_Thread.h"
 

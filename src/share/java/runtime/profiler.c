@@ -97,14 +97,14 @@ java_mon_dump_to_file(FILE *fp)
 	    fprintf(fp, "%d ", p->count);
 	    if (p->callee == (struct methodblock *)-1) {
 		fprintf(fp, "java/lang/System.gc()V ");
-	    } else if ((strcmp(classname(fieldclass(&p->callee->fb)), "java/lang/System") != 0) ||
+	    } else if ((strcmp(cbName(fieldclass(&p->callee->fb)), "java/lang/System") != 0) ||
 		       (strcmp(fieldname(&p->callee->fb), "gc") != 0)) {
-		fprintf(fp, "%s.%s%s ", classname(fieldclass(&p->callee->fb)), 
+		fprintf(fp, "%s.%s%s ", cbName(fieldclass(&p->callee->fb)), 
 			fieldname(&p->callee->fb),
 			fieldsig(&p->callee->fb));
 	    }
 	    if (p->caller != 0) {
-		fprintf(fp, "%s.%s%s ", classname(fieldclass(&p->caller->fb)), 
+		fprintf(fp, "%s.%s%s ", cbName(fieldclass(&p->caller->fb)), 
 					fieldname(&p->caller->fb),
 		    			fieldsig(&p->caller->fb));
 	    } else {

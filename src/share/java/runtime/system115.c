@@ -23,7 +23,7 @@ setSystemStream(char *name, char *signature, HObject *stream)
     /* deviation: map Sun's JNI GetStaticFieldID/SetStaticObjectField to the
      * current field storage. Native handles already represent the objects;
      * there is no JNI local-reference conversion in the current runtime. */
-    for (i = 0, field = cbFields(cb); i < cb->fields_count; i++, field++) {
+    for (i = 0, field = cbFields(cb); i < cbFieldsCount(cb); i++, field++) {
         if ((field->access & ACC_STATIC) && strcmp(fieldname(field), name) == 0
             && strcmp(fieldsig(field), signature) == 0) {
             *(HObject **)normal_static_address(field) = stream;

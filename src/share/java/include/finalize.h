@@ -1,20 +1,23 @@
 /*
- * @(#)finalize.h	1.8 95/10/27
- *
- * Copyright (c) 1994 Sun Microsystems, Inc. All Rights Reserved.
- *
- * Permission to use, copy, modify, and distribute this software
- * and its documentation for NON-COMMERCIAL purposes and without
- * fee is hereby granted provided that this copyright notice
- * appears in all copies. Please refer to the file "copyright.html"
- * for further important copyright and licensing information.
- *
- * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF
- * THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
- * TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR
- * ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR
- * DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
+ * @(#)finalize.h	1.19 97/02/21
+ * 
+ * Copyright (c) 1995, 1996 Sun Microsystems, Inc. All Rights Reserved.
+ * 
+ * This software is the confidential and proprietary information of Sun
+ * Microsystems, Inc. ("Confidential Information").  You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Sun.
+ * 
+ * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+ * SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
+ * SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+ * THIS SOFTWARE OR ITS DERIVATIVES.
+ * 
+ * CopyrightVersion 1.1_beta
+ * 
  */
 
 #ifndef _FINALIZE_H_
@@ -25,10 +28,10 @@
 
 /*
  * The HasFinalizerQ and FinalizeMeQ queues contain finalizer_t
- * structures.  The next field must be the first field in the struct,
- * and handles rather than objects are used to avoid relocating the
- * contents of the queues on GC.
+ * structures.  Handles rather than objects are used to avoid relocating
+ * the contents of the queues on GC.
  */
+/* deviation: collector still owns allocated two-word finalizer nodes. */
 typedef struct finalizer_t {
     struct finalizer_t *next;	/* The next finalizer structure */
     JHandle *handle;		/* The handle of the object */
@@ -38,6 +41,8 @@ extern finalizer_t *HasFinalizerQ;
 extern finalizer_t *FinalizeMeQ;
 extern finalizer_t *BeingFinalized;
 
+
+extern bool_t finalize_on_exit;
 
 /*
  * Locks for the finalization queues
@@ -49,8 +54,7 @@ extern sys_mon_t *_hasfinalq_lock;
 #define HASFINALQ_LOCKED()	sysMonitorEntered(_hasfinalq_lock)
 #define HASFINALQ_UNLOCK()	sysMonitorExit(_hasfinalq_lock)
 #define HASFINALQ_NOTIFY()	sysMonitorNotify(_hasfinalq_lock)
-#define HASFINALQ_WAIT()	sysMonitorWait(_hasfinalq_lock, \
-					       TIMEOUT_INFINITY, FALSE)
+
 extern sys_mon_t *_finalmeq_lock;
 #define FINALMEQ_LOCK_INIT()	monitorRegister(_finalmeq_lock, \
 						"Finalize me queue lock")
@@ -59,9 +63,12 @@ extern sys_mon_t *_finalmeq_lock;
 #define FINALMEQ_UNLOCK()	sysMonitorExit(_finalmeq_lock)
 #define FINALMEQ_NOTIFY()	sysMonitorNotify(_finalmeq_lock)
 #define FINALMEQ_WAIT()		sysMonitorWait(_finalmeq_lock, \
-					       TIMEOUT_INFINITY, FALSE)
+					       SYS_TIMEOUT_INFINITY, FALSE)
 
 extern void InitializeFinalizer(void);
 extern void InitializeFinalizerThread(void);
+
+extern void runFinalization(void);
+extern void finalizeOnExit(void);
 
 #endif /* _FINALIZE_H_ */

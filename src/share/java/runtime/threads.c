@@ -26,7 +26,7 @@
 #include <string.h>
 
 #include "exceptions.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "debug.h"
 #include "log.h"
 #include "timeval.h"
@@ -164,10 +164,6 @@ threadCreate(TID tid, unsigned int flags, size_t stack_size, void *(*func)(void 
         return 1;
     }
 
-    /* Set up backpointer to java thread object */
-    sysThreadSetBackPtr(t, (void *) tid);
-    /* t->cookie = (void *) tid; */
-
     THREAD(tid)->PrivateInfo = (long) t;
 
     return 0;
@@ -253,7 +249,7 @@ threadCount()
 }
 
 void
-threadSleep(int32_t millis)
+threadSleep(int millis)
 {
     /* Need a unique key per thread */
     int32_t sleep_key = (int32_t) SYSTHREAD(threadSelf());

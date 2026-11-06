@@ -13,7 +13,7 @@
 #include <unistd.h>
 #endif
 
-HArrayOfObject *java_lang_Class_getSigners(HClass *self)
+HArrayOfObject *java_lang_Class_getSigners(ClassClass *self)
 {
     HArrayOfObject *source = (HArrayOfObject *)unhand(self)->signers, *copy;
     int length;
@@ -25,10 +25,10 @@ HArrayOfObject *java_lang_Class_getSigners(HClass *self)
     memcpy(unhand(copy)->body, unhand(source)->body, (length + 1) * sizeof(HObject *));
     return copy;
 }
-void java_lang_Class_setSigners(HClass *self, HArrayOfObject *signers)
+void java_lang_Class_setSigners(ClassClass *self, HArrayOfObject *signers)
 { unhand(self)->signers = (struct HArrayOfObject *)signers; }
 
-HClass *java_lang_SecurityManager_currentLoadedClass0(Hjava_lang_SecurityManager *self)
+ClassClass *java_lang_SecurityManager_currentLoadedClass0(Hjava_lang_SecurityManager *self)
 {
     JavaFrame *frame, buffer;
     ClassClass *cb;

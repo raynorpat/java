@@ -37,7 +37,7 @@
 #include "typecodes.h"
 
 #include "monitor.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "exceptions.h"
 #include "path.h"
 
@@ -97,7 +97,7 @@ HObject *java_lang_Object_clone(HObject *this)
 	HObject *clone;
 	if (!is_instance_of(this, interfaceJavaLangCloneable, EE())) { 
 	    char clname[256];
-	    classname2string(classname(cb), clname, sizeof(clname));
+	    classname2string(cbName(cb), clname, sizeof(clname));
 	    SignalError(0, JAVAPKG "CloneNotSupportedException", clname);
 	    return NULL;
 	}
@@ -105,7 +105,7 @@ HObject *java_lang_Object_clone(HObject *this)
 	if (clone == 0) {
 	    char buf[128];
 	    SignalError(0, JAVAPKG "OutOfMemoryError", 
-			classname2string(classname(cb), buf, sizeof(buf)));
+			classname2string(cbName(cb), buf, sizeof(buf)));
 	    return NULL;
 	} 
 	memcpy((char*)unhand(clone), (char*)unhand(this), cbInstanceSize(cb));
@@ -133,16 +133,16 @@ class2string(ClassClass * cb, char *buf, char *limit)
 	buf = addstr("NULL-classblock", buf, limit, 0);
     else {
 	if (cbSuperclass(cb) 
-	          && unhand(cbSuperclass(cb)) != classJavaLangObject) {
-	    buf = class2string(unhand(cbSuperclass(cb)), buf, limit);
+	          && cbSuperclass(cb) != classJavaLangObject) {
+	    buf = class2string(cbSuperclass(cb), buf, limit);
 	    buf = addstr(".", buf, limit, 0);
 	}
-	buf = addstr(classname(cb), buf, limit, 0);
+	buf = addstr(cbName(cb), buf, limit, 0);
     }
     return buf;
 }
 
-HClass *
+ClassClass *
 java_lang_Object_getClass(HObject *p)
 {
     if (p == 0) {
@@ -186,7 +186,7 @@ java_lang_Object_getClass(HObject *p)
 		int fromNameLength;
 
 		fromClass = (ClassClass *)(array->body[obj_length(p)]);
-		fromName = fromClass->name;
+		fromName = cbName(fromClass);
 		fromNameLength = strlen(fromName);
 		/* Check if there is enough space in buffer.  Otherwise,
 		 * make it bigger by allocating more space.
@@ -196,7 +196,7 @@ java_lang_Object_getClass(HObject *p)
 		}
 		classname = buffer;
 		buffer[0] = SIGNATURE_ARRAY;
-		if (fromClass->name[0] == SIGNATURE_ARRAY) {
+		if (cbName(fromClass)[0] == SIGNATURE_ARRAY) {
 		    /* See above. This is safe. */
 		    strcpy(buffer + 1, fromName);
 		} else { 
@@ -212,7 +212,7 @@ java_lang_Object_getClass(HObject *p)
 	if (buffer != buffer_space) 
 	    sysFree(buffer);
 	if (result) {
-	    HClass *h = cbHandle(result);
+	    ClassClass *h = cbHandle(result);
 	    return h;
 	}
 	return 0;

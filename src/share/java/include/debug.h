@@ -39,8 +39,6 @@
 extern void   DumpThreads(void);
 extern char * threadName(void*);
 
-/* deviation: preserve the existing exported panic entry during migration. */
-#include "sys_api.h"
-JAVA_PUBLIC_API(void) panic (const char *, ...);
+void panic (const char *, ...);
 
 #endif /* !_DEBUG_H_ */

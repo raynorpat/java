@@ -10,7 +10,6 @@ void jni_EnumerateRoots(void (*)(void *));
 bool_t invokeJNINativeMethod(JHandle *, struct methodblock *, int, ExecEnv *);
 bool_t invokeSynchronizedJNINativeMethod(JHandle *, struct methodblock *, int, ExecEnv *);
 bool_t dynoLinkJNI(struct methodblock *);
-stack_item *sysInvokeNative(JNIEnv *, void *, stack_item *, char *, int, jobject);
 extern const struct JNIInvokeInterface_ jni_InvokeInterface;
-extern JavaVM jni_vm;
+extern struct JavaVM_ jni_vm;
 #endif

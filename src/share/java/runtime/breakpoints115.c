@@ -53,9 +53,9 @@ void JNICALL set_debugger_hooks(HandleSingleStepHook step,
 { step_hook = step; breakpoint_hook = breakpoint; exception_hook = exception; }
 
 void notify_debugger_of_single_step(unsigned char *pc, ExecEnv *ee)
-{ if (debugagent && step_hook) step_hook(ee, pc); }
+{ if (debugging && step_hook) step_hook(ee, pc); }
 void notify_debugger_of_exception(unsigned char *pc, ExecEnv *ee, HObject *object)
-{ if (debugagent && exception_hook) exception_hook(ee, pc, object); }
+{ if (debugging && exception_hook) exception_hook(ee, pc, object); }
 
 void set_single_step_thread(TID thread, bool_t enabled)
 {
@@ -109,7 +109,7 @@ int get_breakpoint_opcode(ExecEnv *ee, unsigned char *pc, bool_t notify)
     int opcode;
     if (entry) {
         opcode = entry->opcode;
-        if (notify && debugagent && breakpoint_hook) breakpoint_hook(ee, pc);
+        if (notify && debugging && breakpoint_hook) breakpoint_hook(ee, pc);
         return opcode;
     }
     if (*pc != opc_breakpoint) return *pc;

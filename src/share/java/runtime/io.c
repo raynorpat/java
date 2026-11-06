@@ -21,6 +21,7 @@
 #include "interpreter.h"
 #include "javaString.h"
 #include "fd_md.h"
+#include "io_md.h"
 
 #include "java_io_FileDescriptor.h"
 #include "java_io_FileInputStream.h"

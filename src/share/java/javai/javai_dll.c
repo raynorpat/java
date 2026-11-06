@@ -6,6 +6,8 @@
 #include <tree.h>
 #include <interpreter.h>
 #include <io_md.h>
+#include "sys_api.h"
+#include <fcntl.h>
 #include <sys/stat.h>
 
 void ClassDefHook(ClassClass *cb) { }

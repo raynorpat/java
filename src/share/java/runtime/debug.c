@@ -23,7 +23,7 @@
 
 #include <stdio.h>
 
-#include "javaThreads.h"
+#include "threads.h"
 #include "debug.h"
 #include "monitor.h"
 #include "monitor_cache.h"
@@ -75,7 +75,7 @@ threadDumpInfo(TID tid, bool_t verbose)
 	        exception_t exc =
 		    ((struct execenv *)unhand(tid)->eetop)->exception.exc;
 	        fprintf(stderr, ": pending=%s",
-			classname2string(classname(obj_classblock(exc)),
+			classname2string(cbName(obj_classblock(exc)),
 			buf, sizeof(buf)));
 	    }
 	    fprintf(stderr, "%s\n",

@@ -40,9 +40,9 @@ int jio_printf(const char *format, ...)
 
 /* Transitional mapping: use this tree's ClassClass pointer and Sticky flag. */
 void MakeClassSticky(ClassClass *cb)
-{ cb->flags |= CCF_Sticky; }
+{ cbFlags(cb) |= CCF_IsSticky; }
 
-ClassClass *FindStickySystemClass(ExecEnv *ee, char *name, long resolve)
+ClassClass *FindStickySystemClass(ExecEnv *ee, char *name, bool_t resolve)
 {
     ClassClass *cb = FindClassFromClass(ee, name, resolve, NULL);
     if (cb) MakeClassSticky(cb);

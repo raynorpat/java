@@ -7,6 +7,8 @@
 #include "javaString.h"
 #include "exceptions.h"
 
+extern ClassClass *allocClassClass(void);
+
 static struct {
     char *name;
     char signature;
@@ -30,29 +32,23 @@ ClassClass *
 createPrimitiveClass(char *name, char sig, unsigned char typecode,
                      unsigned char slotsize, unsigned char elementsize)
 {
-    ClassClass *cb = AllocClass();
+    ClassClass *cb = allocClassClass();
 
     /* deviation: report allocation failure instead of the debug VM's assert. */
     if (cb == NULL) {
         SignalError(0, JAVAPKG "OutOfMemoryError", NULL);
         return NULL;
     }
-    cb->major_version = JAVA_VERSION;
-    cb->minor_version = JAVA_MINOR_VERSION;
-    /* deviation: class-owned names use the current allocator's arena rather
-     * than Sun 1.1's separately allocated strdup storage. */
-    cb->name = ArenaAlloc(&cb->classStorageArena->pool, strlen(name) + 1);
-    if (cb->name == NULL) {
-        ArenaFreeAll(&cb->classStorageArena->pool);
-        sysFree(cb->classStorageArena);
-        sysFree(cb);
+    cbMajorVersion(cb) = JAVA_VERSION;
+    cbMinorVersion(cb) = JAVA_MINOR_VERSION;
+    cbName(cb) = strdup(name);
+    if (!cbName(cb)) {
         SignalError(0, JAVAPKG "OutOfMemoryError", NULL);
         return NULL;
     }
-    strcpy(cb->name, name);
-    cb->super_name = JAVAPKG "Object";
-    cb->constantpool = NULL;
-    cb->constantpool_count = 0;
+    cbSuperName(cb) = JAVAPKG "Object";
+    cbConstantPool(cb) = NULL;
+    cbConstantPoolCount(cb) = 0;
     cbLoader(cb) = NULL;
     cbAccess(cb) = ACC_PUBLIC | ACC_FINAL | ACC_ABSTRACT;
     CCSet(cb, Primitive);
@@ -60,9 +56,8 @@ createPrimitiveClass(char *name, char sig, unsigned char typecode,
     cbTypeCode(cb) = typecode;
     cbSlotSize(cb) = slotsize;
     cbElementSize(cb) = elementsize;
-    /* deviation: current ClassClass lives outside the Java heap. Register it
-     * for GC rooting; Sun's 1.1 allocator returns an already managed handle. */
-    cb->flags |= CCF_Sticky;
+    /* Primitive classes are sticky in the primary VM. */
+    cbFlags(cb) |= CCF_IsSticky;
     lock_classes();
     AddBinClass(cb);
     unlock_classes();
@@ -89,8 +84,6 @@ FindPrimitiveClass(char *name)
                     return NULL;
                 if (ResolveClass(cb, &detail) != NULL)
                     return NULL;
-                /* deviation: balance the current AddBinClass rooting state. */
-                CCClear(cb, Resolving);
                 primitive_classes[i].clazz = cb;
             }
             return cb;
@@ -99,8 +92,8 @@ FindPrimitiveClass(char *name)
     return NULL;
 }
 
-HClass *
-java_lang_Class_getPrimitiveClass(HClass *unused, HString *name)
+ClassClass *
+java_lang_Class_getPrimitiveClass(ClassClass *unused, HString *name)
 {
     char buffer[256];
     ClassClass *cb;
@@ -115,7 +108,7 @@ java_lang_Class_getPrimitiveClass(HClass *unused, HString *name)
 }
 
 long
-java_lang_Class_isPrimitive(HClass *self)
+java_lang_Class_isPrimitive(ClassClass *self)
 {
-    return CCIs(unhand(self), Primitive);
+    return CCIs(self, Primitive);
 }

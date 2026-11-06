@@ -4,7 +4,7 @@
 #include "tree.h"
 #include "jni.h"
 #include "interpreter.h"
-#include "javaThreads.h"
+#include "threads.h"
 typedef void (*HandleSingleStepHook)(ExecEnv *, unsigned char *);
 typedef void (*HandleBreakpointHook)(ExecEnv *, unsigned char *);
 typedef void (*HandleExceptionHook)(ExecEnv *, unsigned char *, HObject *);

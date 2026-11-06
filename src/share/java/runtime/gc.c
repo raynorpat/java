@@ -65,6 +65,10 @@ static HObject *reserve_red, *reserve_yellow;
 static int alloc_state = 1;
 static int allocating_reserve;
 static unsigned long reclaim_generation;
+long allocCacheSize = ALLOC_CACHE_SIZE;
+long allocLocalSize = ALLOC_LOCAL_SIZE;
+long allocHandleCount = ALLOC_HANDLE_COUNT;
+static HObject *allocLocal(struct alloc_cache *, struct methodtable *, long);
 static void tryLowerAllocState(unsigned long);
 static void notifyAllocState(int, int);
 static void releaseReserve(HObject **);
@@ -116,7 +120,8 @@ extern sys_mon_t *_hasfinalq_lock;
 /* The extent of the object pool (must be committed memory) */
 static unsigned char *opool, *opoollimit, *opoolhand;
 /* The extent of the handle pool (must be committed memory) */
-static unsigned char *hpool, *hpoollimit, *hpoolhand;
+static unsigned char *hpool, *hpoollimit;
+static JHandle *free_handles;
 /* The extent of the mapped memory */
 static unsigned char *heapbase, *heaptop;
 
@@ -253,10 +258,21 @@ realObjAlloc(struct methodtable *mptr, long n0)
     int reserve_request;
     int state_retry = 1;
     unsigned long saved_generation;
+    ExecEnv *ee = EE();
+    sys_thread_t *alloc_thread = sysThreadSelf();
+    /* deviation: host attach creates its Thread before publishing the cookie.
+     * Such a thread has no owned EE yet; never borrow DefaultExecEnv's cache.
+     * Sun instead prepares a spare Thread/EE before entering AttachCurrentThread. */
+    if (alloc_thread && !sysThreadGetBackPtr(alloc_thread)) ee = NULL;
 
 RetryAfterStateChange:
     suspend_self = 0;
     n = (n0 + sizeof(hdr) + (OBJECTGRAIN - 1)) & ~(OBJECTGRAIN - 1);
+    if (n0 < 0 || n < 0) return NULL;
+    if (ee && n < allocLocalSize) {
+        ret = allocLocal(&ee->alloc_cache, mptr, n);
+        if (ret) return ret;
+    }
     HEAP_LOCK();
     reserve_request = allocating_reserve;
     old_state = alloc_state;
@@ -360,51 +376,118 @@ AllocationDone:
     return ret;
 }
 
-/*
- * REMIND: Why don't we keep free handles in a linked list???
- */
+/* The methods word links empty handles in both global and local lists. */
 HObject *
 AllocHandle(struct methodtable *mptr, ClassObject *p)
 {
-    register unsigned char *hp = hpoolhand;
-    register unsigned char *limit = hpoollimit - sizeof(JHandle);
-    if (p == 0) {
-	return 0;
-    }
-    while (hp <= limit) {
-	if (((JHandle *) hp)->obj == 0) {
-	    goto GotHandle;
-	} else {
-	    hp += sizeof(JHandle);
-	}
-    }
-    limit = hpoolhand;
-    hp = hpool;
-#ifdef TRACEGC
-    if (tracegc) {
-	fprintf(stderr, "<GC: handle pool wraps>\n");
-    }
-#endif /* TRACEGC */
-    while (hp < limit) {
-	if (((JHandle *) hp)->obj == 0) {
-	    goto GotHandle;
-	} else {
-	    hp += sizeof(JHandle);
-	}
-    }
-#ifdef DEBUG
-    if (verbosegc) {
-	fprintf(stderr, "<GC: out of handle space>\n");
-    }
-#endif /* DEBUG */
-    return 0;
-GotHandle:
-    ((JHandle *) hp)->methods = mptr;
-    ((JHandle *) hp)->obj = (ClassObject *) p;
-    hpoolhand = hp + sizeof(JHandle);
+    JHandle *hp;
+    if (!p || !(hp = free_handles)) return NULL;
+    free_handles = (JHandle *)hp->methods;
+    sysAssert(hp->obj == NULL);
+    hp->methods = mptr;
+    hp->obj = p;
     FreeHandleCtr -= sizeof(JHandle);
     sysAssert(FreeHandleCtr >= 0);
     return (HObject *) hp;
+}
+
+static void
+returnHandle(JHandle *h)
+{
+    h->obj = NULL;
+    h->methods = (struct methodtable *)free_handles;
+    free_handles = h;
+    FreeHandleCtr += sizeof(JHandle);
+}
+
+static void
+linkHandleRange(unsigned char *start, unsigned char *end)
+{
+    JHandle *h;
+    for (h = (JHandle *)end; (unsigned char *)h > start;) {
+        --h;
+        h->obj = NULL;
+        h->methods = (struct methodtable *)free_handles;
+        free_handles = h;
+    }
+}
+
+/* Primary 100278f0 / Rhapsody allocCacheCleanup. Caller owns the EE. */
+void
+allocCacheCleanup(struct alloc_cache *cache)
+{
+    JHandle *h, *next;
+    HEAP_LOCK();
+    sysAssert(!cache->cache_busy);
+    cache->cache_tail = NULL;
+    cache->cache_size = 0;
+    for (h = cache->cache_handles; h; h = next) {
+        sysAssert(h->obj == NULL);
+        next = (JHandle *)h->methods;
+        returnHandle(h);
+    }
+    cache->cache_handles = NULL;
+    HEAP_UNLOCK();
+}
+
+static HObject *
+allocLocal(struct alloc_cache *cache, struct methodtable *methods, long n)
+{
+    JHandle *tail, *h;
+    unsigned char *body;
+    long remaining, count;
+    if (cache->cache_busy) return NULL;
+    cache->cache_busy = 1;
+    sysMemoryFlush();
+    tail = NULL;
+    remaining = cache->cache_size;
+    if (remaining <= n) {
+        h = (JHandle *)realObjAlloc((struct methodtable *)40, allocCacheSize);
+        if (!h) goto done;
+        cache->cache_tail = h;
+        remaining = obj_len((unsigned char *)h->obj - sizeof(hdr));
+        cache->cache_size = remaining;
+    }
+    if (remaining <= n) goto done;
+    if (!cache->cache_handles) {
+        HEAP_LOCK();
+        count = 0;
+        while (free_handles && count < allocHandleCount) {
+            h = free_handles;
+            free_handles = (JHandle *)h->methods;
+            sysAssert(h->obj == NULL);
+            h->methods = cache->cache_handles;
+            cache->cache_handles = h;
+            ++count;
+        }
+        FreeHandleCtr -= count * sizeof(JHandle);
+        HEAP_UNLOCK();
+    }
+    h = cache->cache_handles;
+    if (!h) goto done;
+    cache->cache_handles = h->methods;
+    tail = cache->cache_tail;
+    body = (unsigned char *)tail->obj;
+    obj_setlf(body + n - sizeof(hdr), remaining - n, 0);
+    obj_setlf(body - sizeof(hdr), n, 0);
+    h->obj = (ClassObject *)(body + n);
+    h->methods = (struct methodtable *)40;
+    tail->methods = methods;
+    cache->cache_tail = h;
+    cache->cache_size = remaining - n;
+done:
+    cache->cache_busy = 0;
+    return (HObject *)tail;
+}
+
+ClassClass *
+allocClassClass(void)
+{
+    ClassClass *cb = (ClassClass *)realObjAlloc(
+        classJavaLangClass ? cbMethodTable(classJavaLangClass) : NULL,
+        sizeof(Classjava_lang_Class));
+    if (cb) unhand(cb)->HandleToSelf = cb;
+    return cb;
 }
 
 
@@ -491,7 +574,7 @@ ObjAlloc(ClassClass *cb, long n0)
      * the instance and prepend it to the head of the HasFinalizerQ.  Note
      * that handle can be nil if we are out of memory!
      */
-    if (handle && obj_flags(handle) == T_NORMAL_OBJECT && cb->finalizer) {
+    if (handle && obj_flags(handle) == T_NORMAL_OBJECT && cbFinalizer(cb)) {
 	finalizer_t *final;
 
         final = (finalizer_t *) sysMalloc(sizeof(finalizer_t));
@@ -666,6 +749,8 @@ int
 expandHandleSpace(void)
 {
     long incr;
+    unsigned char *old_pool = hpool;
+    unsigned char *new_pool;
 
     /*
      * Expand by the maximum of a constant and the amount we need to
@@ -673,19 +758,17 @@ expandHandleSpace(void)
      */
     incr = MIN_HANDLE_EXPANSION;
     incr = max(incr, TotalHandleCtr*preallocFactor - FreeHandleCtr);
-    /* Keep hpool HANDLEGRAIN aligned; rounding it up afterwards would
-       leave it above hpoolhand and make the memset below run wild. */
+    /* Keep the newly linked range HANDLEGRAIN aligned. */
     incr = (incr + HANDLEGRAIN-1) & ~(HANDLEGRAIN-1);
-    hpool = hpool - incr;
-    if (hpool < heapbase) {	/* We might get by with less... */
+    new_pool = hpool - incr;
+    if (new_pool < heapbase) {	/* We might get by with less... */
 	if (verbosegc) {
 	    fprintf(stderr, "<GC: tried to expand handle space over limit>\n");
 	}
 	return 0;
     } else {
-	hpoolhand = hpool;
-	hpool = sysCommitMem(hpool, incr, &incr);
-	if (!hpool) {
+	new_pool = sysCommitMem(new_pool, incr, &incr);
+	if (!new_pool) {
 	    if (verbosegc) {
 		fprintf(stderr, "<GC: expansion of handle space failed>\n");
 	    }
@@ -693,9 +776,8 @@ expandHandleSpace(void)
 	}
 	/* Need to be HANDLEGRAIN aligned within committed memory */
 	hpool = (unsigned char *)
-	    (((int) hpool + HANDLEGRAIN-1) & ~(HANDLEGRAIN-1));
-	memset(hpool, 0, hpoolhand - hpool);
-	hpoolhand = hpool;
+	    (((int) new_pool + HANDLEGRAIN-1) & ~(HANDLEGRAIN-1));
+	linkHandleRange(hpool, old_pool);
 	FreeHandleCtr  += incr;
 	TotalHandleCtr += incr;
 	if (verbosegc) {
@@ -824,9 +906,8 @@ static void releaseReserve(HObject **reserve)
     body = (unsigned char *)unhand(object) - sizeof(hdr);
     if (obj_geth(body) & 1) return;
     FreeObjectCtr += obj_len(body);
-    FreeHandleCtr += sizeof(JHandle);
     obj_setfree(body);
-    object->obj = NULL;
+    returnHandle((JHandle *)object);
     *reserve = NULL;
 }
 
@@ -859,25 +940,14 @@ static void notifyAllocState(int previous, int current)
     JavaFrame *frame = ee ? ee->current_frame : NULL;
     stack_item *saved_top = frame ? frame->optop : NULL;
     ClassClass *vm;
-#ifdef DEBUG
-    unsigned int saved_debug_flags = ee->debugFlags;
-#endif
     /* deviation: the old interpreter caches optop. Publish its full operand
      * area before nested Java callbacks so live operands are neither skipped
      * by GC nor overwritten by the callback's pseudo-frame. */
     if (frame && frame->current_method)
         frame->optop = frame->ostack + frame->current_method->maxstack;
-#ifdef DEBUG
-    /* Match DECACHE_OPTOP: the published frame is authoritative throughout
-     * the nested interpreter invocation; restore the outer cache afterward. */
-    ee->debugFlags &= ~EE_DEBUG_OPTOP_CACHED;
-#endif
     vm = FindClass(ee, "sun/misc/VM", TRUE);
     if (vm) execute_java_static_method(ee, vm, "asChange", "(II)V", previous, current);
     if (frame) frame->optop = saved_top;
-#ifdef DEBUG
-    ee->debugFlags = saved_debug_flags;
-#endif
 }
 
 long sun_misc_VM_getState(void *unused)
@@ -1042,6 +1112,64 @@ manageAllocFailure(long n, int overflow_type, int overflow_act) {
 static JHandle *mark_pending[100];
 static int mark_pending_count;
 static int mark_rescan;
+static void markChildrenDepth(JHandle *, JHandle *, int);
+static void markClassMetadata(ClassClass *, JHandle *, int);
+
+static int
+deferMark(JHandle *h, int depth)
+{
+    if (depth <= 30) return 0;
+    if (mark_pending_count < 100)
+        mark_pending[mark_pending_count++] = h;
+    else
+        mark_rescan = 1;
+    return 1;
+}
+
+static void
+markReference(JHandle *h, JHandle *limit, int strength, int depth, int isclass)
+{
+    SetLimits();
+    if (ValidHandle(h) && h->obj && IsMarked(h) < strength) {
+        MarkPtr(h, strength);
+        if (h < limit) {
+            if (isclass) markClassMetadata((ClassClass *)h, limit, depth);
+            else markChildrenDepth(h, limit, depth);
+        }
+    }
+}
+
+/* Primary 1002acfd: trace only typed managed references in Class metadata. */
+static void
+markClassMetadata(ClassClass *cb, JHandle *limit, int depth)
+{
+    union cp_item_type *cp;
+    unsigned char *types;
+    struct fieldblock *fb;
+    int i, strength;
+    SetLimits();
+    if (deferMark((JHandle *)cb, depth)) return;
+    strength = IsMarked(cb);
+    cp = cbConstantPool(cb);
+    if (cp && (types = cp[CONSTANT_POOL_TYPE_TABLE_INDEX].p) != NULL) {
+        for (i = 1; i < cbConstantPoolCount(cb); ++i) {
+            if (types[i] == (CONSTANT_Class | CONSTANT_POOL_ENTRY_RESOLVED)
+                    && cp[i].p != cb)
+                markReference(cp[i].p, limit, strength, depth + 1, 1);
+        }
+    }
+    fb = cbFields(cb);
+    if (fb) for (i = 0; i < cbFieldsCount(cb); ++i, ++fb) {
+        if (fb->signature && (fieldIsArray(fb) || fieldIsClass(fb))
+                && (fb->access & ACC_STATIC))
+            markReference(*(JHandle **)normal_static_address(fb), limit,
+                          strength, depth + 1, 0);
+    }
+    markReference((JHandle *)cbSuperclass(cb), limit, strength, depth + 1, 1);
+    markReference((JHandle *)cbClassname(cb), limit, strength, depth + 1, 0);
+    markReference((JHandle *)cbLoader(cb), limit, strength, depth + 1, 0);
+    markReference((JHandle *)cbSigners(cb), limit, strength, depth + 1, 0);
+}
 
 static void
 markChildrenDepth(register JHandle * h, register JHandle * limit, int depth)
@@ -1049,17 +1177,13 @@ markChildrenDepth(register JHandle * h, register JHandle * limit, int depth)
     register ClassClass *cb;
     register JHandle *sub, *needsmark;
     register ClassObject *p;
+    int strength, child_strength;
     SetLimits();
-    if (depth > 30) {
-        if (mark_pending_count < 100)
-            mark_pending[mark_pending_count++] = h;
-        else
-            mark_rescan = 1;
-        return;
-    }
+    if (deferMark(h, depth)) return;
 ScanNext:
     needsmark = 0;
     p = unhand(h);
+    strength = IsMarked(h);
 #ifdef TRACEGC
     if (tracegc > 1) {
 	fprintf(stderr, "<%X/%X>\n", h, p);
@@ -1068,18 +1192,26 @@ ScanNext:
 #endif /* TRACEGC */
     switch (obj_flags(h)) {
 	case T_NORMAL_OBJECT:
+	    /* Class bootstrap can precede publication of Class's methodtable. */
+            if (!h->methods) {
+                markClassMetadata((ClassClass *)h, limit, depth + 1);
+                break;
+            }
 	    cb = obj_classblock(h);
+            markReference((JHandle *)cb, limit, strength, depth + 1, 1);
+            if (cb == classJavaLangClass)
+                markClassMetadata((ClassClass *)h, limit, depth + 1);
 	    do {
-		register long n = cb->fields_count;
+		register long n = cbFieldsCount(cb);
 		register struct fieldblock *fb = cbFields(cb);
 		while (--n >= 0) {
 		    if ((fieldIsArray(fb) || fieldIsClass(fb))
 			&& !(fb->access & ACC_STATIC)) {
 			sub = *(JHandle **) ((char *) p + fb->u.offset);
-			if (ValidHandle(sub) && !IsMarked(sub)) {
-			    MarkPtr(sub, CCIs(cb, SoftRef)
-				    && fb->u.offset == 0
-				    ? SoftMark : HardMark);
+                        child_strength = CCIs(cb, SoftRef) && fb->u.offset == 0
+                            ? SoftMark : strength;
+			if (ValidHandle(sub) && IsMarked(sub) < child_strength) {
+			    MarkPtr(sub, child_strength);
 #ifdef TRACEGC
 			    if (tracegc > 1)  {
 				fprintf(stderr, " mo %s\n", Object2CString(sub));
@@ -1098,16 +1230,18 @@ ScanNext:
 		if (cbSuperclass(cb) == 0) {
 		    break;
 		}
-		cb = unhand(cbSuperclass(cb));
+		cb = cbSuperclass(cb);
 	    } while (cb);
 	    break;
 
 	case T_CLASS: {     /* an array of classes */
 	    register long n = obj_length(h);
+            cb = (ClassClass *)((ArrayOfObject *)p)->body[n];
+            if (cb) markReference((JHandle *)cb, limit, strength, depth + 1, 1);
 	    while (--n >= 0) {
 		sub = ((ArrayOfObject *) p)->body[n];
-		if (ValidHandle(sub) && !IsMarked(sub)) {
-		    MarkPtr(sub, HardMark);
+		if (ValidHandle(sub) && IsMarked(sub) < strength) {
+		    MarkPtr(sub, strength);
 #ifdef TRACEGC
 		    if (tracegc > 1) {
 			fprintf(stderr, " ma %s\n", Object2CString(sub));
@@ -1153,12 +1287,12 @@ scanThread(sys_thread_t *t, void *arg)
     SetLimits();
 
 #ifdef DEBUG
-    if (!ValidHandle(p)) {
+    if (p && !ValidHandle(p)) {
 	sysAbort();
     }
 #endif /* DEBUG */
 #ifdef TRACEGC
-    if (tracegc > 1 && !IsMarked(p)) {
+    if (p && tracegc > 1 && !IsMarked(p)) {
 	if (((JHandle *)p)->obj && ((JHandle *)p)->methods) {
 	    fprintf(stderr, " ms %s\n", Object2CString((JHandle *)p));
 	} else {
@@ -1167,13 +1301,14 @@ scanThread(sys_thread_t *t, void *arg)
     }
 #endif /* TRACEGC */
     /* Mark thread object */
-    MarkPtr(p, HardMark);
+    /* A provisional JNI host thread has a native stack but no Java cookie. */
+    if (p) MarkPtr(p, HardMark);
 
     /* Use t, not p's PrivateInfo: an exiting thread clears that while still listed. */
     base = sysThreadStackBase(t);
     ssc  = sysThreadStackPointer(t);
 
-    if (p == me) {
+    if (t == sysThreadSelf()) {
 	ssc = (unsigned char **) &me;
     }
 
@@ -1226,15 +1361,28 @@ scanThread(sys_thread_t *t, void *arg)
     }
 
     {
-	ExecEnv *ee = (ExecEnv *)THREAD(p)->eetop;
+	ExecEnv *ee = p ? (ExecEnv *)THREAD(p)->eetop : NULL;
 	JavaFrame *frame;
 	register unsigned char *ptr;
+        if (ee) {
+            struct alloc_cache *cache = &ee->alloc_cache;
+            if (cache->cache_busy) {
+                if (ValidHandle(cache->cache_tail))
+                    MarkPtr(cache->cache_tail, HardMark);
+            } else {
+                allocCacheCleanup(cache);
+            }
+            if (ValidHandle(ee->exception.exc))
+                MarkPtr(ee->exception.exc, HardMark);
+        }
 	if ((ee != 0) && ((frame = ee->current_frame) != 0)) {
 	    stack_item *top_top_stack = frame->current_method 
 		  ? &frame->ostack[frame->current_method->maxstack] 
 		  : frame->optop;
 	    limit = (unsigned char **)top_top_stack;
 	    for(;;) {
+                if (frame->current_method)
+                    MarkPtr(frame->current_method->fb.clazz, HardMark);
 #ifdef TRACEGC
 		if (tracegc) {
 		    fprintf(stderr, " scanning frame %8X\n", frame);
@@ -1314,70 +1462,56 @@ static void markJNIRoot(void *object)
 }
 
 
-/* Look through the constant pool of each of the classes to see if it
- * contains any objects (like Strings) that need to be marked.
- */
- 
+/* Registry roots follow -noclassgc or the original Sticky flag. */
+static ClassClass *classes_pending_free;
+
 static void
 scanClasses(void)
 {
-    int i, j;
-    ClassClass **pcb =  binclasses;
-    struct fieldblock *fb;
+    int i;
+    ClassClass *cb;
     SetLimits();
+    for (i = 0; i < nbinclasses; ++i) {
+        cb = binclasses[i];
+        if (cb && (!classgc || CCIs(cb, Sticky)))
+            MarkPtr(cb, HardMark);
+    }
+    for (cb = classes_pending_free; cb;
+         cb = (ClassClass *)cbFinalizer(cb))
+        MarkPtr(cb, HardMark);
+}
 
-    for (j = nbinclasses; --j >= 0; pcb++) {
-	ClassClass *cb = *pcb;
-        if (!cb) continue;
-	if (CCIs(cb, Resolved)) {
-	    union cp_item_type *constant_pool = cbConstantPool(cb);
-	    union cp_item_type *cpp = constant_pool+ CONSTANT_POOL_UNUSED_INDEX;
-	    union cp_item_type *end_cpp = &constant_pool[cb->constantpool_count];
-	    for ( ; cpp < end_cpp; cpp++) {
-		void *ptr = (*cpp).p;
-		if (ValidHorO(ptr)) {
-#ifdef TRACEGC
-		    if (tracegc > 1 && !IsMarked(ptr) && ValidHandle(ptr)) {
-		        if (((JHandle *)ptr)->obj && ((JHandle *)ptr)->methods) {
-			    fprintf(stderr, " ms %s\n", 
-				    Object2CString((JHandle *) ptr));
-			} else {
-			    fprintf(stderr, " ms %8X\n", ptr);
-			}
-		    }
-#endif /* TRACEGC */
-		    MarkPtr(ptr, HardMark);
-		}
-	    }
-	}
-	/* Scan class definitions looking for statics */
-	for (i = cb->fields_count, fb = cbFields(cb); --i >= 0; fb++) {
-	    if ((fieldIsArray(fb) || fieldIsClass(fb)) && (fb->access & ACC_STATIC)) {
-		JHandle *sub = *(JHandle **)normal_static_address(fb);
-		if (ValidHandle(sub) && !IsMarked(sub)) {
-		    MarkPtr(sub, HardMark);
-#ifdef TRACEGC
-		    if (tracegc > 1) {
-			fprintf(stderr, " mc %s\n", Object2CString(sub));
-		    }
-#endif /* TRACEGC */
-		}
-	    }
-	}
-	/* don't have to mark cb->superclass, because it's caught by
-	   the HandleToSelf for that class */
-	if (ValidHandle(cbHandle(cb))) {
-	    MarkPtr((JHandle *) cbHandle(cb), HardMark);
-	}
-	if (ValidHandle(cbClassnameArray(cb))) {
-	    MarkPtr((JHandle *) cbClassnameArray(cb), HardMark);
-	}
-	if (ValidHandle(cbLoader(cb))) {
-	    MarkPtr((JHandle *) cbLoader(cb), HardMark);
-	}
-	if (ValidHandle(cb->signers)) {
-	    MarkPtr((JHandle *) cb->signers, HardMark);
-	}
+/* Called with the world stopped. No class-lock acquisition under heap lock. */
+static void
+queueDeadClasses(void)
+{
+    int i;
+    ClassClass *cb;
+    SetLimits();
+    if (!classgc) return;
+    for (i = nbinclasses; --i >= 0;) {
+        cb = binclasses[i];
+        if (cb && !IsMarked(cb)) {
+            MarkPtr(cb, HardMark);
+            cbFinalizer(cb) = (struct methodblock *)classes_pending_free;
+            classes_pending_free = cb;
+            binclasses[i] = binclasses[--nbinclasses];
+        }
+    }
+}
+
+/* FreeClass owns metadata slabs only; the collector owns handle and body. */
+static void
+freeDeadClasses(void)
+{
+    ClassClass *cb;
+    HObject *object;
+    extern void FreeClass(ClassClass *);
+    while ((cb = classes_pending_free) != NULL) {
+        classes_pending_free = (ClassClass *)cbFinalizer(cb);
+        FreeClass(cb);
+        object = (HObject *)cb;
+        releaseReserve(&object);
     }
 }
 
@@ -1590,11 +1724,7 @@ freeSweep(unsigned int free_space_goal)
 	        do_compact_heap = 0;
 	    }
 	    obj_setfree((char *) hp->obj - sizeof(hdr));
-	    hp->obj = 0;
-#ifdef DEBUG
-	    hp->methods = 0;    /* paranoia */
-#endif /* DEBUG */
-	    FreeHandleCtr += sizeof(JHandle);
+            returnHandle(hp);
 	    sysAssert(FreeHandleCtr <= TotalHandleCtr);
 	}
 	hp++;
@@ -1602,7 +1732,6 @@ freeSweep(unsigned int free_space_goal)
 
     /* Reset allocation hands, so that freed memory gets used */
     opoolhand = opmin;
-    hpoolhand = hpool;
 
     return do_compact_heap;
 }
@@ -1951,6 +2080,7 @@ gc0_locked(int async_call, unsigned int free_space_goal)
     }
 
     MARK(GCSWEEP);
+    queueDeadClasses();
     do_compact_heap = freeSweep(free_space_goal);
     if (async_call && INTERRUPTS_PENDING()) {
 	goto unlock;
@@ -2009,6 +2139,7 @@ gc0(int async_call, unsigned int free_space_goal)
 	last_free = gc_locked(async_call, free_space_goal);
     }
     sysThreadMulti();
+    freeDeadClasses();
 
     /* Notify the finalizer thread if objects pending finalization */
     if (FinalizeMeQ) {
@@ -2099,6 +2230,7 @@ asyncGC()
 
 unlock:
     sysThreadMulti();
+    freeDeadClasses();
 
     /* Notify the finalizer thread if objects pending finalization */
     if (FinalizeMeQ) {
@@ -2148,7 +2280,7 @@ InitializeGC(int max, int min)
 
 #define BACKOFF_FACTOR 0.75
 
-int
+bool_t
 InitializeAlloc(long max_request, long min_request)
 {
     long max, min;
@@ -2219,13 +2351,13 @@ InitializeAlloc(long max_request, long min_request)
 	opool += sizeof(hdr);
     }
 
-    hpoolhand = hpool;
 
     /*
      * Make sure that all the handles are zero.  We recognize a free handle
      * by the fact that its ->obj field is 0.
      */
-    memset(hpoolhand, 0, hpoollimit - hpoolhand);
+    free_handles = NULL;
+    linkHandleRange(hpool, hpoollimit);
 
     obj_setlf(opool, opoollimit - opool, 1);
 #ifdef DEBUG
@@ -2412,11 +2544,11 @@ profHandles(FILE *fp) {
 	if (p->cb != 0) {
 	    if (p->count > 0) {
 		fprintf(fp, "L%s; %d %d\n", 
-			classname(p->cb), p->count, 
+			cbName(p->cb), p->count, 
 			p->count * cbInstanceSize(p->cb));
 	    }
 	    if (p->arraycount > 0) {
-		fprintf(fp, "[L%s; %d %d\n", classname(p->cb), p->arraycount, p->arraylength * sizeof(OBJECT));
+		fprintf(fp, "[L%s; %d %d\n", cbName(p->cb), p->arraycount, p->arraylength * sizeof(OBJECT));
 	    }
 	}
     }
@@ -2572,14 +2704,13 @@ verifyHandleCtrs(void)
     int inuse = 0;
     int total = 0;
 
-    for (hp = (JHandle *) hpool; hp <= (JHandle *) hpmax; hp++) {
-	if (hp->obj == 0) {
-	    free += sizeof(JHandle);
-	} else {
-	    inuse += sizeof(JHandle);
-	}
-	total += sizeof(JHandle);
+    /* Private cache handles have NULL bodies but are already reserved. */
+    for (hp = free_handles; hp; hp = (JHandle *)hp->methods) {
+        sysAssert(hp->obj == NULL);
+        free += sizeof(JHandle);
     }
+    total = hpoollimit - hpool;
+    inuse = total - free;
 
     sysAssert(free == FreeHandleCtr);
     sysAssert(inuse == TotalHandleCtr - FreeHandleCtr);

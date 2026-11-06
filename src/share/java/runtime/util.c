@@ -122,7 +122,7 @@ printus(unicode *str, long len)
  * isn't null, we also set up an array of void * for holding info about each
  * object.  The address of this void * is stored into param
  */
-hash_t
+unsigned short
 Str2ID(StrIDhash **idhroot, register char *s, void ***param, int CopyNeeded)
 {
     /*
@@ -200,7 +200,7 @@ Str2ID(StrIDhash **idhroot, register char *s, void ***param, int CopyNeeded)
 	}
 	*param = &h->param[i];
     }
-    return (hash_t) (h->baseid + i);
+    return (unsigned int) (h->baseid + i);
 }
 
 void
@@ -329,21 +329,19 @@ out_of_memory()
     sysAbort();
 }
 
-#if 0
-JAVA_PUBLIC_API(void) 
+/* Primary javai_g.dll 1004EFA4: bounded diagnostic, then platform abort. */
+void
 panic(const char *format, ...)
 {
     va_list ap;
     char buf[256];
-
     va_start(ap, format);
-    printf("\n*** panic: ");
-    /* If buffer overflow, quietly truncate */
-    (void) jio_vsnprintf(buf, sizeof(buf), format, ap);
-    prints(buf);
+    jio_vsnprintf(buf, sizeof(buf), format, ap);
+    va_end(ap);
+    fprintf(stdout, "\n*** panic: %s\n", buf);
     sysAbort();
 }
-#endif
+
 
 char *
 classname2string(char *src, char *dst, int size) {
@@ -365,7 +363,7 @@ classname2string(char *src, char *dst, int size) {
  * should prevent overruns.
  */
 void 
-mangleMethodName(struct methodblock *mb, char *buffer, int buflen, char *suffix) 
+mangleMethodName(struct methodblock *mb, char *buffer, int buflen, int mangleType)
 { 
     ClassClass *cb = fieldclass(&mb->fb);
     
@@ -379,13 +377,25 @@ mangleMethodName(struct methodblock *mb, char *buffer, int buflen, char *suffix)
     bufptr += strlen(bufptr);
 
     /* Mangle the class name */
-    bufptr += mangleUTFString(classname(cb), bufptr, bufend - bufptr, 
-			      MangleUTF_Class);
+    bufptr += mangleUTFString(cbName(cb), bufptr, bufend - bufptr,
+        mangleType == MangleMethodName_JDK_1 ? MangleUTF_Class : MangleUTF_JNI);
     if (bufend - bufptr > 1) 
 	*bufptr++ = '_';
-    bufptr += mangleUTFString(mb->fb.name, bufptr, bufend - bufptr, 
-			      MangleUTF_Field);
-    (void) jio_snprintf(bufptr, bufend - bufptr, "%s", suffix);
+    bufptr += mangleUTFString(mb->fb.name, bufptr, bufend - bufptr,
+        mangleType == MangleMethodName_JDK_1 ? MangleUTF_Field : MangleUTF_JNI);
+    if (mangleType == MangleMethodName_JDK_1) {
+        (void) jio_snprintf(bufptr, bufend - bufptr, "_stub");
+    } else if (mangleType == MangleMethodName_JNI_LONG) {
+        char *end = strchr(mb->fb.signature, ')');
+        int length = end - (mb->fb.signature + 1);
+        char *parameters = sysMalloc(length + 1);
+        if (!parameters) { out_of_memory(); return; }
+        memcpy(parameters, mb->fb.signature + 1, length);
+        parameters[length] = 0;
+        if (bufend - bufptr > 2) { *bufptr++ = '_'; *bufptr++ = '_'; }
+        mangleUTFString(parameters, bufptr, bufend - bufptr, MangleUTF_JNI);
+        sysFree(parameters);
+    }
 }
     
 int
@@ -394,7 +404,20 @@ mangleUTFString(char *name, char *buffer, int buflen, int type) {
     char *bufptr = buffer;
     char *bufend = buffer + buflen - 1;	/* save space for NULL */
     int ch;
-    while (((ch = next_utf2unicode(&ptr)) != '\0') && (bufend - bufptr > 0)) { 
+    while (((ch = next_utf2unicode(&ptr)) != '\0') && (bufend - bufptr > 0)) {
+	if (type == MangleUTF_JNI && !(ch <= 0x7f && isalnum(ch))) {
+            char escaped[8];
+            int length;
+            if (ch == '/') strcpy(escaped, "_");
+            else if (ch == '_') strcpy(escaped, "_1");
+            else if (ch == ';') strcpy(escaped, "_2");
+            else if (ch == '[') strcpy(escaped, "_3");
+            else sprintf(escaped, "_0%04x", ch);
+            length = strlen(escaped);
+            if (bufend - bufptr < length) break;
+            memcpy(bufptr, escaped, length); bufptr += length;
+            continue;
+        }
 	if (ch <= 0x7f && isalnum(ch)) {
 	    *bufptr++ = ch;
 	} else if (ch == '/' && type == MangleUTF_Class) { 
@@ -685,8 +708,8 @@ IsSameClassPackage(ClassClass *class1, ClassClass *class2)
     if (cbLoader(class1) != cbLoader(class2)) 
 	return FALSE;
     else {
-	char *name1 = classname(class1);
-	char *name2 = classname(class2);
+	char *name1 = cbName(class1);
+	char *name2 = cbName(class2);
 	char *last_slash1 = strrchr(name1, DIR_SEPARATOR);
 	char *last_slash2 = strrchr(name2, DIR_SEPARATOR);
 	if ((last_slash1 == NULL) || (last_slash2 == NULL)) {

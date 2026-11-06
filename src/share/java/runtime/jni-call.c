@@ -78,9 +78,9 @@ __asm__(
 #define nativeCall jniNativeCall
 #endif
 
-stack_item *sysInvokeNative(JNIEnv *env, void *function, stack_item *args,
-                           char *resultType, int count, jobject clazz)
+long *sysInvokeNative(void *env, void *function, long *args,
+                      char *resultType, int count, void *clazz)
 {
-    nativeCall(function, args, count, env, clazz, *resultType, args);
+    nativeCall(function, (stack_item *)args, count, env, clazz, *resultType, (stack_item *)args);
     return args + (*resultType == 'V' ? 0 : (*resultType == 'J' || *resultType == 'D') ? 2 : 1);
 }

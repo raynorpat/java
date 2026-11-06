@@ -23,7 +23,7 @@
  */
 
 #include "finalize.h"
-#include "javaThreads.h"
+#include "threads.h"
 #include "monitor.h"
 #include "oobj.h"
 #include "log.h"
@@ -42,7 +42,7 @@ finalizer_t *BeingFinalized;	/* The object currently being finalized; */
 				/* not thrown away if the finalizer */
 				/* thread is interrupted! */
 static TID finalizer_owner;
-static int finalizers_on_exit;
+bool_t finalize_on_exit;
 
 static void
 execute_finalizer(finalizer_t *final)
@@ -54,7 +54,7 @@ execute_finalizer(finalizer_t *final)
     if (handle->obj != 0) {
 	sysAssert(BeingFinalized == final);
 	sysAssert(obj_flags(handle) == T_NORMAL_OBJECT);
-	mb = obj_classblock(handle)->finalizer;
+	mb = cbFinalizer(obj_classblock(handle));
 	sysAssert(mb);
 
 	do_execute_java_method(0 /*ee*/, handle, 0, 0, mb, FALSE);
@@ -141,11 +141,10 @@ finalizer_loop(TID tid)
 }
 
 /* Sun 10016CCB; map its intrusive object chains to our finalizer_t nodes. */
-static void finalize_on_exit(int status)
+void finalizeOnExit(void)
 {
     finalizer_t *final, *next;
     extern void gc(int, unsigned int);
-    if (!finalizers_on_exit || status != 0) return;
     gc(0, 0);
     runFinalization();
     HASFINALQ_LOCK();
@@ -167,11 +166,17 @@ static void finalize_on_exit(int status)
     HASFINALQ_UNLOCK();
 }
 
+/* Keep the exit-status policy in the port's sysExit callback adapter. */
+static void finalize_exit_callback(int status)
+{
+    if (finalize_on_exit && status == 0) finalizeOnExit();
+}
+
 void java_lang_Runtime_runFinalizersOnExit0(void *unused, long enabled)
 {
     extern void (*sysFinalizersOnExit)(int);
-    finalizers_on_exit = enabled != 0;
-    sysFinalizersOnExit = finalize_on_exit;
+    finalize_on_exit = enabled != 0;
+    sysFinalizersOnExit = finalize_exit_callback;
 }
 
 /*

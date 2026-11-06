@@ -94,3 +94,35 @@ array/DefineClass/hook cases. Fresh Linux Release targeted builds and both
 `-R jni-invocation` (1/1) passed, including the actual Thread constructor on
 native attachment and its generated Thread-N name. Debug verification is
 coordinated by the parent agent and must be recorded separately.
+
+## HPI lifecycle and JavaVM layout migration
+
+Primary JNI defaults `10026fcd` initializes common fields and delegates to
+`sysGetDefaultJavaVMInitArgs` at `100024ea`, which writes native-stack size,
+minimum/maximum heap, and bootstrap classpath only. JNI Create `10027088`
+sets global options and callback slots, then calls `sysInitializeJavaVM`
+`100025e3` with the **main ExecEnv address**, not a JavaVM pointer. That HPI
+path sets binary standard streams and x87 control on Windows, installs
+classpath/properties, initializes runtime/System/Compiler, conditionally starts
+the debug agent for nonnegative debugPort, and initializes the main thread.
+`sysFinalizeJavaVM` `1000290b` waits for non-daemon threads and returns -1;
+JNI Destroy `100274f9` maps that to JNI failure. Rhapsody named functions at
+`5c143434`, `5c1434b4`, `5c1438c4` corroborate the boundary, with documented
+platform-specific additions in its startup body.
+
+The original JavaVM object at `1006e7b8` contains four words: invoke table
+`10064748`, main EE `1006e768`, zero, zero. The reconstruction now uses the
+actual `struct JavaVM_`, with reserved0 pointing to a static main ExecEnv;
+all JNI GetJavaVM/Create/GetCreated paths return that object's address.
+The callback routing and existing shared platform/runtime startup helpers
+remain; the compiler implementation and its old lossless-opcode policy are
+not claimed to be reconstructed by this wrapper migration.
+
+The verbose-GC initialization option now maps to `verbosegc`, matching primary
+`10083554`, rather than the unrelated detailed root-trace flag `tracegc`.
+`tests/native/jniinvoke.c` additionally checks reserved0 equals returned
+JNIEnv minus 20 and reserved1/reserved2 are zero. Compiled with vendor JNI
+headers and run freshly against primary Debug, the complete existing oracle
+still passes unchanged (including attached=1, hooks=1/1/1, destroy=-1), exit0.
+MSVC x86 isolated compilation of the migrated lifecycle source succeeds;
+coordinated runtime regression remains pending.

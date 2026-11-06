@@ -1,20 +1,23 @@
 /*
- * @(#)oobj.h	1.55 95/11/29  
- *
- * Copyright (c) 1994 Sun Microsystems, Inc. All Rights Reserved.
- *
- * Permission to use, copy, modify, and distribute this software
- * and its documentation for NON-COMMERCIAL purposes and without
- * fee is hereby granted provided that this copyright notice
- * appears in all copies. Please refer to the file "copyright.html"
- * for further important copyright and licensing information.
- *
- * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF
- * THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
- * TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR
- * ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR
- * DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
+ * @(#)oobj.h	1.76 97/02/21
+ * 
+ * Copyright (c) 1995, 1996 Sun Microsystems, Inc. All Rights Reserved.
+ * 
+ * This software is the confidential and proprietary information of Sun
+ * Microsystems, Inc. ("Confidential Information").  You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Sun.
+ * 
+ * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+ * SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
+ * SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+ * THIS SOFTWARE OR ITS DERIVATIVES.
+ * 
+ * CopyrightVersion 1.1_beta
+ * 
  */
 /*
  * Java object header format
@@ -32,7 +35,6 @@
 #include "bool.h"
 #include "oobj_md.h"
 #include "signature.h"
-#include "arena.h"
 
 #define JAVA_CLASSFILE_MAGIC	          0xCafeBabe
 
@@ -60,33 +62,28 @@ typedef unsigned short unicode;
 extern unicode	*str2unicode(char *, unicode *, long);
 extern char	*int642CString(int64_t number, char *buf, int buflen);
 
-/*
- * UCALIGN aligns a pointer to the nearest quad boundary, adjusting the
- * value upwards if necessary. This is used for the lookupswitch and 
- * tableswitch bytecodes. As it turns out, the Java VM Spec (10/96 draft)
- * says that the aligment is relative to the start of the method. So as
- * long as the local memory allocator (via sysAlloc) always allocates in
- * quad lengths, we're fine. Otherwise, UCALIGN will fail to get the right
- * answer every one out of two times! So we need something a little more
- * sophisticated: REL_ALIGN.
- */
-#define UCALIGN(n) ((unsigned char *) ((((uintVP_t)(n))+3)&~3) )
-#define REL_ALIGN(base,offset)\
- (\
- 	 ((unsigned char *)(base))\
-   + ((((uintVP_t)(offset))+3L)&~3L)\
- )
+#define ALIGN(n) (((n)+3)&~3)
+#define UCALIGN(n) ((unsigned char *)ALIGN((int)(n)))
+/* deviation: classfile switch alignment is relative to the method start. */
+#define REL_ALIGN(base,offset) ((unsigned char *)(base) + ALIGN(offset))
 
-typedef uint16_t fb_offset_t;
+struct Hjava_lang_Class;	/* forward reference for some compilers */
+struct Classjava_lang_Class;	/* forward reference for some compilers */
+
+typedef struct Classjava_lang_Class Classjava_lang_Class;
+
+HandleTo(java_lang_Class);
+typedef struct Hjava_lang_Class ClassClass;
+
 
 struct fieldblock {
-    struct ClassClass *clazz;
+    ClassClass *clazz;
     char *signature;
     char *name;
     unsigned long ID;
     unsigned short access;
     union {
-	fb_offset_t offset;	/* info of data */	
+	unsigned long offset;	/* info of data */	
 	OBJECT static_value;
 	void *static_address;
     } u;
@@ -114,23 +111,35 @@ struct methodblock {
 
     bool_t  (*invoker)
       (JHandle *o, struct methodblock *mb, int args_size, struct execenv *ee);
-    unsigned short args_size;	/* total size of all arguments */
-    unsigned short maxstack;	/* maximum stack usage */
-    unsigned short nlocals;	/* maximum number of locals */
-    unsigned short nexceptions; /* JDK 1.1 checked Exceptions attribute */
-    unsigned short *exceptions; /* constant pool indices, per Sun oobj.h */
-    void *CompiledCode;		/* it's type is machine dependent */
-	void *CompiledCodeInfo; /* it's type is machine dependent */
-    long CompiledCodeFlags;	/* machine dependent bits */
-    void*		lib;	/* library where native came from */
+    unsigned short       args_size;	/* total size of all arguments */
+    unsigned short       maxstack;	/* maximum stack usage */
+    unsigned short       nlocals;	/* maximum number of locals */
+    /* 2 spare bytes here */
+    void                *CompiledCode; /* it's type is machine dependent */
+    void                *CompiledCodeInfo; /* it's type is machine dependent */
+    long                 CompiledCodeFlags; /* machine dependent bits */
+    unsigned long        inlining;      /* possible inlining of code */
+    unsigned short       nexceptions;   /* number of checked exceptions */
+    unsigned short      *exceptions;	/* constant pool indices */
+#ifdef JCOV 
+    struct covtable      *coverage_table;
+    unsigned long        coverage_table_length;
+#endif
 };
 
-struct ClassClass;
 struct HIOstream;
 
 struct methodtable {
-    struct ClassClass *classdescriptor;
+    ClassClass *classdescriptor;
     struct methodblock *methods[1];
+};
+
+struct imethodtable { 
+    int icount;			/* number of interfaces to follow */
+    struct { 
+	ClassClass *classdescriptor;
+	unsigned long *offsets;	/* info of data */	
+    } itable[1];
 };
 
 typedef struct {
@@ -152,7 +161,7 @@ typedef ArrayOfShort ClassArrayOfShort;
 HandleTo(ArrayOfShort);
 
 typedef struct {
-    int32_t     body[1];
+    long        body[1];
 } ArrayOfInt;
 typedef ArrayOfInt ClassArrayOfInt;
 HandleTo(ArrayOfInt);
@@ -176,7 +185,7 @@ typedef ArrayOfDouble ClassArrayOfDouble;
 HandleTo(ArrayOfDouble);
 
 typedef struct {
-	JHandle *(body[1]);
+    JHandle *(body[1]);
 } ArrayOfArray;
 typedef ArrayOfArray ClassArrayOfArray;
 HandleTo(ArrayOfArray);
@@ -195,56 +204,46 @@ typedef struct {
 typedef ArrayOfString ClassArrayOfString;
 HandleTo(ArrayOfString);
 
-typedef struct ClassArena {
-    /* Memory pool where all memory associated with a class is allocated from */
-    ArenaPool pool;
-
-    /* Copy of the ClassClass methods info so that we can use it
-       for releasing JIT memory */
-    struct methodblock *methods;
-    unsigned short methods_count;
-
-    /* Linkage used when this ClassArena is on the freelist */
-    struct ClassArena *next;
-} ClassArena;
 
 /* Note: any handles in this structure must also have explicit
    code in the ScanClasses() routine of the garbage collector
    to mark the handle. */
-typedef struct ClassClass {
+struct Classjava_lang_Class {
     /* Things following here are saved in the .class file */
-    unsigned short			major_version;
-    unsigned short			minor_version;
+    unsigned short	     major_version;
+    unsigned short	     minor_version;
     char                    *name;
     char                    *super_name;
     char                    *source_name;
+    ClassClass              *superclass;
+    ClassClass              *HandleToSelf;
+    struct Hjava_lang_ClassLoader *loader;
+    struct methodblock	    *finalizer;
 
-    /*
-    ** NOTE: these are known to be contiguous by the gc_md code for
-    ** scanning a class!
-    */
-    struct Hjava_lang_Class	*superclass;
-    struct Hjava_lang_Class	*HandleToSelf;
-    HObject			*loader;
-    HArrayOfChar		*classname_array;
+    union cp_item_type      *constantpool;
+    struct methodblock      *methods;
+    struct fieldblock       *fields;
+    short                   *implements;
 
-    struct methodblock		*finalizer;
+    struct methodtable      *methodtable;
+    struct methodtable	    *methodtable_mem;
+    struct fieldblock      **slottable;
 
-    ClassArena			*classStorageArena;
+    HString		    *classname;
 
-    union cp_item_type		*constantpool;
-    struct methodblock		*methods;
-    struct fieldblock 		*fields;
-    short					*implements;
-
-    struct methodtable		*methodtable;
-    struct fieldblock		**slottable;
-
-
-    unsigned long			thishash;
-    unsigned long			totalhash;
-
-    unsigned long			instances;
+    union {
+	struct {
+	    unsigned long	thishash;	  /* unused */
+	    unsigned long	totalhash;	  /* unused */
+	} cbhash;
+	struct {
+	    unsigned char	typecode;	  /* VM typecode */
+	    char		typesig;	  /* signature constant */
+	    unsigned char	slotsize;	  /* (bytes) in slot */
+	    unsigned char	elementsize;	  /* (bytes) in array */
+	    unsigned long	xxspare;
+	} cbtypeinfo;
+    } hashinfo;
 
     unsigned short           constantpool_count;  /* number of items in pool */
     unsigned short           methods_count;       /* number of methods */
@@ -257,49 +256,62 @@ typedef struct ClassClass {
 
     unsigned short access;           /* how this class can be accesses */
     unsigned short flags;	     /* see the CCF_* macros */
-    /* deviation: separate primitive metadata until the 1.1 hashinfo union lands. */
-    unsigned char primitive_typecode;
-    char primitive_typesig;
-    unsigned char primitive_slotsize;
-    unsigned char primitive_elementsize;
-    struct HArrayOfObject *signers; /* Sun 1.1 ClassClass.signers, GC root. */
-} ClassClass;
+    struct HArrayOfObject   *signers;
+    struct   imethodtable   *imethodtable;
+#ifdef JCOV
+    char                    *absolute_source_name;
+    int64_t       	     timestamp;
+#endif
+};
 
-typedef ClassClass Classjava_lang_Class;
-HandleTo(java_lang_Class);
-typedef Hjava_lang_Class HClass;
 
-extern bool_t	createInternalClass(unsigned char *bytes, unsigned char *limit,
-				    ClassClass *);
-extern ClassClass *AllocClass(void);
+extern void FreeClass(ClassClass *cb);
+extern void MakeClassSticky(ClassClass *cb);
 
-#define classname(cb)   ((cb)->name)
-#define classsupername(cb) ((cb)->super_name)
-#define classsrcname(cb) ((cb)->source_name)
-#define cbSuperclass(cb)   ((cb)->superclass)
-#define cbHandle(cb)       ((cb)->HandleToSelf)
-#define	cbLoader(cb)	((cb)->loader)
+#define cbAccess(cb)          ((unhand(cb))->access)
+#define cbClassname(cb)       ((unhand(cb))->classname)
+#define cbConstantPool(cb)    ((unhand(cb))->constantpool)
+#define cbConstantPoolCount(cb) ((unhand(cb))->constantpool_count)
+#define	cbFields(cb)          ((unhand(cb))->fields)
+#define	cbFieldsCount(cb)     ((unhand(cb))->fields_count)
+#define cbFinalizer(cb)       ((unhand(cb))->finalizer)
+#define cbFlags(cb)           ((unhand(cb))->flags)
+#define cbHandle(cb)          (cb)
+#define cbImplements(cb)      ((unhand(cb))->implements)
+#define cbImplementsCount(cb) ((unhand(cb))->implements_count)
+#define cbInstanceSize(cb)    ((unhand(cb))->instance_size)
+#define cbIntfMethodTable(cb) ((unhand(cb))->imethodtable)
+#define	cbLoader(cb)	      ((unhand(cb))->loader)
+#define cbMajorVersion(cb)    ((unhand(cb))->major_version)
+#define	cbMethods(cb)         ((unhand(cb))->methods)
+#define	cbMethodsCount(cb)    ((unhand(cb))->methods_count)
+#define cbMethodTable(cb)     ((unhand(cb))->methodtable)
+#define cbMethodTableMem(cb)  ((unhand(cb))->methodtable_mem)
+#define cbMethodTableSize(cb) ((unhand(cb))->methodtable_size)
+#define cbMinorVersion(cb)    ((unhand(cb))->minor_version)
+#define cbName(cb)            ((unhand(cb))->name)
+#define cbSigners(cb)         ((unhand(cb))->signers)
+#define cbSlotTable(cb)       ((unhand(cb))->slottable)
+#define cbSlotTableSize(cb)   ((unhand(cb))->slottbl_size)
+#define cbSourceName(cb)      ((unhand(cb))->source_name)
+#define cbSuperclass(cb)      ((unhand(cb))->superclass)
+#define cbSuperName(cb)       ((unhand(cb))->super_name)
+#define cbThisHash(cb)        ((unhand(cb))->hashinfo.cbhash.thishash)
+#define cbTotalHash(cb)       ((unhand(cb))->hashinfo.cbhash.totalhash)
 
-#define cbConstantPool(cb) ((cb)->constantpool)
-#define	cbMethods(cb)      ((cb)->methods)
-#define	cbFields(cb)       ((cb)->fields)
-#define cbImplements(cb)   ((cb)->implements)
-#define cbMethodTable(cb)  ((cb)->methodtable)
-#define cbSlotTable(cb)    ((cb)->slottable)
+#ifdef JCOV
+#define cbAbsoluteSourceName(cb) ((unhand(cb))->absolute_source_name)
+#define cbTimestamp(cb)       ((unhand(cb))->timestamp)
+#endif
 
-#define cbThisHash(cb)     ((cb)->thishash)
-#define cbTotalHash(cb)    ((cb)->totalhash)
-#define cbSlotTableSize(cb) ((cb)->slottbl_size)
-#define cbInstanceSize(cb) ((cb)->instance_size)
-#define cbMethodTableSize(cb) ((cb)->methodtable_size)
-#define cbClassnameArray(cb)  ((cb)->classname_array)
-#define cbAccess(cb)       ((cb)->access)
-#define cbIsInterface(cb)  ((cbAccess(cb) & ACC_INTERFACE) != 0)
-#define cbIsPrimitive(cb) CCIs(cb, Primitive)
-#define cbTypeCode(cb) ((cb)->primitive_typecode)
-#define cbTypeSig(cb) ((cb)->primitive_typesig)
-#define cbSlotSize(cb) ((cb)->primitive_slotsize)
-#define cbElementSize(cb) ((cb)->primitive_elementsize)
+#define cbIsInterface(cb)     ((cbAccess(cb) & ACC_INTERFACE) != 0)
+
+/* These are currently only valid for primitive types */
+#define	cbIsPrimitive(cb)      (CCIs(cb, Primitive))
+#define cbTypeCode(cb)	       ((unhand(cb))->hashinfo.cbtypeinfo.typecode)
+#define cbTypeSig(cb)	       ((unhand(cb))->hashinfo.cbtypeinfo.typesig)
+#define cbSlotSize(cb)	       ((unhand(cb))->hashinfo.cbtypeinfo.slotsize)
+#define cbElementSize(cb)      ((unhand(cb))->hashinfo.cbtypeinfo.elementsize)
 
 extern char *classname2string(char *str, char *dst, int size);
 
@@ -307,33 +319,39 @@ extern char *classname2string(char *str, char *dst, int size);
 #define normal_static_address(fb)  (&(fb)->u.static_value)
 
 /* ClassClass flags */
+#define CCF_IsSysLock     0x01  /* any instance treated as a "system" lock */
 #define CCF_IsResolved	  0x02	/* been resolved yet? */
 #define CCF_IsError	  0x04	/* Resolution caused an error */
 #define CCF_IsSoftRef	  0x08	/* whether this is class Ref or subclass */
 #define CCF_IsInitialized 0x10	/* whether this is class has been inited */
 #define CCF_IsLoaded      0x20	/* Is this really the class object or a stub.*/
 #define CCF_IsVerified    0x40	/* Is this really the class object or a stub.*/
-#define CCF_HasStatics	  0x100	/* Does this class have any static variables? */
-#define CCF_Sticky	  0x200	/* Class must stay in memory */
 
-#define CCF_IsResolving	  0x400	/* Class is being resolved - cant be unloaded */
-/* deviation: 0x100 is still used by the old runtime's HasStatics flag. */
-#define CCF_IsPrimitive   0x800
+#define CCF_IsPrimitive   0x100	/* if pseudo-class for a primitive type */
+#define CCF_IsReferenced  0x200 /* Class is in use */
+#define CCF_IsSticky      0x400 /* Don't unload this class */
 
-#define CCIs(cb,flag) (((cb)->flags & CCF_Is##flag) != 0)
-#define CCSet(cb,flag) ((cb)->flags |= CCF_Is##flag)
-#define CCClear(cb,flag) ((cb)->flags &= ~CCF_Is##flag)
-
-typedef uint32_t codepos_t;
+#define CCIs(cb,flag) (((unhand(cb))->flags & CCF_Is##flag) != 0)
+#define CCSet(cb,flag) ((unhand(cb))->flags |= CCF_Is##flag)
+#define CCClear(cb,flag) ((unhand(cb))->flags &= ~CCF_Is##flag)
 
 /* map from pc to line number */
 struct lineno {
-    codepos_t pc; 
-    uint32_t line_number;
+    unsigned long pc, 
+    line_number;
 };
 
 extern struct lineno *lntbl;
 extern long lntsize, lntused;
+
+#ifdef JCOV
+struct covtable {
+    unsigned long pc, 
+      type,
+      where,
+      count;
+};
+#endif
 
 /* Symbol table entry for local variables and parameters.
    pc0/length defines the range that the variable is valid, slot
@@ -346,7 +364,7 @@ extern long lntsize, lntused;
    src node entry with the correct length. */
 
 struct localvar {
-    codepos_t pc0;		/* starting pc for this variable */
+    long pc0;			/* starting pc for this variable */
     long length;		/* -1 initially, end pc - pc when we're done */
     short nameoff;		/* offset into string table */
     short sigoff;		/* offset into string table */
@@ -374,8 +392,8 @@ struct localvar {
    with the rest of the class. */
 
 struct CatchFrame {
-    codepos_t    start_pc, end_pc;	/* pc range of corresponding try block */
-    codepos_t    handler_pc;	        /* pc of catch handler */
+    long    start_pc, end_pc;	/* pc range of corresponding try block */
+    long    handler_pc;	        /* pc of catch handler */
     void*   compiled_CatchFrame; /* space to be used by machine code */
     short   catchType;	        /* type of catch parameter */
 };
@@ -403,17 +421,19 @@ enum {
     CONSTANT_NameAndType
 };
 
-typedef uint32_t cp_index_type;
 union cp_item_type {
-    int32_t i;
-    uint32_t u;
-    void *p;
+    int i;
     float f;
     char *cp;
+    unsigned char *type;		/* for type table */
+    ClassClass *clazz;
+    struct methodblock *mb;
+    struct fieldblock *fb;
+    struct Hjava_lang_String *str;
+    void *p;			        /* for very rare occassions */
 };
+
 typedef union cp_item_type cp_item_type;
-#define CPIndexAt(cp,ix)\
-		((cp_index_type)((cp)[(ix)].u))
 
 #define CONSTANT_POOL_ENTRY_RESOLVED 0x80
 #define CONSTANT_POOL_ENTRY_TYPEMASK 0x7F
@@ -424,7 +444,7 @@ typedef union cp_item_type cp_item_type;
 #define CONSTANT_POOL_TYPE_TABLE_IS_RESOLVED(cp,i) \
 	((CONSTANT_POOL_TYPE_TABLE_GET(cp,i) & CONSTANT_POOL_ENTRY_RESOLVED) != 0)
 #define CONSTANT_POOL_TYPE_TABLE_GET_TYPE(cp,i) \
-        CONSTANT_POOL_TYPE_TABLE_GET(cp,i) & CONSTANT_POOL_ENTRY_TYPEMASK
+        (CONSTANT_POOL_TYPE_TABLE_GET(cp,i) & CONSTANT_POOL_ENTRY_TYPEMASK)
 
 #define CONSTANT_POOL_TYPE_TABLE_INDEX 0
 #define CONSTANT_POOL_UNUSED_INDEX 1
@@ -434,8 +454,14 @@ typedef union cp_item_type cp_item_type;
 #define CONSTANT_POOL_ARRAY_DEPTH_INDEX 1
 #define CONSTANT_POOL_ARRAY_TYPE_INDEX 2
 #define CONSTANT_POOL_ARRAY_CLASS_INDEX 3
-#define CONSTANT_POOL_ARRAY_CLASSNAME_INDEX 4
-#define CONSTANT_POOL_ARRAY_LENGTH 5
+#define CONSTANT_POOL_ARRAY_LENGTH 4
+
+/* 
+ * Package shorthand: this isn't obviously the correct place.
+ */
+#define JAVAPKG         "java/lang/"
+#define JAVAIOPKG       "java/io/"
+#define JAVANETPKG      "java/net/"
 
 #endif
 

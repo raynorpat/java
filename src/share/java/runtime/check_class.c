@@ -63,7 +63,7 @@ VerifyClass(ClassClass *cb)
     if (!verify_constant_pool(cb)) 
         return FALSE;
     /* Make sure all the method names and signatures are okay */
-    for (i = (int32_t) cb->methods_count, mb = cb->methods; --i >= 0; mb++) {
+    for (i = (int32_t) cbMethodsCount(cb), mb = cbMethods(cb); --i >= 0; mb++) {
 	char *name = mb->fb.name;
 	char *signature = mb->fb.signature;
 	if (! (is_legal_fieldname(cb, name, LegalMethod)  &&
@@ -71,7 +71,7 @@ VerifyClass(ClassClass *cb)
 	    result = FALSE;
     }
     /* Make sure all the field names and signatures are okay */
-    for (i = (int32_t)cb->fields_count, fb = cb->fields; --i >= 0; fb++) {
+    for (i = (int32_t)cbFieldsCount(cb), fb = cbFields(cb); --i >= 0; fb++) {
 	if (!  (is_legal_fieldname(cb, fb->name, LegalField) &&
 		is_legal_field_signature(cb, fb->name, fb->signature))) 
 	    result = FALSE;
@@ -85,19 +85,19 @@ VerifyClass(ClassClass *cb)
 	if (bitvector == NULL) {
 		return FALSE;
 	}
-	for (super_cb = unhand(cbSuperclass(cb)); ;
-	     super_cb = unhand(cbSuperclass(super_cb))) {
+	for (super_cb = cbSuperclass(cb); ;
+	     super_cb = cbSuperclass(super_cb)) {
 
 	    sysAssert(cbMethodTableSize(cb) >= cbMethodTableSize(super_cb));
 	    sysAssert(cbMethodTableSize(super_cb)); /* all resolved classes have *some* methods */
 	    
 	    if (cbAccess(super_cb) & ACC_FINAL) {
 		CCerror(cb, "Class %s is subclass of final class %s",
-			classname(cb), classname(super_cb));
+			cbName(cb), cbName(super_cb));
 		result = FALSE;
 	    }
 	    mb = cbMethods(super_cb);
-	    for (i = (int32_t)super_cb->methods_count; --i >= 0; mb++) {
+	    for (i = (int32_t)cbMethodsCount(super_cb); --i >= 0; mb++) {
 		if (mb->fb.access & ACC_FINAL) {
 		    uint32_t offset = mb->fb.u.offset;
 		    sysAssert(offset < cbMethodTableSize(cb));
@@ -106,18 +106,18 @@ VerifyClass(ClassClass *cb)
 	    }
 	    if (cbSuperclass(super_cb) == 0) break;
 	}
-	for (i = (int32_t)cb->methods_count, mb = cbMethods(cb); --i >= 0; mb++) {
-	    fb_offset_t offset = mb->fb.u.offset;
+	for (i = (int32_t)cbMethodsCount(cb), mb = cbMethods(cb); --i >= 0; mb++) {
+	    unsigned long offset = mb->fb.u.offset;
 	    if ((offset > 0) 
 		   && bitvector[offset >> 5] & (1 << (offset & 0x1F))) {
 		CCerror(cb, "Class %s overrides final method %s.%s",
-			classname(cb), mb->fb.name, mb->fb.signature);
+			cbName(cb), mb->fb.name, mb->fb.signature);
 		result = FALSE;
 	    }
 	}
 	sysFree(bitvector);
     } else if (cb != classJavaLangObject) {
-	CCerror(cb, "Class %s does not have superclass", classname(cb));
+	CCerror(cb, "Class %s does not have superclass", cbName(cb));
 	result = FALSE;
     }
 	
@@ -132,10 +132,10 @@ VerifyClass(ClassClass *cb)
 static bool_t
 verify_constant_pool(ClassClass *cb)
 {
-    union cp_item_type *cp = cb->constantpool;
-    cp_index_type cp_count = cb->constantpool_count;
+    union cp_item_type *cp = cbConstantPool(cb);
+    unsigned int cp_count = cbConstantPoolCount(cb);
     unsigned char *type_table = cp[CONSTANT_POOL_TYPE_TABLE_INDEX].p;
-    cp_index_type i;
+    unsigned int i;
 	int type;
     
     const int utf8_resolved = (CONSTANT_Utf8 | CONSTANT_POOL_ENTRY_RESOLVED);
@@ -145,7 +145,7 @@ verify_constant_pool(ClassClass *cb)
 	switch(type = type_table[i]) {
 	    case CONSTANT_String:
 	    case CONSTANT_Class: {
-		cp_index_type index = cp[i].i;
+		unsigned int index = cp[i].i;
 		if (   (index < 1) 
 		       || (index >= cp_count)
 		       || (type_table[index] != utf8_resolved)) {
@@ -166,9 +166,9 @@ verify_constant_pool(ClassClass *cb)
 	    case CONSTANT_Methodref:
 	    case CONSTANT_InterfaceMethodref: 
 	    case CONSTANT_NameAndType: {
-		cp_index_type index = cp[i].u;
-		cp_index_type key1 = index >> 16;
-		cp_index_type key2 = index & 0xFFFF;
+		unsigned int index = cp[i].i;
+		unsigned int key1 = index >> 16;
+		unsigned int key2 = index & 0xFFFF;
 		if (key1 < 1 || key1 >= cp_count 
 		      || key2 < 1 || key2 >= cp_count) {
 		    CCerror(cb, "Bad index in constant pool #%d", i);
@@ -238,7 +238,7 @@ verify_constant_pool(ClassClass *cb)
     for (i = 1; i < cp_count; i++) {
 	switch(type = type_table[i]) {
 	    case CONSTANT_Class: {
-		cp_index_type index = cp[i].i;
+		unsigned int index = cp[i].i;
 		if (!is_legal_fieldname(cb, cp[index].cp, LegalClass)) 
 		    return FALSE;
 		break;
@@ -247,11 +247,11 @@ verify_constant_pool(ClassClass *cb)
 	    case CONSTANT_Fieldref:
 	    case CONSTANT_Methodref:
 	    case CONSTANT_InterfaceMethodref: {
-		cp_index_type index = cp[i].u;
-		cp_index_type name_type_index = index & 0xFFFF;
-		cp_index_type name_type_key = cp[name_type_index].u;
-		cp_index_type name_index = name_type_key >> 16;
-		cp_index_type signature_index = name_type_key & 0xFFFF;
+		unsigned int index = cp[i].i;
+		unsigned int name_type_index = index & 0xFFFF;
+		unsigned int name_type_key = cp[name_type_index].i;
+		unsigned int name_index = name_type_key >> 16;
+		unsigned int signature_index = name_type_key & 0xFFFF;
 		char *name = cp[name_index].cp;
 		char *signature = cp[signature_index].cp;
 
@@ -429,7 +429,7 @@ CCerror (ClassClass *cb, char *format, ...)
     char buf[BUF_LEN];
     int i = 0;
     i += jio_snprintf(buf, BUF_LEN, "VERIFIER CLASS ERROR %s:\n", 
-		      classname(cb));
+		      cbName(cb));
     va_start(args, format);
 	i += jio_vsnprintf(buf + i, BUF_LEN - i, format, args);
     va_end(args);

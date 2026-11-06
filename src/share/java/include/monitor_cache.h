@@ -41,5 +41,6 @@ monitor_t *lookupMonitor(unsigned int);
 monitor_t *createMonitor(unsigned int);
 void monitorDestroy(monitor_t *, unsigned int);
 void monitorEnumerate(void (*)(monitor_t *, void *), void *);
+void monitorEnumerate_unlocked(void (*)(monitor_t *, void *), void *);
 
 #endif /* !_MONITOR_CACHE_H_ */

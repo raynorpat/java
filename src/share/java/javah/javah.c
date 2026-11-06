@@ -1,3 +1,4 @@
+#include "classhash115.h"
 /* 
  * @(#)javah.c	1.51 95/10/16 James Gosling
  *
@@ -39,6 +40,7 @@
 #include "interpreter.h"
 #include "signature.h"
 #include "io_md.h"	/* sysOpen() */
+#include "sys_api.h"
 #include "arena.h"
 #include "utf.h"
 
@@ -47,7 +49,7 @@
 #endif
 
 static int renameIfDiff(char *tempfn, char *newfn, char *newdir);
-struct fieldblock **makeslottable(ClassClass *);
+int makeslottable(ClassClass *);
 
 long stubmode = 0;
 static int jnimode = 0;
@@ -501,7 +503,7 @@ CPPFieldName(ClassClass* cb, struct fieldblock* fb, int currentSlot, char* buf)
 void
 CFieldName(ClassClass* cb, struct fieldblock* fb, int currentSlot, char* buf)
 {
-    char* cname = classname(cb);
+    char* cname = cbName(cb);
     char hcname[300];   /* C symbol name.  */
     char cppname[300];
     strsub(cname, hcname, C_DELIM);
@@ -548,7 +550,7 @@ PrintKnownValue(FILE* f, char* cfname, struct fieldblock* fb, char* hcname)
 	/* The slot holds the float's bits, not an int to convert. */
 	PrintFloatingValue(f, name, *(float *)normal_static_address(fb), 'f');
     } else {
-	fprintf(f, "#define %s\t%dL\n", name,
+	fprintf(f, "#define %s\t%ldL\n", name,
 		*normal_static_address(fb));
     }
 }
@@ -589,11 +591,11 @@ PrintJNIType(FILE *f, char *s)
             else {
                 clazz = FindClass(0, name, TRUE);
                 while (clazz != NULL) {
-                    if (strcmp(classname(clazz), "java/lang/Throwable") == 0) {
+                    if (strcmp(cbName(clazz), "java/lang/Throwable") == 0) {
                         type = "jthrowable";
                         break;
                     }
-                    clazz = cbSuperclass(clazz) ? unhand(cbSuperclass(clazz)) : NULL;
+                    clazz = cbSuperclass(clazz) ? cbSuperclass(clazz) : NULL;
                 }
             }
             free(name);
@@ -612,7 +614,7 @@ DumpJNIHeader(ClassClass *cb)
     struct methodblock *mb, *other;
     int i, j, overloaded;
     char *header, *class_symbol, *method_symbol, *method_comment, *args, *sig;
-    currentclassname = classname(cb);
+    currentclassname = cbName(cb);
     header = JNIMangle(currentclassname, 0, 0);
     class_symbol = JNIMangle(currentclassname, 1, 0);
     f = open_output();
@@ -620,10 +622,10 @@ DumpJNIHeader(ClassClass *cb)
     fprintf(f, "/* Header for class %s */\n\n", header);
     fprintf(f, "#ifndef _Included_%s\n#define _Included_%s\n", header, header);
     fprintf(f, "#ifdef __cplusplus\nextern \"C\" {\n#endif\n");
-    for (i = 0, mb = cbMethods(cb); i < cb->methods_count; ++i, ++mb) {
+    for (i = 0, mb = cbMethods(cb); i < cbMethodsCount(cb); ++i, ++mb) {
         if (!(mb->fb.access & ACC_NATIVE)) continue;
         overloaded = 0;
-        for (j = 0, other = cbMethods(cb); j < cb->methods_count; ++j, ++other) {
+        for (j = 0, other = cbMethods(cb); j < cbMethodsCount(cb); ++j, ++other) {
             if (other != mb && (other->fb.access & ACC_NATIVE) &&
                 strcmp(fieldname(&other->fb), fieldname(&mb->fb)) == 0)
                 overloaded = 1;
@@ -667,7 +669,7 @@ DumpClassHeader(ClassClass * cb)
     char hfname[300];   /* header file name */
     char hcname[300];   /* C symbol name.  */
 
-    currentclassname = classname(cb);
+    currentclassname = cbName(cb);
     GetFileName(currentclassname, hfname, sizeof(hfname));
     strsub(currentclassname, hcname, C_DELIM);
     if (prefixString == NULL) {
@@ -704,7 +706,7 @@ DumpClassHeader(ClassClass * cb)
 		char *fs = fieldsig(fb);
 		NumFieldsWritten++;
 		if (fb->u.offset != offset) {
-		    fprintf(f, "    char _PAD%d_[%d];\n",
+		    fprintf(f, "    char _PAD%lu_[%lu];\n",
 			    fb->u.offset, fb->u.offset - offset);
 		    offset = fb->u.offset;
 		}
@@ -807,7 +809,7 @@ DumpClassHeader(ClassClass * cb)
 	fprintf(f, "} Class%s;\n", hcname);
 	fprintf(f, "HandleTo(%s);\n\n", hcname);
     }
-    for (nslots = cb->methods_count, mb = cbMethods(cb); --nslots >= 0; mb++) {
+    for (nslots = cbMethodsCount(cb), mb = cbMethods(cb); --nslots >= 0; mb++) {
 	    fb = &mb->fb;
 	    if (fb->access & ACC_NATIVE) {
 		forwardDeclare(f, fb);
@@ -919,7 +921,7 @@ PrintStub(FILE *f, char *cfname, char *cname, struct methodblock *mb)
     if (!(fb->access & ACC_NATIVE))
 	return 0;
     
-    mangleMethodName(mb, funcall, 1024, "_stub");
+    mangleMethodName(mb, funcall, 1024, MangleMethodName_JDK_1);
     fprintf(f, "/* SYMBOL: \"%s/%s%s\", %s */\n",
 	    currentclassname, fieldname(fb), fieldsig(fb), funcall);
     /* JAVA_PUBLIC_API exports the stub so the VM can find it in a DLL. */
@@ -1052,7 +1054,7 @@ DumpClassStub(ClassClass * cb)
     char fname[300];   /* stub file name */
     char cname[300];   /* C symbol name.  */
 
-    currentclassname = classname(cb);
+    currentclassname = cbName(cb);
     GetFileName(currentclassname, fname, sizeof(fname));
     strsub(currentclassname, cname, C_DELIM);
     if (prefixString == NULL) {
@@ -1067,7 +1069,7 @@ DumpClassStub(ClassClass * cb)
 
     fprintf(f, "/* Stubs for class %s */\n\n", currentclassname);
     makeslottable(cb);
-    for (nslots = 0, mb = cbMethods(cb); nslots < cb->methods_count; nslots++, mb++) {
+    for (nslots = 0, mb = cbMethods(cb); nslots < cbMethodsCount(cb); nslots++, mb++) {
         char cfname[300];
         sprintf(cfname, "%s_%s", cname, fieldname(&mb->fb));
 	if (mb->code == 0) {
@@ -1120,8 +1122,7 @@ main(int argc, char **argv)
         progname = argv[0];
     }
 
-    InhibitExecute = 1;
-
+    if (!initializeClassHash115()) return 1;
     InitializeClassPath(argc, argv);
     if (!DoImport("java/lang/Object", 0)) {
 	fprintf(stderr, "java.lang.Object not found: aborting\n");
@@ -1226,18 +1227,16 @@ AllocHandle(struct methodtable *mptr, ClassObject *p)
     return (HObject *) h;
 }
 
-ClassClass *AllocClass(void)
+/* Standalone javah has no managed heap; preserve the VM's handle/body ABI. */
+ClassClass *allocClassClass(void)
 {
-    ClassClass	*cb = NULL;
-    cb = (ClassClass*) calloc(sizeof(ClassClass), 1);
-    if (cb != NULL) {
-	cb->classStorageArena = (ClassArena*) calloc(sizeof(ClassArena), 1);
-	ArenaInit(&(cb->classStorageArena->pool), 2 * 1024);
-    }
-
+    ClassClass *cb = calloc(1, sizeof(*cb));
+    if (!cb) return NULL;
+    cb->obj = calloc(1, sizeof(*cb->obj));
+    if (!cb->obj) { free(cb); return NULL; }
+    cb->obj->HandleToSelf = cb;
     return cb;
 }
-
 
 /* Dummies */
 #undef DumpThreads
@@ -1267,7 +1266,7 @@ CallInterpreted(struct methodblock *mb, void *obj, ...) {
  */
 
 bool_t
-ResolveClassStringConstant(ClassClass *cb, cp_index_type index, struct execenv *ee)
+ResolveClassStringConstant(ClassClass *cb, unsigned int index, struct execenv *ee)
 {
     return TRUE;
 }

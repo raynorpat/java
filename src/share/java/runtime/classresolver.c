@@ -51,6 +51,7 @@ ClassClass *classJavaLangRuntimeException;
 ClassClass *classJavaLangThreadDeath;
 
 ClassClass *interfaceJavaLangCloneable;
+ClassClass *interfaceJavaIoSerializable;
 
 
 char *RuntimeInitClass(struct execenv *, ClassClass *);
@@ -66,10 +67,10 @@ static sys_mon_t *_class_lock = NULL;
 static struct fieldblock **
 addslots(struct fieldblock ** fb, ClassClass * clb)
 {
-    long n = clb->fields_count;
+    long n = cbFieldsCount(clb);
     struct fieldblock *sfb = cbFields(clb);
     if (cbSuperclass(clb))
-	fb = addslots(fb, unhand(cbSuperclass(clb)));
+	fb = addslots(fb, cbSuperclass(clb));
     while (--n >= 0) {
 	*fb++ = sfb;
 	sfb++;
@@ -77,18 +78,18 @@ addslots(struct fieldblock ** fb, ClassClass * clb)
     return fb;
 }
 
-struct fieldblock **
+int
 makeslottable(ClassClass * clb)
 {
     ClassClass *sclb;
     uint32_t    sizeOfAllocation;
     int         nslots = 0;
     if (cbSlotTable(clb)) {
-	return cbSlotTable(clb);
+	return TRUE;
     }
     sclb = clb;
     while (sclb) {
-	long        n = sclb->fields_count;
+	long        n = cbFieldsCount(sclb);
 	struct fieldblock *fb = cbFields(sclb);
 	while (--n >= 0) {
 	    nslots++; /* XXX: Change to using add, instead of counting :-/ */ 
@@ -97,7 +98,7 @@ makeslottable(ClassClass * clb)
 	if (cbSuperclass(sclb) == 0) {
 	    break;
 	}
-	sclb = unhand(cbSuperclass(sclb));
+	sclb = cbSuperclass(sclb);
     }
     cbSlotTableSize(clb) = nslots;
     if (nslots == 0) {
@@ -105,13 +106,13 @@ makeslottable(ClassClass * clb)
     }
 
     sizeOfAllocation = nslots * sizeof(struct fieldblock *);
-    cbSlotTable(clb) = ArenaAlloc(&(clb->classStorageArena->pool), sizeOfAllocation);
+    cbSlotTable(clb) = sysMalloc(sizeOfAllocation);
 		    
     if (cbSlotTable(clb) == 0) {
-	return NULL;
+	return FALSE;
     }
     addslots(cbSlotTable(clb), clb);
-    return cbSlotTable(clb);
+    return TRUE;
 }
 
 #if 0
@@ -139,7 +140,7 @@ ResolveFields(ClassClass *cb, unsigned slot)
     int size;
 
     fb = cbFields(cb);
-    for (size = 0; size < (int) cb->fields_count; size++, fb++) {
+    for (size = 0; size < (int) cbFieldsCount(cb); size++, fb++) {
 	char *signature = fieldsig(fb);
 #ifdef OSF1
 	int slots = 1;		/* everything fits in an OBJECT */
@@ -147,7 +148,7 @@ ResolveFields(ClassClass *cb, unsigned slot)
 	int slots = (((signature[0] == SIGNATURE_LONG || 
 		      signature[0] == SIGNATURE_DOUBLE)) ? 2 : 1);
 #endif
-	fb->ID = NameAndTypeToHash(fb->name, signature, cb);
+	fb->ID = NameAndTypeToHash(fb->name, signature);
 	if (fb->access & ACC_STATIC) {
 	    /* Do nothing.  Handled when the class is loaded. */
 	} else {
@@ -172,7 +173,7 @@ ResolveFields(ClassClass *cb, unsigned slot)
 #if TOTAL_HASH
     cbThisHash(cb) = thishash;
     if (cbSuperclass(cb))
-	cbTotalHash(cb) = thishash - cbTotalHash(unhand(cbSuperclass(cb)));
+	cbTotalHash(cb) = thishash - cbTotalHash(cbSuperclass(cb));
     else
         cbTotalHash(cb) = thishash;
     if (cbTotalHash(cb) < N_TYPECODES)
@@ -191,22 +192,22 @@ ResolveMethods(ClassClass *cb)
     uint32_t sizeOfAllocation;
     unsigned mslot, super_methods_count;
     void *ptr;
-    static hash_t finalizerID = 0;
+    static unsigned int finalizerID = 0;
     
     if (finalizerID == 0)
 	finalizerID = NameAndTypeToHash(FINALIZER_METHOD_NAME,
-					FINALIZER_METHOD_SIGNATURE, 0);
+					FINALIZER_METHOD_SIGNATURE);
     if (cbSuperclass(cb) != NULL) { 
-	ClassClass *super = unhand(cbSuperclass(cb));
+	ClassClass *super = cbSuperclass(cb);
 	mslot = cbMethodTableSize(super);
 	if (!mslot) {
 	    char * ret;
 #ifdef DEBUG_jar
-	    fprintf(stderr, "Recursively resolving base class %s in %p\n", classname(cb), EE());
+	    fprintf(stderr, "Recursively resolving base class %s in %p\n", cbName(cb), EE());
 #endif
 	    ret = ResolveMethods(super);
 #ifdef DEBUG_jar
-	    fprintf(stderr, " Finished resolving base class %s in %p, %d\n", classname(cb), EE(), !ret);
+	    fprintf(stderr, " Finished resolving base class %s in %p, %d\n", cbName(cb), EE(), !ret);
 #endif
 	    if (ret) return ret;
 	    mslot = cbMethodTableSize(super);
@@ -215,18 +216,17 @@ ResolveMethods(ClassClass *cb)
 	super_methods = cbMethodTable(super)->methods;
         super_methods_count = cbMethodTableSize(super);
 	/* Inherit one's parent's finalizer, if it has one */
-	cb->finalizer = unhand(cb->superclass)->finalizer;
+	cbFinalizer(cb) = unhand(cbSuperclass(cb))->finalizer;
     } else { 
 	mslot = 1;
 	super_methods = NULL;
 	super_methods_count = 0;
-	cb->finalizer = NULL;
+	cbFinalizer(cb) = NULL;
     }
 
     mb = cbMethods(cb); 
-    for (size = 0; size < (int) cb->methods_count; size++, mb++) {
-	unsigned long ID = NameAndTypeToHash(mb->fb.name, mb->fb.signature,
-                                             cb);
+    for (size = 0; size < (int) cbMethodsCount(cb); size++, mb++) {
+	unsigned long ID = NameAndTypeToHash(mb->fb.name, mb->fb.signature);
 	struct methodblock **super_methods_p;
 	int count;
 
@@ -240,7 +240,7 @@ ResolveMethods(ClassClass *cb)
 
 	/* If this item has its own finalizer method, grab it */
 	if (mb->fb.ID == finalizerID && cb != classJavaLangObject) 
-	    cb->finalizer = mb;
+	    cbFinalizer(cb) = mb;
 
 	for (super_methods_p = super_methods, count = super_methods_count;
 	       count > 0;
@@ -273,7 +273,8 @@ ResolveMethods(ClassClass *cb)
     sizeOfAllocation = sizeof(struct methodtable)
 		       + (mslot - 1)* sizeof(struct methodblock *)
 		       + FLAG_MASK;
-    ptr = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
+    ptr = sysMalloc(sizeOfAllocation);
+    cbMethodTableMem(cb) = ptr;
 		    
     if (ptr == NULL) {
 	CCSet(cb, Resolved);
@@ -287,7 +288,7 @@ ResolveMethods(ClassClass *cb)
 	       (char *) super_methods,
 	       super_methods_count * sizeof(struct methodblock *));
     mb = cbMethods(cb);
-    for (size = 0; size < (int) cb->methods_count; size++, mb++) {
+    for (size = 0; size < (int) cbMethodsCount(cb); size++, mb++) {
 	int32_t offset = (int32_t)mb->fb.u.offset;
 	if (offset > 0) { 
 	    sysAssert((uint32_t)offset < mslot);
@@ -327,6 +328,28 @@ ResolveClass(ClassClass *cb, char **detail)
 
 
 
+/* Primary 10010DEE/10010E17/10010E4D: stack nodes linked through the EE. */
+static void pushseen(ExecEnv *ee, struct seenclass *seen)
+{
+    seen->next = ee->seenclasses.next;
+    ee->seenclasses.next = seen;
+}
+
+static void popseen(ExecEnv *ee, struct seenclass *seen)
+{
+    if (ee->seenclasses.next != seen)
+        panic("popseen: corrupt class initialization stack");
+    ee->seenclasses.next = seen->next;
+}
+
+static bool_t isseen(ExecEnv *ee, ClassClass *cb)
+{
+    struct seenclass *seen;
+    for (seen = ee->seenclasses.next; seen; seen = seen->next)
+        if (seen->cb == cb) return TRUE;
+    return FALSE;
+}
+
 static char *
 Locked_InitializeClass(ClassClass * cb, char **detail)
 {
@@ -340,18 +363,22 @@ Locked_InitializeClass(ClassClass * cb, char **detail)
 	
 #ifndef TRIMMED
     if (verbose)
-		fprintf(stderr, "[Initializing %s]\n", classname(cb));
+		fprintf(stderr, "[Initializing %s]\n", cbName(cb));
 #endif
 	
 	noLoader = (cbLoader(cb) == 0);
-	if (cb->fields_count > 2000) {
+	if (cbFieldsCount(cb) > 2000) {
 		return JAVAPKG "ClassFormatError";
 	}
-	if ((strcmp(classname(cb), CLS_RESLV_INIT_CLASS) == 0) && noLoader) {
+	if ((strcmp(cbName(cb), CLS_RESLV_INIT_CLASS) == 0) && noLoader) {
                 ClassClass * volatile tmpClass;
+                ExecEnv *ee = EE();
+                struct seenclass *saved_seen = ee->seenclasses.next;
+
+                ee->seenclasses.next = NULL;
 
 		classJavaLangClass = cb;
-		cb->flags |= CCF_Sticky;
+		cbFlags(cb) |= CCF_IsSticky;
 
 /*
 ** This macro is necessary for preemptive threading environments.  Since the 
@@ -360,7 +387,11 @@ Locked_InitializeClass(ClassClass * cb, char **detail)
 */
 #define STORE_GLOBAL_STICKY_CLASS(var, name)                        \
                 tmpClass = FindClass(NULL, JAVAPKG #name, TRUE);    \
-		tmpClass->flags |= CCF_Sticky;                      \
+                if (!tmpClass) {                                  \
+                    *detail = JAVAPKG #name;                       \
+                    return JAVAPKG "NoClassDefFoundError";         \
+                }                                                 \
+		cbFlags(tmpClass) |= CCF_IsSticky;                      \
                 var = tmpClass;
 
 		STORE_GLOBAL_STICKY_CLASS(classJavaLangString,           String);
@@ -370,40 +401,56 @@ Locked_InitializeClass(ClassClass * cb, char **detail)
 		STORE_GLOBAL_STICKY_CLASS(classJavaLangError,            Error);
 		STORE_GLOBAL_STICKY_CLASS(classJavaLangRuntimeException, RuntimeException);
 		STORE_GLOBAL_STICKY_CLASS(interfaceJavaLangCloneable,    Cloneable);
+                tmpClass = FindClass(NULL, "java/io/Serializable", TRUE);
+                if (!tmpClass) {
+                    *detail = "java/io/Serializable";
+                    return JAVAPKG "NoClassDefFoundError";
+                }
+                cbFlags(tmpClass) |= CCF_IsSticky;
+                interfaceJavaIoSerializable = tmpClass;
+                ee->seenclasses.next = saved_seen;
 
 #undef STORE_GLOBAL_STICKY_CLASS
 
-	} else if ((strcmp(classname(cb), CLS_RESLV_INIT_OBJECT) == 0) && noLoader){
+	} else if ((strcmp(cbName(cb), CLS_RESLV_INIT_OBJECT) == 0) && noLoader){
 		classJavaLangObject = cb;
-                cb->flags |= CCF_Sticky;
+                cbFlags(cb) |= CCF_IsSticky;
 	}
 	
-	cbClassnameArray(cb) = MakeString(classname(cb), strlen(classname(cb)));
+
 	
-	if (cbHandle(cb) == 0) {
-		cbHandle(cb) = (HClass *) AllocHandle(mkatype(T_BYTE, 1), (ClassObject *) cb);
-		if (cbHandle(cb) == 0)
-			return JAVAPKG "OutOfMemoryError";
-	}
-	if ((strcmp(classname(cb), CLS_RESLV_INIT_REF) == 0) && noLoader) { 
+	if ((strcmp(cbName(cb), CLS_RESLV_INIT_REF) == 0) && noLoader) { 
 		CCSet(cb, SoftRef);
 	}
 	if (cbSuperclass(cb) == 0) {
-		if (cb->super_name) {
-			if ((super = FindClassFromClass(0, classsupername(cb), FALSE, cb))) {
+		if (cbSuperName(cb)) {
+                        ExecEnv *ee = EE();
+                        struct seenclass seen;
+                        if (isseen(ee, cb)) {
+                            *detail = cbName(cb);
+                            CCSet(cb, Error);
+                            return JAVAPKG "ClassCircularityError";
+                        }
+                        seen.cb = cb;
+                        seen.next = NULL;
+                        pushseen(ee, &seen);
+                        super = FindClassFromClass(ee, cbSuperName(cb), FALSE, cb);
+                        popseen(ee, &seen);
+			if (super) {
 				sysAssert(CCIs(super, Initialized));
 				cbSuperclass(cb) = cbHandle(super);
 				if (CCIs(super, SoftRef))
 					CCSet(cb, SoftRef);
 			} else {
 				ret = JAVAPKG "NoClassDefFoundError";
-				*detail = classsupername(cb);
+				*detail = cbSuperName(cb);
 				cbSuperclass(cb) = 0;
+                                CCSet(cb, Error);
 			} 
 		} else if (cb == classJavaLangObject) {
 			cbSuperclass(cb) = 0;	    
 		} else {
-			*detail = classname(cb);
+			*detail = cbName(cb);
 		return JAVAPKG "ClassFormatError";
 		}
 	}
@@ -451,7 +498,7 @@ Locked_ResolveClass(ClassClass * cb, char **detail)
 
     if (cbSuperclass(cb)) {
 	/* If this object has a superclass. . . */
-	super = unhand(cbSuperclass(cb));
+	super = cbSuperclass(cb);
 	if (!CCIs(super, Resolved)) {
 	    if ((ret = ResolveClass(super, detail)) != 0) {
 		CCSet(cb, Error);
@@ -462,7 +509,7 @@ Locked_ResolveClass(ClassClass * cb, char **detail)
 	slot = cbInstanceSize(super);
 	if ((int) slot < 0) {
 #ifndef TRIMMED
-	    fprintf(stderr, "%s: Can't resolve class because of interdependant static initializers\n", classname(cb));
+	    fprintf(stderr, "%s: Can't resolve class because of interdependant static initializers\n", cbName(cb));
 #endif
 	    CCSet(cb, Error);
 	    return JAVAPKG "NoClassDefFoundError";
@@ -471,14 +518,14 @@ Locked_ResolveClass(ClassClass * cb, char **detail)
     
 #ifndef TRIMMED
     if (verbose)
-        fprintf(stderr, "[Resolving %s]\n", classname(cb));
+        fprintf(stderr, "[Resolving %s]\n", cbName(cb));
 #endif
     CCSet(cb, Resolved);
     ResolveFields(cb, slot);
    
     ret = ResolveMethods(cb);
     if (ret != NULL) {	/* May return "OutOfMemoryError */
-	*detail = cb->name;
+	*detail = cbName(cb);
 	CCClear(cb, Resolved);
 	CCSet(cb, Error);
     	return ret;
@@ -489,7 +536,7 @@ Locked_ResolveClass(ClassClass * cb, char **detail)
 	are compiling the interpreter or not.
     */
     if (!cbIsPrimitive(cb) && (ret = RuntimeInitClass(0, cb)) != 0) {
-	*detail = cb->name;
+	*detail = cbName(cb);
 	CCClear(cb, Resolved);
 	CCSet(cb, Error);
         return ret;
@@ -529,7 +576,7 @@ PrintLoadedClasses()
     for (j = nbinclasses; --j >= 0; pcb++) {
 	cb = *pcb;
         if (!cb) continue;
-        printf("%ld %s 0x%p loader=0x%p\n", j, classname(cb), cb, cb->loader);
+        printf("%ld %s 0x%p loader=0x%p\n", j, cbName(cb), cb, cbLoader(cb));
     }
 }
 #endif
@@ -562,7 +609,7 @@ IsLoadedAnywhere(char *name)
 	cb = *pcb;
         if (!cb || cbIsPrimitive(cb))
           continue;
-        existing_name = classname(cb);
+        existing_name = cbName(cb);
         if (first_char_of_name != existing_name[0])
           continue;
 	if (strcmp(name, existing_name))
@@ -593,7 +640,7 @@ FindPreviouslyLoadedClass(char *name, HObject *loader) {
     for (j = nbinclasses; --j >= 0; pcb++) {
 	cb = *pcb;
         if (!cb || cbIsPrimitive(cb)) continue;
-	if ((cb->loader == loader) && (strcmp(name, classname(cb)) == 0))
+	if ((cbLoader(cb) == loader) && (strcmp(name, cbName(cb)) == 0))
           return cb;
     }
     return NULL;
@@ -614,7 +661,7 @@ FindLoadedClass(char *name, bool_t resolve, HObject *loader)
 
     if (!CCIs(cb, Initialized)) {
       if ((err = InitializeClass(cb, &detail))) {
-        SignalError(0, err, detail);
+        if (!exceptionOccurred(EE())) SignalError(0, err, detail);
         return 0;
       }
     }
@@ -630,7 +677,7 @@ FindLoadedClass(char *name, bool_t resolve, HObject *loader)
       while (0 < old_depth2--)
         lock_classes();
       if (err) {
-        SignalError(0, err, detail);
+        if (!exceptionOccurred(EE())) SignalError(0, err, detail);
         return 0;
       }
     }
@@ -694,7 +741,7 @@ Locked_FindClassFromClass(struct execenv *ee, char *name, bool_t resolve, ClassC
 
     sysAssert(class_lock_depth > 0);
 
-    if (from && from->loader && class_loader_func) {
+    if (from && cbLoader(from) && class_loader_func) {
 		if (name[0] == SIGNATURE_ARRAY) 
 		    cb = FindClassLoaderArrayClass(ee, name, resolve, from);
 		else {
@@ -706,7 +753,7 @@ Locked_FindClassFromClass(struct execenv *ee, char *name, bool_t resolve, ClassC
 		    for (i = 0; i < old_depth; i++) {
 				unlock_classes();
 		    }
-		    cb = (*class_loader_func)(from->loader, name, resolve);
+		    cb = (*class_loader_func)(cbLoader(from), name, resolve);
 		    while (--old_depth >= 0) {
 			    lock_classes();
 			}
@@ -717,14 +764,6 @@ Locked_FindClassFromClass(struct execenv *ee, char *name, bool_t resolve, ClassC
 		if (cb == 0 && !IsLoadedAnywhere(name)) {
 		    DoImport(name, 0);
 		    cb = FindLoadedClass(name, resolve, 0);
-                    /*
-                    ** If the class was found, then clear its CCF_IsResolving
-                    ** bit since it is fully initialized now...
-                    */
-                    if (cb) {
-                        sysAssert( CCIs(cb, Resolving) );
-                        CCClear(cb, Resolving);
-                    }
 		}
     }
     return cb;
@@ -745,7 +784,7 @@ FindClassLoaderArrayClass(struct execenv *ee, char *name,
 {
     ClassClass *cb;
     char *ptr;
-    HObject *loader = from->loader;
+    HObject *loader = cbLoader(from);
     if ((cb = FindLoadedClass(name, resolve, loader)) != NULL)
 	return cb;
     for (ptr = name; *ptr == SIGNATURE_ARRAY; ptr++)
@@ -764,225 +803,14 @@ FindClassLoaderArrayClass(struct execenv *ee, char *name,
         buffer[name_len] = '\0';  /* Delete trailing ';' */
 
 	inner_cb = FindClassFromClass(ee, buffer, FALSE, from);
-	if (inner_cb == NULL || inner_cb->loader != loader) 
+	if (inner_cb == NULL || cbLoader(inner_cb) != loader) 
 	    return NULL;
-	cb = (ClassClass *)createFakeArrayClass(name);
-	cb->loader = loader;
-	AddBinClass(cb);
+	cb = createFakeArrayClass(name, T_CLASS, (int)(ptr - name),
+                                  inner_cb, (struct Hjava_lang_ClassLoader *)loader);
+        if (!cb) return NULL;
 	/* this initializes */
         cb = FindLoadedClass(name, resolve, loader) ;
-        if (cb) {
-            /*
-            ** If the class was found, then clear its CCF_IsResolving
-            ** bit since it is fully initialized now...
-            */
-            sysAssert(CCIs(cb, Resolving));
-            CCClear(cb, Resolving);
-        }
         return cb;
     }
 }	
 
-/* Nothing outside this file should rely on the format of IDs.
- * internalIDHash and classLoaderForType are private. */
-
-/* Note: previously this was defined in classinitialize.c */
-struct StrIDhash *interfaceHash; /* allocated on first use */
-
-static HObject * classLoaderForType(char *type, ClassClass *from);
-
-/*-
- * Return a unique ID for a given name and type. If 'from' is null, treat
- * argument and result classes as being local. Otherwise, they will be
- * found in the context of the class 'from'.
- * Calling this function with the wrong value of 'from' is insecure.
- *
- * Note: despite the function name, this is not a hash - it is an ID.
- *
- * XXX M12N: This function is not part of the JRI (the equivalents are
- * JRI_GetMethodID and JRI_GetFieldID). We need to remove any calls to it
- * from AWT, etc.
- */
-JAVA_PUBLIC_API(hash_t)
-NameAndTypeToHash(char *name, char *type, ClassClass *from)
-{
-    /* This is a little ugly. There is a lot of code in util.c for
-     * interning strings, that we want to re-use. For each string it
-     * returns a 16-bit integer.
-     *
-     * When only the name and type needed to be considered in creating
-     * the ID, the resulting two 16-bit integers could fit in 32 bits.
-     * Now, we have to consider a name, type, and ClassLoader. So we
-     * do something like this:
-     *
-     * string-to-id(name + " " + type) << 16 +
-     *     string-to-id(long-to-hex-string((long)classLoaderForType(from)))
-     *
-     * Because we garbage-collect ClassLoaders, the address of a ClassLoader
-     * may be re-used. This is OK (I think) since by that time there are
-     * no remaining classes that were loaded by the ClassLoader.
-     */
-
-    /* A pointer converted to hex is at most 16 characters (worst case is a
-     * 64-bit system). */
-    char loader_id[17];
-    char * nameandtype;
-    hash_t classloader_key;
-    hash_t nameandtype_key;
-    HObject * classloader;
-
-#ifdef DEBUG_newids
-    if (from && cbLoader(from))
-        fprintf(stderr, "method %s %s from %p\n", name, type, from);
-#endif
-    classloader = classLoaderForType(type, from);
-
-    jio_snprintf(loader_id, sizeof(loader_id), "%lX", (long)classloader);
-
-    nameandtype = sysMalloc(strlen(name)+strlen(type)+2);
-        /* +2 is for space and NUL */
-    if (!nameandtype) {
-        out_of_memory();
-        /* NOT REACHED */ return 0;
-    }
-    strcpy(nameandtype, name);
-    /* space is illegal in method names and types.
-     * This is enforced by the verifier for untrusted classes (it is not
-     * checked in calls to execute_java_* or the JRI). */
-    strcat(nameandtype, " ");
-    strcat(nameandtype, type);
-
-    classloader_key = Str2ID(&interfaceHash, loader_id, 0, TRUE);
-    nameandtype_key = Str2ID(&interfaceHash, nameandtype, 0, TRUE);
-    sysFree(nameandtype);
-
-    return (((unsigned long)classloader_key) << 16) + nameandtype_key;
-}
-
-/*-
- * Return the name and type for a given ID, in UTF8 format, separated by a
- * space. This is needed for error and debugging messages.
- * The string will be valid for at least as long as the corresponding
- * ClassLoader.
- */
-JAVA_PUBLIC_API(char *)
-IDToNameAndTypeString(hash_t ID) {
-    return ID2Str(interfaceHash, ID & 0xFFFF, 0);
-}
-
-/*-
- * Return the type for a given ID, in UTF8 format. The JIT compiler needs this
- * in order to find out how to call a method.
- * The string will be valid for at least as long as the corresponding
- * ClassLoader.
- */
-JAVA_PUBLIC_API(char *)
-IDToType(hash_t ID) {
-    char *nameandtype = ID2Str(interfaceHash, ID & 0xFFFF, 0);
-    char *space = strchr(nameandtype, ' ');
-    sysAssert(space); /* string must contain a space */
-    return space+1;
-}
-
-static HObject * classLoaderForType(char *type, ClassClass *from) {
-    int bufsize = 10;      /* half of the initial size of classname buffer */
-    char *classname = 0;   /* the name of an argument or result */
-    ClassClass *clazz;     /* ClassClass for an argument or result */
-    ExecEnv *ee;           /* the current execution environment */
-    char *p, *start, *end;
-
-    /* 0 indicates that we already know this is universal. */
-    if (from == 0)
-        return 0;
-
-    /* Local classes can only access universal methods/fields. */
-    if (cbLoader(from) == 0)
-        return 0;
-
-    ee = EE();
-
-    /* Check whether any of the types mentioned have ClassLoaders.
-     * We ignore array markers (for this to work, an array of objects must
-     * always have the same ClassLoader as the innermost element class).
-     *
-     * We don't actually need any of the argument or result classes - we
-     * only need to know whether they are local - but there is no API for
-     * that now.
-     */
-    for (p = type; *p != 0; p++) {
-        if (*p == SIGNATURE_CLASS) {
-            /* remember where the class name starts */
-            start = p+1;
-
-            /* skip to the terminating semicolon */
-	    for (; *p != ';'; p++) {
-                sysAssert(*p != 0);
-            }
-            end = p;
-
-            /* start is the first character of the class name.
-             * end is the first character after it.
-             * Make sure we have enough room for the name. */
-            if (!classname || end-start >= bufsize) {
-                bufsize *= 2;
-                if (end-start >= bufsize)
-                    bufsize = end-start+1;
-                if (classname)
-                    sysFree(classname);
-                classname = sysMalloc(bufsize);
-                if (!classname) {
-                    out_of_memory();
-                    /* NOT REACHED */ return 0;
-		}
-	    }
-            strncpy(classname, start, end-start);
-            classname[end-start] = 0; /* terminate with NUL */
-#ifdef DEBUG_newids
-            fprintf(stderr, "  class %s", classname);
-#endif
-            /* FALSE means don't try to resolve the class. */
-#if 0 /* XXX correct code  that *could* support wild class-loaders is removed  */
-	    clazz = FindClassFromClass(ee, classname, FALSE, from);
-#else /* XXX hack to avoid recursion on the class-lookup */
-            clazz = FindClassFromClass(ee, classname, FALSE, 0 );
-#endif /* 0 */
-            if (!clazz) {
-#ifdef DEBUG_newids
-                fprintf(stderr, " NOT FOUND\n");
-#endif
-		if (classname)
-		    sysFree(classname);
-                return cbLoader(from);
-            }
-#if 0 /* XXX while above hack is in place */
-            if (cbLoader(clazz)) {
-                /* One of the arguments or result has a ClassLoader, which
-                 * must be the same as cbLoader(from). */
-                sysAssert(cbLoader(clazz) == cbLoader(from));
-#ifdef DEBUG_newids
-                fprintf(stderr, " has loader %p\n", cbLoader(clazz));
-#endif
-		if (classname)
-		    sysFree(classname);
-                return cbLoader(from);
-	    }
-#else
-	    sysAssert(!cbLoader(clazz)); /* XXX only while above hack is in place*/
-#endif /* 0 */
-
-#ifdef DEBUG_newids
-	    fprintf(stderr, " is local\n");
-#endif
-            continue; /* for */
-        }
-        /* *p != SIGNATURE_CLASS */
-        sysAssert(strchr("()[VZBCSIJFD", *p));
-    } /* for */
-
-    if (classname)
-	sysFree(classname);
-
-    /* No type loaded by a ClassLoader was found, so this must be a universal
-     * method. */
-    return 0;
-}

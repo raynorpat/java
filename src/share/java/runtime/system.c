@@ -153,7 +153,7 @@ java_lang_System_setSystemIO(struct Hjava_lang_System    *self,
                              struct Hjava_io_PrintStream *out,
                              struct Hjava_io_PrintStream *err) 
 {
-    struct ClassClass *cb = FindClass(0, JAVAPKG "System", TRUE);
+    ClassClass *cb = FindClass(0, JAVAPKG "System", TRUE);
     long * temp;
 
     sysAssert(cb);

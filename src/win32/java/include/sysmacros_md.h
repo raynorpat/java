@@ -45,16 +45,25 @@
 
 #define MAXPATHLEN                      _MAX_PATH
 
-#define S_ISDIR( m )                    (((m) & S_IFMT) == S_IFDIR)
-#define S_ISREG( m )                    (((m) & S_IFMT) == S_IFREG)
 
 /* Directory listing and OS identification (dir_md.c) */
 extern void sysOSInfo(char *name, int namelen, char *version, int versionlen);
-typedef struct sys_dir sys_dir_t;
-typedef struct { char *d_name; } sys_dirent_t;
-extern sys_dir_t *sysOpenDir(const char *path);
-extern sys_dirent_t *sysReadDir(sys_dir_t *dir);
-extern int sysCloseDir(sys_dir_t *dir);
+/* deviation: compatibility names for existing File.list/native tests. */
+#include "io_md.h"
+typedef DIR sys_dir_t;
+typedef struct dirent sys_dirent_t;
+
+/* deviation: retained collector/cleanup adapters, not Sun public HPI. */
+struct sys_thread;
+struct sys_mon;
+void **sysThreadRegisters(struct sys_thread *, int *);
+void sysThreadSetBackPtr(struct sys_thread *, void *);
+int sysMonitorCleanup(struct sys_mon *, struct sys_thread *);
+#define SYS_DESTROY -7
+#define SYS_INVALID -2
+#define SYS_NOTHREAD -3
+#define SYS_MINSTACK -4
+
 
 #define sysOpen(name,mode,mask)         _open(name,(mode)|O_BINARY,mask)
 #define sysRead(fd,buf,n)               _read(fd,buf,n)

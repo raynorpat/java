@@ -26,7 +26,7 @@
 #include <signal.h>
 
 #include "tree.h"
-#include "javaThreads.h"
+#include "threads.h"
 
 #include "monitor.h"
 #include "exceptions.h"

@@ -3,6 +3,8 @@
 
 #include "bool.h"
 #include <sys/types.h>
+/* Required before the original sys_api.h stat prototypes. */
+#include <sys/stat.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>

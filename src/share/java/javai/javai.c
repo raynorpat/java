@@ -28,7 +28,7 @@
 #include <sys/stat.h>
 #include <ctype.h>
 
-#include "javaThreads.h"
+#include "threads.h"
 #include "errno.h"
 #include "tree.h"
 #include "oobj.h"
@@ -41,6 +41,7 @@
 #include "bool.h"
 #include "jio.h"
 #include "jni.h"
+#include "classhash115.h"
 
 #ifndef NATIVE
 #include "iomgr.h"
@@ -75,7 +76,7 @@ extern int verbose_class_loading;
 extern void _java_lang_init(void);
 
 extern Hjava_lang_Thread *InitializeClassThread(ExecEnv *ee, char **);
-extern int InitializeAlloc(long max, long min);
+
 #ifndef NATIVE
 extern void InitializeSbrk(void);
 #endif /* NATIVE */
@@ -259,6 +260,7 @@ int java_initialize_runtime(ExecEnv *ee, int MinHeapSize, int MaxHeapSize)
     MinHeapSize = MaxHeapSize;
 #endif /* USE_MALLOC */
     if (!InitializeAlloc(MaxHeapSize, MinHeapSize)) return 1;
+    if (!initializeClassHash115()) return 1;
     InitializeInterpreter();	/* Call before InitializeClassThread() */
 
     self = InitializeClassThread(ee, &errmsg);
@@ -276,7 +278,7 @@ int java_initialize_runtime(ExecEnv *ee, int MinHeapSize, int MaxHeapSize)
 	int index;
 	if (system == NULL)
 	    return 1;
-	for (index = 0; index < system->methods_count; index++) {
+	for (index = 0; index < cbMethodsCount(system); index++) {
 	    struct methodblock *method = &cbMethods(system)[index];
 	    if (strcmp(fieldname(&method->fb), "initializeSystemClass") == 0 &&
 		strcmp(fieldsig(&method->fb), "()V") == 0) {
@@ -292,7 +294,7 @@ int java_initialize_runtime(ExecEnv *ee, int MinHeapSize, int MaxHeapSize)
 			if (unhand(error)->detailMessage != NULL)
 			    javaString2CString(unhand(error)->detailMessage, detail, sizeof(detail));
 			fprintf(stderr, "System initialization failed: %s\n",
-				classname(obj_classblock(ee->exception.exc)));
+				cbName(obj_classblock(ee->exception.exc)));
 			fprintf(stderr, "%s\n", detail);
 		    }
 		    exceptionDescribe(ee);
@@ -447,11 +449,11 @@ java_main(int argc, char **argv)
         fprintf(stderr, "Can't find class %s\n", class_name);
         sysExit(1); return 1;
     }
-    cb->flags |= CCF_Sticky;
+    cbFlags(cb) |= CCF_IsSticky;
     FindClass(ee, JAVAPKG "Compiler", TRUE);
     for (owner = cb; owner && !main_method;
-         owner = cbSuperclass(owner) ? unhand(cbSuperclass(owner)) : NULL) {
-        for (i = 0; i < owner->methods_count; i++) {
+         owner = cbSuperclass(owner) ? cbSuperclass(owner) : NULL) {
+        for (i = 0; i < cbMethodsCount(owner); i++) {
             struct methodblock *method = &cbMethods(owner)[i];
             if (strcmp(fieldname(&method->fb), "main") ||
                 strncmp(fieldsig(&method->fb), "([Ljava/lang/String;)", 21)) continue;

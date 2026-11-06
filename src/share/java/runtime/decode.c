@@ -405,7 +405,7 @@ PrintLocalVariableTable(struct methodblock *mb)
 {
     ClassClass *cb = fieldclass(&mb->fb);
     struct localvar *lv = mb->localvar_table;
-    union cp_item_type *constant_pool = cb->constantpool;
+    union cp_item_type *constant_pool = cbConstantPool(cb);
     int i;
 
     for (i = 0; i < (int)mb->localvar_table_length; i++, lv++) {
@@ -428,7 +428,7 @@ PrintLineNumberTable(struct methodblock *mb)
 
 void PrintConstant(ClassClass *cb, int index)
 {
-    union cp_item_type *constant_pool = cb->constantpool;
+    union cp_item_type *constant_pool = cbConstantPool(cb);
     unsigned char *type_data = constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p;
     Java8 t;
 
@@ -515,32 +515,32 @@ PrintClassSequence(register ClassClass * cb)
     register struct fieldblock *fb;
     register struct methodblock *mb;
     register nslots;
-    currentclassname = classname(cb);
+    currentclassname = cbName(cb);
     printf("%s%s%s%s%s%s %s ", 
-	   (cb->access & ACC_PROTECTED)    ? "protected " : "",
-	   (cb->access & ACC_PUBLIC)       ? "public " : "",
-	   (cb->access & ACC_PRIVATE)      ? "private " : "",
-	   (cb->access & ACC_FINAL)        ? "final ": "",
-	   (cb->access & ACC_ABSTRACT)     ? "abstract ": "",
-	   (cb->access & ACC_INTERFACE)    ? "interface" : "class",
+	   (cbAccess(cb) & ACC_PROTECTED)    ? "protected " : "",
+	   (cbAccess(cb) & ACC_PUBLIC)       ? "public " : "",
+	   (cbAccess(cb) & ACC_PRIVATE)      ? "private " : "",
+	   (cbAccess(cb) & ACC_FINAL)        ? "final ": "",
+	   (cbAccess(cb) & ACC_ABSTRACT)     ? "abstract ": "",
+	   (cbAccess(cb) & ACC_INTERFACE)    ? "interface" : "class",
 	   PrintableClassname(currentclassname));
-    if (cb->super_name) {
-        printf("extends %s ", PrintableClassname(classsupername(cb)));
+    if (cbSuperName(cb)) {
+        printf("extends %s ", PrintableClassname(cbSuperName(cb)));
     }
-    if (cb->implements_count > 0) {
-	short *p = cb->implements;
+    if (cbImplementsCount(cb) > 0) {
+	short *p = cbImplements(cb);
 	unsigned i;
-	unsigned count = cb->implements_count;
+	unsigned count = cbImplementsCount(cb);
 	for (i = 0; i < count; i++) {
 	    int class_index = p[i];
-	    int string_index = cb->constantpool[class_index].i;
-	    char *class_name = cb->constantpool[string_index].cp;
+	    int string_index = cbConstantPool(cb)[class_index].i;
+	    char *class_name = cbConstantPool(cb)[string_index].cp;
 	    printf("%s %s", i == 0 ? "implements" : ",", class_name);
 	}
 	printf(" ");
     }
     printf("{\n");
-    for (nslots = cb->fields_count, fb = cbFields(cb); --nslots >= 0; fb++) {
+    for (nslots = cbFieldsCount(cb), fb = cbFields(cb); --nslots >= 0; fb++) {
 	if ((fb->access & ACC_PRIVATE) == 0 || PrintPrivate) {
 	    printf("    %s%s%s%s%s%s%s",
 		   (fb->access & ACC_PUBLIC)    ? "public " : "",
@@ -556,7 +556,7 @@ PrintClassSequence(register ClassClass * cb)
 	    printf(";\n");
 	}
     }
-    for (nslots = cb->methods_count, mb = cbMethods(cb); --nslots >= 0; mb++) {
+    for (nslots = cbMethodsCount(cb), mb = cbMethods(cb); --nslots >= 0; mb++) {
 	fb = &mb->fb;
 	if ((fb->access & ACC_PRIVATE) == 0 || PrintPrivate) {
 	    printf("    %s%s%s%s%s%s%s%s", 
@@ -578,7 +578,7 @@ PrintClassSequence(register ClassClass * cb)
     }
     if (PrintConstantPool) {
 	printf("\n");
-	for (nslots = 1; nslots < cb->constantpool_count; nslots++) {
+	for (nslots = 1; nslots < cbConstantPoolCount(cb); nslots++) {
 	    printf("Constant %d = ", nslots);
 	    PrintConstant(cb, nslots);
 	    printf("\n");
@@ -586,7 +586,7 @@ PrintClassSequence(register ClassClass * cb)
     }
     if (PrintCode) {
 	printf("\n");
-	for (nslots = cb->methods_count, mb = cbMethods(cb);
+	for (nslots = cbMethodsCount(cb), mb = cbMethods(cb);
 		--nslots >= 0; mb++) {
 	    fb = &mb->fb;
 	    if (mb->code_length > 0) {
@@ -600,7 +600,7 @@ PrintClassSequence(register ClassClass * cb)
     }
     if (PrintLineTable) {
 	printf("\n");
-	for (nslots = cb->methods_count, mb = cbMethods(cb);
+	for (nslots = cbMethodsCount(cb), mb = cbMethods(cb);
 		--nslots >= 0; mb++) {
 	    fb = &mb->fb;
 	    if (mb->line_number_table_length > 0) {
@@ -614,7 +614,7 @@ PrintClassSequence(register ClassClass * cb)
     }
     if (PrintLocalTable) {
 	printf("\n");
-	for (nslots = cb->methods_count, mb = cbMethods(cb);
+	for (nslots = cbMethodsCount(cb), mb = cbMethods(cb);
 		--nslots >= 0; mb++) {
 	    fb = &mb->fb;
 	    if (mb->localvar_table_length > 0) {
@@ -671,17 +671,17 @@ PrintClassSequenceAsC(register ClassClass * cb)
     register struct methodblock *mb;
     register nslots;
 
-    currentclassname = classname(cb);
+    currentclassname = cbName(cb);
     printf("\n\ntypedef struct Class%s {\n    struct ClassObject header;\n",
 	   PrintableClassname(currentclassname));
-    for (nslots = cb->fields_count, fb = cbFields(cb); --nslots >= 0; fb++)
+    for (nslots = cbFieldsCount(cb), fb = cbFields(cb); --nslots >= 0; fb++)
 	if ((fb->access & ACC_PRIVATE) == 0 || PrintPrivate) {
 	    printf("    ");
 	    PrintType(fieldsig(fb), fieldname(fb));
 	    printf(";\n");
 	}
     printf("} Class%s;\n", PrintableClassname(currentclassname));
-    for (nslots = cb->methods_count, mb = cbMethods(cb); --nslots >= 0; mb++) {
+    for (nslots = cbMethodsCount(cb), mb = cbMethods(cb); --nslots >= 0; mb++) {
 	fb = &mb->fb;
 	if (mb->code_length == 0) {
 	    printf("    extern ");
@@ -704,14 +704,14 @@ DecodeFile(fn)
 	return;
     }
     if (verifyclasses != VERIFY_NONE) {
-	char *class_name = PrintableClassname(classname(cb));
+	char *class_name = PrintableClassname(cbName(cb));
 	bool_t result;
 	if (decode_verbose) {
 	    printf("%s %s ", 
-		   (cb->access & ACC_INTERFACE) ? "interface" : "class",
+		   (cbAccess(cb) & ACC_INTERFACE) ? "interface" : "class",
 		   class_name);
-	    if (cb->super_name)
-		printf("extends %s ", classsupername(cb));
+	    if (cbSuperName(cb))
+		printf("extends %s ", cbSuperName(cb));
 	    printf("\n");
 	}
 	result = VerifyClass(cb);
@@ -723,8 +723,8 @@ DecodeFile(fn)
 	char define[1000];
 	register char *s, *d;
 	register c;
-	if (cb->source_name)
-	    s = classsrcname(cb);
+	if (cbSourceName(cb))
+	    s = cbSourceName(cb);
 	else s = "SourceFileInfoMissing";
 	printf("/* Header generated from %s */\n\n", s);
 	for (d = define; (c = *s++);)
@@ -736,8 +736,8 @@ DecodeFile(fn)
 		*d++ = '_';
 	*d++ = 0;
 	printf("#ifndef _FN_%s\n#define _FN_%s\n\n", define, define);
-    } else if (cb->source_name)
-	printf("Compiled from %s\n", classsrcname(cb));
+    } else if (cbSourceName(cb))
+	printf("Compiled from %s\n", cbSourceName(cb));
     if (PrintAsC) {
 	PrintClassSequenceAsC(cb);
 	printf("#endif\n");
@@ -790,7 +790,7 @@ static void PrintUtfReadable(FILE *fd, char *utfstring)
  */
 
 bool_t
-ResolveClassStringConstant(ClassClass *cb, cp_index_type index, struct execenv *ee)
+ResolveClassStringConstant(ClassClass *cb, unsigned int index, struct execenv *ee)
 {
     union cp_item_type *constant_pool = cbConstantPool(cb);
     unsigned char *type_table = constant_pool[CONSTANT_POOL_TYPE_TABLE_INDEX].p;

@@ -33,7 +33,7 @@
  * so would be possible.
  */
 
-#include <javaThreads.h>
+#include <threads.h>
 #include <monitor.h>
 #include <monitor_cache.h>
 #include <log.h>
@@ -438,13 +438,13 @@ monitorDestroy(monitor_t *mon, unsigned int key)
 }
 
 void
-monitorEnumerate(void (*fcn)(monitor_t *, void *), void *cookie)
+monitorEnumerate_unlocked(void (*fcn)(monitor_t *, void *), void *cookie)
 {
     monitor_t **hashtable = monHashTable;
     monitor_t *mon, *next;
     int	i;
 
-    CACHE_LOCK();
+    sysAssert(CACHE_LOCKED());
     for (i = monHashTableBuckets; --i >= 0; ) {
 	mon = hashtable[i];
 	while (mon != 0) {
@@ -453,6 +453,13 @@ monitorEnumerate(void (*fcn)(monitor_t *, void *), void *cookie)
 	    mon = next;
 	}
     }
+}
+
+void
+monitorEnumerate(void (*fcn)(monitor_t *, void *), void *cookie)
+{
+    CACHE_LOCK();
+    monitorEnumerate_unlocked(fcn, cookie);
     CACHE_UNLOCK();
 }
 
