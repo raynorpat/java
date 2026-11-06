@@ -18,8 +18,15 @@ typedef unsigned int uint_t;
 typedef unsigned long uintVP_t; /* unsigned that is same size as a void pointer */
 
 /* DLL Entry modifiers... */
+#ifdef JAVA_INTERNAL_BUILD
+/* The runtime DLL exports only the supported Sun names in javai.def.
+ * Legacy native adapters are resolved by its private registry. */
+#define EXPORTED extern
+#define JAVA_PUBLIC_API(ResultType) ResultType
+#else
 #define EXPORTED                	extern __declspec(dllexport)
 #define JAVA_PUBLIC_API(ResultType)	_declspec(dllexport) ResultType
+#endif
 #define JAVA_CALLBACK
 
 /************************************************************************/

@@ -27,6 +27,8 @@
 #include "_stubs/java_lang_Win32Process.c"
 #include "_stubs/core115.c"
 #include "_stubs/string115.c"
+#include "_stubs/fileextras115.c"
+#include "_stubs/vm115.c"
 #include "_stubs/java_io_FileOutputStream.c"
 #include "_stubs/java_net_DatagramSocket.c"
 #include "_stubs/java_net_InetAddress.c"
@@ -45,3 +47,21 @@
 #endif
 
 void _java_lang_init(void) { }
+
+/* Transitional lookup for retained native adapters that are not public Sun
+ * exports. Keep external library resolution separate from this private table. */
+unsigned char *builtin_native_lookup(const char *name)
+{
+    static const struct {
+        const char *name;
+        stack_item *(*adapter)(stack_item *, struct execenv *);
+    } natives[] = {
+#include "builtin-natives.inc"
+        { NULL, NULL }
+    };
+    int i;
+    for (i = 0; natives[i].name != NULL; ++i)
+        if (!strcmp(name, natives[i].name))
+            return (unsigned char *)natives[i].adapter;
+    return NULL;
+}

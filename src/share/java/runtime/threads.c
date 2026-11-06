@@ -35,6 +35,7 @@
 #include "sys_api.h"
 
 #include "java_lang_Thread.h"
+#include "java_lang_ThreadGroup.h"
 #include "java_lang_Throwable.h"
 
 extern void InitializeFinalizer(void);
@@ -51,6 +52,56 @@ int ActiveThreadCount = 0;		/* All threads */
 int UserThreadCount   = 0;		/* User threads */
 
 sys_mon_t *_queue_lock;	/* Protects thread queue, thread count */
+
+/* Sun's shared VM suspension state is independent of Thread.suspend(). */
+static int vm_threads_suspended;
+extern int sysThreadVMSuspend(sys_thread_t *, sys_thread_t *);
+extern int sysThreadVMUnsuspend(sys_thread_t *);
+extern void sysThreadVMSuspendMe(void);
+
+static int allowsVMSuspension(sys_thread_t *thread)
+{
+    Hjava_lang_Thread *object = (Hjava_lang_Thread *)sysThreadGetBackPtr(thread);
+    Hjava_lang_ThreadGroup *group = object ? unhand(object)->group : NULL;
+    return group && unhand(group)->vmAllowSuspension;
+}
+static int suspendVMThread(sys_thread_t *thread, void *self)
+{
+    return allowsVMSuspension(thread) ? sysThreadVMSuspend(thread, (sys_thread_t *)self) : 0;
+}
+static int unsuspendVMThread(sys_thread_t *thread, void *unused)
+{ return sysThreadVMUnsuspend(thread); }
+static int unsuspendNonSuspendable(sys_thread_t *thread, void *unused)
+{ return allowsVMSuspension(thread) ? 0 : sysThreadVMUnsuspend(thread); }
+
+int threadSuspendSuspendables(void)
+{
+    sys_thread_t *self = sysThreadSelf();
+    QUEUE_LOCK();
+    sysThreadEnumerateOver(suspendVMThread, self);
+    vm_threads_suspended = 1;
+    QUEUE_UNLOCK();
+    return allowsVMSuspension(self);
+}
+void threadSuspendMe(void) { sysThreadVMSuspendMe(); }
+void threadUnsuspendSuspendables(void)
+{
+    QUEUE_LOCK();
+    sysThreadEnumerateOver(unsuspendVMThread, NULL);
+    vm_threads_suspended = 0;
+    /* deviation: Sun's Win32 and Rhapsody binaries enter the queue lock again
+     * here, leaking recursion. Balance it to retain this port's queue safety. */
+    QUEUE_UNLOCK();
+}
+void threadUnsuspendNonSuspendables(void)
+{
+    QUEUE_LOCK();
+    sysThreadEnumerateOver(unsuspendNonSuspendable, NULL);
+    QUEUE_UNLOCK();
+}
+long sun_misc_VM_threadsSuspended(void *unused) { return vm_threads_suspended; }
+void sun_misc_VM_unsuspendThreads(void *unused) { threadUnsuspendSuspendables(); }
+void sun_misc_VM_unsuspendSomeThreads(void *unused) { threadUnsuspendNonSuspendables(); }
 
 /*
  * The following are defined as macros in threads.h:

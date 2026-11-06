@@ -1,4 +1,3 @@
-#ifdef DEBUG
 /*
  * @(#)debug.c	1.19 95/10/16
  *
@@ -66,7 +65,7 @@ threadDumpInfo(TID tid, bool_t verbose)
 	fprintf(stderr, " (TID:0x%x", tid);
 	if (THREAD(tid)->PrivateInfo) {
 	    fprintf(stderr, ", sys_thread_t:0x%x", SYSTHREAD(tid));	
-            sysThreadDumpInfo(SYSTHREAD(tid), stderr);
+            sysThreadDumpInfo(SYSTHREAD(tid));
             fprintf(stderr, ")");
 	    threadGetPriority(tid, &priority);
 	    fprintf(stderr, " prio=%d", priority);
@@ -104,11 +103,11 @@ DumpThreadsHelper(sys_thread_t *t, void *arg)
 	char pcb[200];
 	for ( ; n > 0 && frame;) {
 	    if (frame->current_method) {
-			frame = frame->current_method->fb.access & ACC_MACHINE_COMPILED ?
-				CompiledFramePrev(frame, &frame_buf) : frame->prev;
 			pc2string(frame->lastpc, frame->current_method, 
 					  pcb, pcb + sizeof pcb);
 			fprintf(stderr, "\t%s\n", pcb); 
+			frame = frame->current_method->fb.access & ACC_MACHINE_COMPILED ?
+				CompiledFramePrev(frame, &frame_buf) : frame->prev;
 	    } else {
 	    frame = frame->prev;
         }
@@ -162,5 +161,3 @@ DumpMonitors()
     fprintf(stderr, "Registered Monitor Dump:\n");
     registeredEnumerate(registeredDumpHelper, 0);
 }
-
-#endif

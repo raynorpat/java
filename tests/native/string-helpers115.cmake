@@ -1,0 +1,11 @@
+execute_process(COMMAND "${PROGRAM}" unused "${CP}" "${ENCODING}" "${PROFILE}"
+  RESULT_VARIABLE status OUTPUT_VARIABLE actual ERROR_VARIABLE errors)
+if(NOT "${status}" STREQUAL "0")
+  message(FATAL_ERROR "String helper test failed (${status}): ${actual}${errors}")
+endif()
+file(READ "${EXPECTED}" expected)
+string(REPLACE "\r\n" "\n" actual "${actual}")
+string(REPLACE "\r\n" "\n" expected "${expected}")
+if(NOT "${actual}" STREQUAL "${expected}")
+  message(FATAL_ERROR "String helper oracle mismatch.\nExpected:\n${expected}\nActual:\n${actual}")
+endif()

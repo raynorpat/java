@@ -37,12 +37,14 @@ sys_dirent_t *sysReadDir(sys_dir_t *dir)
     return &dir->entry;
 }
 
-void sysCloseDir(sys_dir_t *dir)
+int sysCloseDir(sys_dir_t *dir)
 {
+    int result = 0;
     if (dir) {
-	closedir(dir->dir);
+	result = closedir(dir->dir);
 	free(dir);
     }
+    return result;
 }
 
 /* os.name and os.version, as reported since JDK 1.0: uname -s and -r. */

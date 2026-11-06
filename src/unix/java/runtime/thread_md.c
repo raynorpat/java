@@ -321,7 +321,7 @@ sys_thread_t *sysThreadSelf(void)
 }
 
 /* Invocation API: register a host-owned thread without starting a new one. */
-int sysThreadAttach(sys_thread_t **result)
+int jni_AttachHostThread(sys_thread_t **result)
 {
     sys_thread_t *t = new_thread();
     if (!t) return SYS_NORESOURCE;
@@ -334,7 +334,7 @@ int sysThreadAttach(sys_thread_t **result)
     *result = t;
     return SYS_OK;
 }
-void sysThreadDetach(void)
+void jni_DetachHostThread(void)
 {
     sys_thread_t *t = sysThreadSelf();
     QUEUE_LOCK(); remove_thread(t); QUEUE_NOTIFY(); QUEUE_UNLOCK();
@@ -377,6 +377,12 @@ int sysThreadResume(sys_thread_t *t)
     pthread_mutex_unlock(&stop_lock);
     return SYS_OK;
 }
+
+/* Rhapsody's named sysThreadVMSuspend (5c145000), VMUnsuspend and
+ * VMSuspendMe (5c14500c) are native-thread no-ops, as on primary Win32. */
+int sysThreadVMSuspend(sys_thread_t *thread, sys_thread_t *self) { return 0; }
+int sysThreadVMUnsuspend(sys_thread_t *thread) { return 0; }
+void sysThreadVMSuspendMe(void) {}
 
 /*
  * shortcut: the priority is only recorded; ordinary (SCHED_OTHER) threads
@@ -521,8 +527,9 @@ void sysThreadPostException(sys_thread_t *t, void *exc)
 }
 
 JAVA_PUBLIC_API(void)
-sysThreadDumpInfo(sys_thread_t *t, FILE *out)
+sysThreadDumpInfo(sys_thread_t *t)
 {
+    FILE *out = stderr;
     TID tid = (TID) sysThreadGetBackPtr(t);
 
     if (tid) {

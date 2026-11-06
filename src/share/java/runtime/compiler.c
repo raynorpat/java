@@ -275,8 +275,7 @@ void* CompiledCodeLinkVector[] = {
 
 void java_lang_Compiler_initialize (Hjava_lang_Compiler *this)
 {
-    void* lib;
-    void *address = (void *)sysDynamicLink("java_lang_Compiler_start", &lib);
+    void *address = (void *)sysDynamicLink("java_lang_Compiler_start");
     if (address != 0) {
 	 (*(void (*) (void **)) address) (CompiledCodeLinkVector);
     }

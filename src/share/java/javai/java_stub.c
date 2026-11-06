@@ -206,14 +206,14 @@ ClassDefHook(ClassClass *cb)
 }
 #endif    /* ! XP_PC */
 
-extern JAVA_PUBLIC_API(int) start_java(int argc, char **argv);
+extern JAVA_PUBLIC_API(int) java_main(int argc, char **argv);
 
 #if !defined(XP_PC) || defined(_WIN32)
 
 int
 main(int argc, char **argv)
 {
-    return start_java(argc, argv);
+    return java_main(argc, argv);
 }
 
 #else

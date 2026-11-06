@@ -68,9 +68,10 @@ extern FILE *stdout;
 #endif
 #endif
 
-#ifdef BREAKPTS
-#include "sun_tools_debug_BreakpointQueue.h"
+#ifdef DEBUG
+#define BREAKPTS 1
 #endif
+#include "breakpoints115.h"
 
 #ifdef TRACING
 int trace;
@@ -653,155 +654,7 @@ Object2CString(JHandle *oh)
     return buf;
 }
 
-#ifdef BREAKPTS
-static Hsun_tools_debug_BreakpointQueue *the_bkptQ = NULL;
-static ClassClass *bkptHandler_class = NULL;
-
-static int single_stepping = 0;		/* debugger sets this */
-
-void set_single_stepping(bool_t b) {
-    if (b) {
-        single_stepping++;
-    } else if (single_stepping > 0) {
-        single_stepping--;
-    }
-}
-
-static void
-notify_debugger(HThread *hp, unsigned char *pc, HObject *exc, 
-		unsigned char *catch_pc)
-{
-    /* transfer control to the debugger thread by signalling the monitor. */
-    monitorEnter(obj_monitor(the_bkptQ));
-
-    /* communicate the information about this breakpoint */
-    unhand(the_bkptQ)->thread = hp;
-    unhand(the_bkptQ)->pc = (long)pc;
-    unhand(the_bkptQ)->opcode = -1;
-    unhand(the_bkptQ)->exception = (Hjava_lang_Throwable *)exc;
-    unhand(the_bkptQ)->catch_pc = (long)catch_pc;
-    unhand(the_bkptQ)->updated = FALSE;
-
-    /* this will yield to the debugger thread since it is running at */
-    /* MaximumPriority */
-    monitorNotifyAll(obj_monitor(the_bkptQ));
-    monitorExit(obj_monitor(the_bkptQ));
-    /* Win32 fails to block until the debugger thread is through, so
-     * wait for it to explicitly signal it's done. */
-    while (unhand(the_bkptQ)->updated == FALSE) {
-        monitorEnter(obj_monitor(bkptHandler_class));
-        monitorWait(obj_monitor(bkptHandler_class), 100);
-        monitorExit(obj_monitor(bkptHandler_class));
-    }
-}
-
-static unsigned char 
-get_breakpoint_opcode(unsigned char *pc, ExecEnv *ee)
-{
-    HThread *hp = threadSelf();
-
-    int real_opcode;
-    ClassClass *agent_class;
-    long fSystemThread;
-
-    /* If this is the first time we're called, perform initialization. */
-    if (the_bkptQ == 0) {
-	Hsun_tools_debug_BreakpointQueue **bkptQ;
-	if (bkptHandler_class == NULL) {
-	    /* Find the class */
-	    bkptHandler_class = FindClass(ee, INTRP_BRKPT_STRING, TRUE);
-	    if (bkptHandler_class == NULL) {
-		return opc_breakpoint;
-	    }
-	}
-
-	/* Find the static variable that contains the queue */
-	bkptQ =(Hsun_tools_debug_BreakpointQueue **)
-	    getclassvariable(bkptHandler_class, "the_bkptQ");
-	if (bkptQ == 0 || *bkptQ == 0) {
-#ifdef DEBUG
-	    printf("?breakpoint queue is null?\n");
-#endif
-	    SignalError(ee, JAVAPKG "InternalError", 
-			"debugger not initialized");
-	    return opc_breakpoint;
-	} else {
-	    the_bkptQ = *bkptQ;
-	}
-    }
-
-    /* ignore non-debuggable threads */
-    agent_class = FindClass(ee, "sun/tools/debug/Agent", TRUE);
-    if (agent_class == NULL) {
-        return opc_breakpoint;
-    }
-    fSystemThread = execute_java_static_method(EE(), agent_class, "systemThread", 
-                                               "(Ljava/lang/Thread;)Z", hp);
-    if (fSystemThread != 0) {
-        return execute_java_static_method(
-            EE(), (ClassClass *)bkptHandler_class, 
-            "getOpcode", "(I)I", pc);
-    }
-
-    notify_debugger(hp, pc, NULL, NULL);
-
-    real_opcode = unhand(the_bkptQ)->opcode;
-    if (real_opcode == -1) {
-        real_opcode = execute_java_static_method(
-            EE(), (ClassClass *)bkptHandler_class, 
-            "getOpcode", "(I)I", pc);
-    }
-    unhand(the_bkptQ)->opcode = -1;
-    return real_opcode;
-}
-
-void
-notify_debugger_of_exception(unsigned char *pc, ExecEnv *ee, HObject *object)
-{
-    int real_opcode;
-    unsigned char *catch_pc;
-    struct javaframe *fr;
-    static unsigned char *ProcedureFindThrowTag();
-
-    if (debugagent == 0 || get_the_bkptQ() == NULL) {
-        return;
-    }
-
-    /* walk up the stack to see if this exception is caught anywhere. */
-    catch_pc = NULL;
-    fr = ee->current_frame;
-    while (fr != NULL) {
-        if (fr->current_method != NULL) {	/* skip C frames */
-            catch_pc = ProcedureFindThrowTag(fr, object, fr->lastpc);
-            if (catch_pc != NULL) {
-                break;
-            }
-        }
-        fr = fr->prev;
-    }
-    real_opcode = unhand(the_bkptQ)->opcode;
-    notify_debugger(threadSelf(), pc, object, catch_pc);
-    unhand(the_bkptQ)->opcode = real_opcode;
-}
-
-static void
-set_breakpoint_opcode(unsigned char *pc, unsigned char opcode)
-{
-    HThread *hp = threadSelf();
-
-    /* transfer control to the debugger thread by signalling the monitor. */
-    monitorEnter(obj_monitor(the_bkptQ));
-
-    /* communicate the information about this breakpoint */
-    unhand(the_bkptQ)->thread = hp;
-    unhand(the_bkptQ)->pc = (int)pc;
-    unhand(the_bkptQ)->opcode = opcode;
-
-    /* Yield to the debugger thread, running at Maximum priority. */
-    monitorNotifyAll(obj_monitor(the_bkptQ));
-    monitorExit(obj_monitor(the_bkptQ));
-}
-#endif
+/* Sun 1.1 debugger storage and callbacks live in breakpoints115.c. */
 
 bool_t is_subclass_of(ClassClass *, ClassClass *, ExecEnv *);
 
@@ -955,6 +808,8 @@ bool_t array_is_instance_of_array_type(JHandle * h, ClassClass *cb, ExecEnv *ee)
  * We abandon locking efforts if the opcode has already been re-written.
  */
 static sys_mon_t *_code_lock;
+void debugger_lock_code(void) { sysMonitorEnter(_code_lock); }
+void debugger_unlock_code(void) { sysMonitorExit(_code_lock); }
 #define CODE_LOCK_INIT()    monitorRegister(_code_lock, "Code rewrite lock")
 #define CODE_UNLOCK()	    sysMonitorExit(_code_lock)
 #define CODE_LOCK()	    { unsigned char real_opcode;                \
@@ -975,11 +830,11 @@ static sys_mon_t *_code_lock;
         if (debugging && (*pc != opc_breakpoint)) { \
         	opcode = *pc; \
                 *pc = opc_breakpoint;  \
-		set_breakpoint_opcode(pc, opcode); \
+		set_breakpoint_opcode(ee, pc, opcode); \
                 goto again; } }
 #define REMOVE_BREAKPOINT_CONFUSION(possible_opcode)        \
         if (opc_breakpoint == possible_opcode)              \
-          possible_opcode = get_breakpoint_opcode(pc, ee);  \
+          possible_opcode = get_breakpoint_opcode(ee, pc, FALSE);  \
         else                                                \
           /* a semicolon comes here */
 
@@ -1318,6 +1173,7 @@ static char longstringbuf[30];
    char                    isig;
    unsigned int            offset;
    int                     delta;
+   int                     breakpoint_notified;
 
     Java8 tdub, tdub2;
 
@@ -1378,16 +1234,16 @@ static char longstringbuf[30];
         }
 #endif
 
-#ifdef DBINFO 
 	frame->lastpc = pc;
+        breakpoint_notified = 0;
 #ifdef BREAKPTS
 	if (single_stepping > 0 && 
             unhand((HThread *)(ee->thread))->single_step &&
             frame->current_method != NULL) {
 	    DECACHE_OPTOP();
-	    notify_debugger(threadSelf(), pc, NULL, NULL);
+	    notify_debugger_of_single_step(pc, ee);
+            breakpoint_notified = 1;
 	}
-#endif
 #endif
 
 	opcode = *pc;
@@ -3099,7 +2955,7 @@ again:
 	    TRACE(("\tbreakpoint\n"));
 #ifdef BREAKPTS
 	    DECACHE_OPTOP();
-	    opcode = get_breakpoint_opcode(pc, ee);
+	    opcode = get_breakpoint_opcode(ee, pc, !breakpoint_notified);
 	    goto again;
 #else
 	    SIZE_AND_STACK(1, 0);	/* treat as opc_nop */

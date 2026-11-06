@@ -1,0 +1,73 @@
+SIZE ClassClass 8
+SIZE Hjava_lang_Class 8
+SIZE Classjava_lang_Class 100
+OFFSET Classjava_lang_Class major_version 0
+OFFSET Classjava_lang_Class minor_version 2
+OFFSET Classjava_lang_Class name 4
+OFFSET Classjava_lang_Class super_name 8
+OFFSET Classjava_lang_Class source_name 12
+OFFSET Classjava_lang_Class superclass 16
+OFFSET Classjava_lang_Class HandleToSelf 20
+OFFSET Classjava_lang_Class loader 24
+OFFSET Classjava_lang_Class finalizer 28
+OFFSET Classjava_lang_Class constantpool 32
+OFFSET Classjava_lang_Class methods 36
+OFFSET Classjava_lang_Class fields 40
+OFFSET Classjava_lang_Class implements 44
+OFFSET Classjava_lang_Class methodtable 48
+OFFSET Classjava_lang_Class methodtable_mem 52
+OFFSET Classjava_lang_Class slottable 56
+OFFSET Classjava_lang_Class classname 60
+OFFSET Classjava_lang_Class hashinfo 64
+OFFSET Classjava_lang_Class constantpool_count 72
+OFFSET Classjava_lang_Class methods_count 74
+OFFSET Classjava_lang_Class fields_count 76
+OFFSET Classjava_lang_Class implements_count 78
+OFFSET Classjava_lang_Class methodtable_size 80
+OFFSET Classjava_lang_Class slottbl_size 82
+OFFSET Classjava_lang_Class instance_size 84
+OFFSET Classjava_lang_Class access 86
+OFFSET Classjava_lang_Class flags 88
+OFFSET Classjava_lang_Class signers 92
+OFFSET Classjava_lang_Class imethodtable 96
+SIZE struct methodblock 92
+OFFSET struct methodblock fb 0
+OFFSET struct methodblock code 24
+OFFSET struct methodblock exception_table 28
+OFFSET struct methodblock line_number_table 32
+OFFSET struct methodblock localvar_table 36
+OFFSET struct methodblock code_length 40
+OFFSET struct methodblock exception_table_length 44
+OFFSET struct methodblock line_number_table_length 48
+OFFSET struct methodblock localvar_table_length 52
+OFFSET struct methodblock invoker 56
+OFFSET struct methodblock args_size 60
+OFFSET struct methodblock maxstack 62
+OFFSET struct methodblock nlocals 64
+OFFSET struct methodblock CompiledCode 68
+OFFSET struct methodblock CompiledCodeInfo 72
+OFFSET struct methodblock CompiledCodeFlags 76
+OFFSET struct methodblock inlining 80
+OFFSET struct methodblock nexceptions 84
+OFFSET struct methodblock exceptions 88
+SIZE JavaFrame 44
+OFFSET JavaFrame constant_pool 0
+OFFSET JavaFrame returnpc 4
+OFFSET JavaFrame optop 8
+OFFSET JavaFrame vars 12
+OFFSET JavaFrame prev 16
+OFFSET JavaFrame javastack 20
+OFFSET JavaFrame lastpc 24
+OFFSET JavaFrame current_method 28
+OFFSET JavaFrame monitor 32
+OFFSET JavaFrame mon_starttime 36
+OFFSET JavaFrame ostack 40
+SIZE ExecEnv 76
+OFFSET ExecEnv initial_stack 0
+OFFSET ExecEnv current_frame 4
+OFFSET ExecEnv thread 8
+OFFSET ExecEnv exceptionKind 12
+OFFSET ExecEnv exception 16
+OFFSET ExecEnv nativeInterface 20
+OFFSET ExecEnv seenclasses 52
+OFFSET ExecEnv alloc_cache 60

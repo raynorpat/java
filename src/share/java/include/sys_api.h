@@ -73,7 +73,7 @@ EXPORTED void *	sysCalloc(size_t, size_t);
 EXPORTED char * sysInitializeLinker(void);
 EXPORTED int    sysAddDLSegment(char *);
 EXPORTED void   sysSaveLDPath(char *);
-EXPORTED long   sysDynamicLink(char *, void* *lib);
+EXPORTED long   sysDynamicLink(char *);
 EXPORTED void	sysBuildLibName(char *, int, char *, char *);
 
 /*
@@ -110,7 +110,7 @@ EXPORTED  void	 sysThreadPostException(sys_thread_t *, void *);
 EXPORTED void sysThreadInterrupt(sys_thread_t *);
 EXPORTED int sysThreadIsInterrupted(sys_thread_t *, long);
 EXPORTED  void ** sysThreadRegisters(sys_thread_t *, int *count);
-JAVA_PUBLIC_API(void)	 sysThreadDumpInfo(sys_thread_t *, FILE*);
+JAVA_PUBLIC_API(void)	 sysThreadDumpInfo(sys_thread_t *);
 
 /*
  * System API for monitors
@@ -164,11 +164,19 @@ EXPORTED int sysOpen(const char *name, int flags, int mode);
 EXPORTED long sysRead(int fd, void *buf, long amount);
 EXPORTED long sysWrite(int fd, const void *buf, long amount);
 EXPORTED long sysSeek(int fd, long offset, int whence);
-EXPORTED void sysClose(int fd);
+EXPORTED int sysClose(int fd);
 
 EXPORTED int sysAccess(const char *path, int mode);
 struct stat;
 EXPORTED int sysStat(const char *path, struct stat *buf);
+EXPORTED int sysFStat(int fd, struct stat *buf);
+EXPORTED int sysAvailable(int fd, long *bytes);
+EXPORTED int sysRename(const char *source, const char *destination);
+EXPORTED int sysRmdir(const char *path);
+EXPORTED int sysCanonicalPath(char *path, char *result, int result_len);
+EXPORTED int sysIsMP(void);
+EXPORTED void sysMemoryFlush(void);
+EXPORTED void sysStoreBarrier(void);
 EXPORTED int sysIsAbsolute(const char *path);
 EXPORTED int sysMkdir(const char *path, int mode);
 EXPORTED int sysUnlink(const char *path);

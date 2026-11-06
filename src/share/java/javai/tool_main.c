@@ -6,7 +6,7 @@
 #include "sys_api.h"
 #include "path_md.h"
 
-extern JAVA_PUBLIC_API(int) start_java(int argc, char **argv);
+extern JAVA_PUBLIC_API(int) java_main(int argc, char **argv);
 
 #ifndef TOOL_HEAP
 #define TOOL_HEAP "-ms8m"
@@ -19,11 +19,12 @@ int main(int argc, char **argv)
     char *path = NULL;
     char *home_property = NULL;
     char **args;
-    /* deviation: the transitional launcher converts dots in this buffer. */
+    /* java_main normalizes the class name in place, as Sun does. */
     char tool_class[] = TOOL_CLASS;
     int i, count = 0, result;
 #ifdef TOOL_APPLET
     int debug = 0, arguments = 0;
+    char debugger_class[] = "sun.tools.ttydebug.TTY";
     const char *configured_home = getenv("JAVA_HOME");
     struct stat info;
     for (i = 1; i < argc; ++i)
@@ -79,7 +80,7 @@ int main(int argc, char **argv)
 #ifdef TOOL_APPLET
     for (i = 1; i < argc; ++i)
         if (!strcmp(argv[i], "-debug")) debug = 1;
-    if (debug) args[count++] = "sun.tools.ttydebug.TTY";
+    if (debug) args[count++] = debugger_class;
 #endif
     args[count++] = tool_class;
     for (i = 1; i < argc; i++) {
@@ -92,8 +93,7 @@ int main(int argc, char **argv)
         args[count++] = argv[i];
 #endif
     }
-    /* deviation: current bootstrap entry; java_main is migrated with JNI. */
-    result = start_java(count, args);
+    result = java_main(count, args);
     free(args);
     free(home_property);
     /* putenv retains path for the lifetime of this process. */

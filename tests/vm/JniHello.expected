@@ -1,0 +1,4 @@
+add=42
+greet=hello world
+callback=42
+exception=from C

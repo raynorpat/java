@@ -26,10 +26,10 @@ The wrapper class names and flags are from these binaries, not modern JDKs.
 
 ## Explicit adaptations
 
-The generic tool and javaw wrappers call the reconstruction's existing
-start_java entry instead of Sun java_main. Modern CRT startup supplies the
-environment instead of assigning the obsolete imported __initenv variable.
-javaw returns through WinMain rather than calling the DLL sysExit helper.
+The generic tool and javaw wrappers call the reconstructed java_main entry.
+Modern CRT startup supplies the environment instead of assigning the obsolete
+imported __initenv variable. java_main exits through sysExit after waiting for
+non-daemon threads, as the primary implementation does.
 The Windows subsystem target suppresses creation of a console. Path discovery
 uses the reconstruction's sysJavaHome; Unix uses native path separators.
 Appletviewer diagnostics are equivalent but not claimed byte-identical.
@@ -47,6 +47,28 @@ registry discovery, and dlopen/dlsym for the same JNI functions. This is not a
 macOS implementation. Both JRE ports require actual JNI invocation support in
 the reconstructed VM; successfully building a launcher does not establish that
 JNI or the applet AWT implementation is complete.
+
+## Canonical VM launcher
+
+Primary javai_g.dll java_main at 100012d5 is cdecl `(int, char **)`, initializes
+JDK1_1InitArgs, parses options, calls JNI_CreateJavaVM, finds the main method,
+executes it, waits for threads and calls sysExit. The reconstruction now follows
+that path instead of exporting the old 1.0 bootstrap. Class names are normalized
+in writable argument storage; the applet debugger wrapper also supplies writable
+storage. Main lookup at 100273e8 searches the superclass chain. Launcher115
+captures inherited main with three arguments, including an option-like argument
+and a space; the old launcher failed with "main ... is not defined".
+
+GetDefaultJavaVMInitArgs delegates platform defaults to 100024ea/10002527:
+128 KiB native stack, 400 KiB Java stack, 1/16 MiB heap bounds, and boot paths
+classes, lib/classes.zip, lib/classes.jar, lib/rt.jar, lib/i18n.jar. The launcher
+prepends CLASSPATH or dot; an explicit -classpath replaces the complete path.
+Deviation: paths use normalized sysJavaHome and native separators rather than
+literal Windows DLL-directory/.. spelling. The primordial stack bound is kept
+in the live launcher frame after JNI initialization, preserving conservative
+GC scanning. Legacy -argfile and source-compilation options are not retained;
+they are absent from the recovered 1.1.5 option parser. Coverage profiling
+(-prof:jcov) and monitor-count tuning (-nm) remain outstanding parser branches.
 
 ## Verification and integration
 

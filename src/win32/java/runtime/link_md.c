@@ -85,20 +85,17 @@ int sysAddDLSegment(char *fn)
     return 1;
 }
 
-long sysDynamicLink(char *sym_p, void* *lib)
+long sysDynamicLink(char *sym_p)
 {
     FARPROC f = NULL;
     int i;
 
-    if (lib != NULL)
-	*lib = NULL;
     if (nlibs == 0)
 	free(sysInitializeLinker());	/* registers javai.dll */
 
     AcquireSRWLockShared(&libs_lock);
     for (i = 0; i < nlibs && f == NULL; i++) {
-	if ((f = GetProcAddress(libs[i], sym_p)) != NULL && lib != NULL)
-	    *lib = libs[i];
+        f = GetProcAddress(libs[i], sym_p);
     }
     ReleaseSRWLockShared(&libs_lock);
     return (long) f;

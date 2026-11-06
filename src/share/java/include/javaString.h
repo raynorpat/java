@@ -1,20 +1,23 @@
 /*
- * @(#)javaString.h	1.10 95/02/22  
- *
- * Copyright (c) 1994 Sun Microsystems, Inc. All Rights Reserved.
- *
- * Permission to use, copy, modify, and distribute this software
- * and its documentation for NON-COMMERCIAL purposes and without
- * fee is hereby granted provided that this copyright notice
- * appears in all copies. Please refer to the file "copyright.html"
- * for further important copyright and licensing information.
- *
- * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF
- * THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
- * TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR
- * ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR
- * DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
+ * @(#)javaString.h	1.15 97/01/25
+ * 
+ * Copyright (c) 1995, 1996 Sun Microsystems, Inc. All Rights Reserved.
+ * 
+ * This software is the confidential and proprietary information of Sun
+ * Microsystems, Inc. ("Confidential Information").  You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Sun.
+ * 
+ * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+ * SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
+ * SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+ * THIS SOFTWARE OR ITS DERIVATIVES.
+ * 
+ * CopyrightVersion 1.1_beta
+ * 
  */
 
 /*
@@ -26,11 +29,8 @@
 
 #include "oobj.h"
 
-#ifdef XP_MAC
-#include "jdk_java_lang_String.h"
-#else
 #include "java_lang_String.h"
-#endif
+
 
 /*
  * Print the String object with prints.
@@ -40,13 +40,13 @@ void javaStringPrint(Hjava_lang_String *);
 /*
  * Return the length of the String object.
  */
-JAVA_PUBLIC_API(int32_t) javaStringLength(Hjava_lang_String *);
+int javaStringLength(Hjava_lang_String *);
 
 
 /*
  * Create and return a new Java String object, initialized from the C string.
  */
-JAVA_PUBLIC_API(Hjava_lang_String *) makeJavaString(char *, int);
+Hjava_lang_String *makeJavaString(char *, int);
 
 /*
  * Create a new C string initialized from the specified Java string,
@@ -75,6 +75,42 @@ unicode *javaString2unicode(Hjava_lang_String *, unicode *, int);
  * No allocation occurs. Assumes that len is the size of the buffer.
  * The C string's address is returned.
  */
-JAVA_PUBLIC_API(char *)javaString2CString(Hjava_lang_String *, char *, int);
+char *javaString2CString(Hjava_lang_String *, char *, int);
+
+/*
+ * convert Java String to platform encoding string.
+ */
+char *makePlatformCString(Hjava_lang_String *);
+
+/*
+ * convert platform encoding string to Java String.
+ */
+Hjava_lang_String *makeJavaStringFromPlatformCString(char *, int);
+
+/*
+ * Returns the number of bytes needed to hold a Java string in UTF
+ * format, NOT including the terminating NULL.
+ *
+ * Returns -1 if something is wrong.
+ */
+int
+javaStringUTFLength(HString *s);
+
+/*
+ * Fill buf with unicode representation of hstr, upto buflen chars.
+ * The UTF string will be NUL-terminated.
+ *
+ * If both buf and buflen are 0, malloc an appropriately sized
+ * buffer for the result.
+ *
+ * Return result buffer.
+ */
+char *javaString2UTF(HString *, char *, int);
+
+/*
+ * Create a Java String whose characters are initialized from
+ * the supplied NUL-terminated UTF string.
+ */
+HString *makeJavaStringUTF(char *);
 
 #endif /* !_JAVASTRING_H_ */

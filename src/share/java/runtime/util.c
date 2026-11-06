@@ -49,7 +49,7 @@ str2unicode(char *str, unicode *ustr, long len)
 #else
     memset((char *) dst, 0, len * sizeof(*dst));
     while (*str && --len >= 0)
-	*ustr++ = *str++;
+	*ustr++ = (unsigned char)*str++; /* Sun javai_g1004E2D0 zero-extends. */
 #endif
 
     return dst;

@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.0...3.10)
+execute_process(COMMAND "${INVOKER}" "${VM}" "${CP}"
+  RESULT_VARIABLE status OUTPUT_VARIABLE actual ERROR_VARIABLE errors TIMEOUT 30)
+if(NOT "${status}" STREQUAL "0")
+  message(FATAL_ERROR "JNI invocation failed (${status}): ${actual}${errors}")
+endif()
+file(READ "${CMAKE_CURRENT_LIST_DIR}/jniinvoke.expected" expected)
+string(REPLACE "\r\n" "\n" actual "${actual}")
+if(NOT actual STREQUAL expected OR NOT errors STREQUAL "")
+  message(FATAL_ERROR "JNI invocation output differs: ${actual}${errors}")
+endif()

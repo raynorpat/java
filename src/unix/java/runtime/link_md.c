@@ -93,20 +93,17 @@ int sysAddDLSegment(char *fn)
     return 1;
 }
 
-long sysDynamicLink(char *sym_p, void* *lib)
+long sysDynamicLink(char *sym_p)
 {
     void *f = NULL;
     int i;
 
-    if (lib != NULL)
-	*lib = NULL;
     if (nlibs == 0)
 	free(sysInitializeLinker());	/* registers the program */
 
     pthread_mutex_lock(&libs_lock);
     for (i = 0; i < nlibs && f == NULL; i++) {
-	if ((f = dlsym(libs[i], sym_p)) != NULL && lib != NULL)
-	    *lib = libs[i];
+        f = dlsym(libs[i], sym_p);
     }
     pthread_mutex_unlock(&libs_lock);
     return (long) f;

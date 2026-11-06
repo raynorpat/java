@@ -66,7 +66,8 @@ endfunction()
 
 # --- VM runtime DLL (javai.dll), holding the built-in native stubs ---
 prefixed(runtime_sources src/share/java/runtime agent arena class date debug globals io math
-  primitive system115 resource115 reflect numeric115 serialization core115 corepath115 string115 exports115
+  primitive system115 resource115 reflect numeric115 serialization core115 corepath115 string115 stringhelpers115 exports115 hpi115
+  jni jni-call jni-invoke fileextras115 breakpoints115
   object opnames profiler runtime security string stubs system thread threads
   utf util zip classinitialize classresolver common_exceptions threadruntime
   compiler check_class check_code classloader classruntime gifdecoder exception
@@ -77,13 +78,24 @@ prefixed(md_plat src/${plat}/java/runtime dir_md gc_md link_md misc_md mon_md pa
   system_md thread_md)
 
 if(WIN32)
-  list(APPEND md_plat src/share/java/javai/javai.def)
+  # Sun's Debug DLL adds exactly this decorated debugger-hook entry.
+  file(READ "${CMAKE_SOURCE_DIR}/src/share/java/javai/javai.def" javai_export_text)
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_SOURCE_DIR}/src/share/java/javai/javai.def")
+  file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/generated/javai-$<CONFIG>.def"
+    CONTENT "${javai_export_text}$<$<CONFIG:Debug>:    _set_debugger_hooks@12\n>")
+  set(javai_exports "${CMAKE_BINARY_DIR}/generated/javai-$<CONFIG>.def")
   list(APPEND md_plat src/win32/java/runtime/condvar_md.c)
 else()
   list(APPEND md_plat src/unix/java/runtime/net_md.c)
 endif()
-add_library(javai SHARED src/share/java/javai/javai.c src/share/java/javai/javai_dll.c ${runtime_sources}
+include(tools/builtin-natives.cmake)
+add_library(javai_core OBJECT src/share/java/javai/javai.c src/share/java/javai/javai_dll.c ${runtime_sources}
   ${md_share} ${md_plat})
+set_target_properties(javai_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(javai_core PRIVATE "${CMAKE_BINARY_DIR}/generated" third_party/zlib-1.0.4)
+target_compile_definitions(javai_core PRIVATE JNI115_ENABLED JAVA_INTERNAL_BUILD)
+add_library(javai SHARED $<TARGET_OBJECTS:javai_core> ${javai_exports})
 prefixed(zlib_sources third_party/zlib-1.0.4 adler32 infblock infcodes inffast inflate inftrees infutil zutil)
 add_library(zlib115 STATIC ${zlib_sources})
 target_include_directories(zlib115 PUBLIC third_party/zlib-1.0.4)
@@ -96,19 +108,36 @@ target_link_libraries(javai zlib115 ${sys_libs})
 
 add_executable(java src/share/java/javai/java_stub.c)
 target_link_libraries(java javai)
-add_executable(javac src/share/java/javai/tool_main.c src/${plat}/java/runtime/path_md.c
-  src/share/java/runtime/zip.c)
+foreach(tool javac javap jar appletviewer)
+  add_executable(${tool} src/share/java/javai/tool_main.c src/${plat}/java/runtime/path_md.c
+    src/share/java/runtime/zip.c)
+  target_link_libraries(${tool} javai zlib115)
+endforeach()
 target_compile_definitions(javac PRIVATE TOOL_CLASS="sun.tools.javac.Main")
-target_link_libraries(javac javai zlib115)
+target_compile_definitions(javap PRIVATE TOOL_CLASS="sun.tools.javap.JavaP" TOOL_SIMPLE TOOL_HEAP="")
+target_compile_definitions(jar PRIVATE TOOL_CLASS="sun.tools.jar.Main" TOOL_SIMPLE)
+target_compile_definitions(appletviewer PRIVATE TOOL_CLASS="sun.applet.AppletViewer" TOOL_APPLET TOOL_HEAP="")
+set(jre_sources src/share/java/jre/jre.c src/share/java/jre/jre_main.c src/${plat}/java/jre/jre_md.c)
+add_executable(jre ${jre_sources})
+set(jre_targets jre)
+if(WIN32)
+  add_executable(javaw WIN32 src/win32/java/javai/javaw.c)
+  target_link_libraries(javaw javai)
+  add_executable(jrew WIN32 ${jre_sources})
+  list(APPEND jre_targets jrew)
+endif()
+foreach(tool ${jre_targets})
+  target_include_directories(${tool} PRIVATE src/share/java/jre src/${plat}/java/jre)
+  target_compile_definitions(${tool} PRIVATE VERSION="1.1.5")
+  target_link_libraries(${tool} ${sys_libs})
+endforeach()
 
 # --- Standalone tools, each with its reduced runtime subset ---
 prefixed(tool_runtime src/share/java/runtime arena classloader classresolver classresolver_stubs
   globals runtime_stubs utf util zip)
 add_executable(javah src/share/java/javah/javah.c ${tool_runtime} src/${plat}/java/runtime/path_md.c
   src/share/java/runtime/stubs_md.c src/${plat}/java/runtime/system_md.c)
-add_executable(javap javap/javap.c javap/console.c ${tool_runtime} src/share/java/runtime/check_class.c
-  src/share/java/runtime/check_code.c src/share/java/runtime/decode.c src/${plat}/java/runtime/path_md.c src/${plat}/java/runtime/system_md.c)
-foreach(t javah javap)
+foreach(t javah)
   target_link_libraries(${t} zlib115 ${sys_libs})
 endforeach()
 
@@ -118,15 +147,39 @@ if(WIN32)
   get_filename_component(msvc_bin "${CMAKE_LINKER}" DIRECTORY)
   add_test(NAME vm-exports COMMAND ${CMAKE_COMMAND}
     "-DDUMPBIN=${msvc_bin}/dumpbin.exe" "-DDLL=$<TARGET_FILE:javai>"
-    "-DREFERENCE=${CMAKE_SOURCE_DIR}/tools/exports-sun115.txt"
+    "-DREFERENCE=${CMAKE_SOURCE_DIR}/tools/exports-sun115$<$<CONFIG:Debug>:-debug>.txt"
     -P ${CMAKE_SOURCE_DIR}/tools/check-exports.cmake)
 endif()
 add_executable(jni-layout tests/native/jni-layout.c)
 add_test(NAME jni-layout COMMAND jni-layout)
 add_library(hpi-signatures OBJECT tests/native/hpi-signatures.c)
-add_executable(interrupt-state tests/native/interrupt-state.c)
-target_link_libraries(interrupt-state javai)
+add_executable(interrupt-state tests/native/interrupt-state.c $<TARGET_OBJECTS:javai_core>)
+target_compile_definitions(interrupt-state PRIVATE JAVA_INTERNAL_BUILD)
+target_link_libraries(interrupt-state zlib115 ${sys_libs})
 add_test(NAME interrupt-state COMMAND interrupt-state)
+
+add_executable(hpi115-test tests/native/hpi115.c src/share/java/runtime/hpi115.c
+  src/${plat}/java/runtime/dir_md.c)
+target_compile_definitions(hpi115-test PRIVATE JAVA_INTERNAL_BUILD)
+target_link_libraries(hpi115-test ${sys_libs})
+if(MSVC)
+  target_compile_options(hpi115-test PRIVATE /UNDEBUG)
+else()
+  target_compile_options(hpi115-test PRIVATE -UNDEBUG)
+endif()
+add_test(NAME hpi115-test COMMAND hpi115-test)
+
+add_executable(string-helpers115 tests/native/string-helpers115.c $<TARGET_OBJECTS:javai_core>)
+target_compile_definitions(string-helpers115 PRIVATE JAVA_INTERNAL_BUILD)
+target_link_libraries(string-helpers115 zlib115 ${sys_libs})
+foreach(encoding 8859_1 Cp1252 no-such-encoding)
+  add_test(NAME string-helpers115-${encoding} COMMAND ${CMAKE_COMMAND}
+    "-DPROGRAM=$<TARGET_FILE:string-helpers115>" "-DCP=${JDK115_DIR}/lib/classes.zip"
+    "-DENCODING=${encoding}"
+    "-DPROFILE=${CMAKE_BINARY_DIR}/string-profile-$<CONFIG>-${encoding}.txt"
+    "-DEXPECTED=${CMAKE_SOURCE_DIR}/tests/native/string-helpers115-${encoding}.expected"
+    -P ${CMAKE_SOURCE_DIR}/tests/native/string-helpers115.cmake)
+endforeach()
 if(WIN32)
   add_executable(thread-layout tests/native/thread-layout.c)
   add_test(NAME thread-layout COMMAND thread-layout)
@@ -142,7 +195,10 @@ if(WIN32)
 endif()
 include(CMakeParseArguments)
 function(java_test)
-  cmake_parse_arguments(JT "" "NAME;CLASS;EXPECTED" "ARGS;VM_ARGS;EXTRA_CP" ${ARGN})
+  cmake_parse_arguments(JT "" "NAME;CLASS;EXPECTED;EXIT" "ARGS;VM_ARGS;EXTRA_CP" ${ARGN})
+  if(NOT JT_EXIT)
+    set(JT_EXIT 0)
+  endif()
   if(NOT JT_EXPECTED)
     set(JT_EXPECTED "${JT_CLASS}")
   endif()
@@ -154,10 +210,18 @@ function(java_test)
     "-DJAVA=$<TARGET_FILE:java>"
     "-DCP=${cp}"
     "-DCLASS=${JT_CLASS}" "-DARGS=${JT_ARGS}" "-DVM_ARGS=${JT_VM_ARGS}"
+    "-DEXPECTED_EXIT=${JT_EXIT}"
     "-DEXPECTED=${CMAKE_SOURCE_DIR}/tests/vm/${JT_EXPECTED}.expected"
     -P ${CMAKE_SOURCE_DIR}/tools/run-java-test.cmake)
   set_tests_properties(${JT_NAME} PROPERTIES TIMEOUT 40 LABELS "jdk115"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/tests/vm")
+  # Replay the same oracle cases against classes compiled by our javac.
+  set(selfhost_cp "\${OUT}${sep}${JDK115_DIR}/lib/classes.zip")
+  foreach(entry ${JT_EXTRA_CP})
+    set(selfhost_cp "${selfhost_cp}${sep}${entry}")
+  endforeach()
+  set_property(GLOBAL APPEND_STRING PROPERTY selfhost_cases
+    "set(CLASS [==[${JT_CLASS}]==])\nset(ARGS [==[${JT_ARGS}]==])\nset(VM_ARGS [==[${JT_VM_ARGS}]==])\nset(EXPECTED_EXIT ${JT_EXIT})\nset(EXPECTED [==[${CMAKE_SOURCE_DIR}/tests/vm/${JT_EXPECTED}.expected]==])\nset(CP \"${selfhost_cp}\")\ninclude([==[${CMAKE_SOURCE_DIR}/tools/run-java-test.cmake]==])\n")
 endfunction()
 # Reconstruction progress tests; failures remain visible, baseline uses -LE jdk115.
 java_test(NAME vm-hello115 CLASS Hello115)
@@ -172,16 +236,46 @@ java_test(NAME vm-ReflectValues CLASS ReflectValues)
 java_test(NAME vm-SerialValues CLASS SerialValues)
 java_test(NAME vm-SerialHooks CLASS SerialHooks)
 java_test(NAME vm-Core115 CLASS Core115)
+java_test(NAME vm-Launcher115 CLASS Launcher115 ARGS one -two "three four")
+java_test(NAME vm-VMReserve115 CLASS VMReserve115 VM_ARGS -ms1m -mx4m -mr256k -my256k)
 java_test(NAME vm-Intern115 CLASS Intern115)
+java_test(NAME vm-FileExtras115 CLASS FileExtras115)
+java_test(NAME vm-Profiler115 CLASS Profiler115)
+add_library(jnihello SHARED tests/native/jnihello.c)
+add_library(jniabi SHARED tests/native/jniabi.c)
+add_library(debug115 SHARED tests/native/debug115.c)
+target_link_libraries(debug115 ${sys_libs})
+java_test(NAME vm-Debug115 CLASS Debug115 ARGS "$<TARGET_FILE:debug115>"
+  EXPECTED "Debug115$<$<CONFIG:Debug>:-debug>")
+java_test(NAME vm-JniHello CLASS JniHello ARGS "$<TARGET_FILE:jnihello>")
+java_test(NAME vm-JniAbi CLASS JniAbi ARGS "$<TARGET_FILE:jniabi>")
+add_executable(jniinvoke tests/native/jniinvoke.c)
+target_link_libraries(jniinvoke ${sys_libs})
+add_test(NAME jni-invocation COMMAND ${CMAKE_COMMAND}
+  "-DINVOKER=$<TARGET_FILE:jniinvoke>" "-DVM=$<TARGET_FILE:javai>"
+  "-DCP=${CMAKE_SOURCE_DIR}/tests/vm${sep}${JDK115_DIR}/lib/classes.zip"
+  -P ${CMAKE_SOURCE_DIR}/tests/native/jniinvoke.cmake)
+add_test(NAME jre-invocation COMMAND ${CMAKE_COMMAND}
+  "-DJRE=$<TARGET_FILE:jre>" "-DVM=$<TARGET_FILE:javai>"
+  "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK115_DIR=${JDK115_DIR}"
+  "-DOUT=${CMAKE_BINARY_DIR}/jre-image/$<CONFIG>"
+  -P ${CMAKE_SOURCE_DIR}/tools/jre-test.cmake)
 java_test(NAME vm-Canonical115 CLASS Canonical115)
 foreach(mode 0 1 2 3)
   java_test(NAME vm-ExecLifecycle-${mode} CLASS ExecLifecycle ARGS ${mode}
     EXPECTED ExecLifecycle-${mode})
 endforeach()
+foreach(mode zero normal disabled reenter)
+  java_test(NAME vm-FinalizeExit-${mode} CLASS FinalizeExit ARGS ${mode}
+    EXPECTED FinalizeExit-${mode})
+endforeach()
+java_test(NAME vm-FinalizeExit-nonzero CLASS FinalizeExit ARGS nonzero
+  EXPECTED FinalizeExit-nonzero EXIT 7)
 add_test(NAME javac-selfhost COMMAND ${CMAKE_COMMAND}
   "-DJAVAC=$<TARGET_FILE:javac>" "-DJAVA=$<TARGET_FILE:java>"
   "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK115_DIR=${JDK115_DIR}"
   "-DOUT=${CMAKE_BINARY_DIR}/selfhost/$<CONFIG>"
+  "-DCASES=${CMAKE_BINARY_DIR}/selfhost-cases-$<CONFIG>.cmake"
   -P ${CMAKE_SOURCE_DIR}/tools/javac-selfhost.cmake)
 set_tests_properties(javac-selfhost PROPERTIES TIMEOUT 180
   WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/tests/vm")
@@ -195,6 +289,9 @@ java_test(NAME vm-InnerAndOld CLASS InnerAndOld ARGS java.util.ObserverList
 java_test(NAME vm-BadVerify CLASS BadVerify VM_ARGS -verify
   EXTRA_CP "${CMAKE_SOURCE_DIR}/tests/vm/bad")
 java_test(NAME vm-Resources CLASS Resources EXTRA_CP "${CMAKE_SOURCE_DIR}/tests/vm/resources115.zip")
+get_property(selfhost_cases GLOBAL PROPERTY selfhost_cases)
+file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/selfhost-cases-$<CONFIG>.cmake"
+  CONTENT "${selfhost_cases}")
 add_executable(zip115-test tests/native/zip115-test.c src/share/java/runtime/zip.c)
 target_link_libraries(zip115-test zlib115 ${sys_libs})
 add_test(NAME zip115 COMMAND zip115-test "${CMAKE_SOURCE_DIR}/tests/vm/resources115.zip")
@@ -257,8 +354,11 @@ add_test(NAME native COMMAND java -classpath "${native_cp}" NativeHello)
 set_tests_properties(native PROPERTIES PASS_REGULAR_EXPRESSION "native add=42 greet=hello java")
 
 # --- JDK image ---
-install(TARGETS java javac javah javap javai RUNTIME DESTINATION bin LIBRARY DESTINATION lib
+install(TARGETS java javac javah javap jar appletviewer jre javai RUNTIME DESTINATION bin LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
+if(WIN32)
+  install(TARGETS javaw jrew RUNTIME DESTINATION bin)
+endif()
 install(FILES "${JDK115_DIR}/lib/classes.zip" DESTINATION lib)
 install(FILES "${JDK115_DIR}/lib/security/java.security" DESTINATION lib/security)
 install(DIRECTORY src/share/java/include/ DESTINATION include FILES_MATCHING PATTERN "*.h")

@@ -30,6 +30,8 @@
 #include "oobj.h"
 #include "interpreter.h"
 #include "sys_api.h"
+#include "monitor.h"
+#include "profile.h"
 
 typedef struct {
     struct methodblock *caller, *callee;
@@ -42,6 +44,9 @@ typedef struct {
 static javamon_entry *javamon_table;
 static int javamon_table_count;
 int java_monitor = 0;
+/* Sun10039A31 defaults this to java.prof on the first report. */
+char *prof_file;
+extern sys_mon_t *_heap_lock;
 
 void javamon(int i)
 {
@@ -56,8 +61,11 @@ void javamon(int i)
 void
 java_mon(struct methodblock *caller, struct methodblock *callee, int32_t time)
 {
-    javamon_entry *tab = javamon_table;
-    javamon_entry *p = &tab[((((unsigned long)caller)^((unsigned long)callee)) >> 2) % JAVAMON_TABLE_SIZE];
+    javamon_entry *tab, *p;
+    /* Transitional mapping: serialize table reset with GC's existing lock. */
+    sysMonitorEnter(_heap_lock);
+    tab = javamon_table;
+    p = &tab[((((unsigned long)caller)^((unsigned long)callee)) >> 2) % JAVAMON_TABLE_SIZE];
 
     while ((p->callee != 0) && ((p->caller != caller) || (p->callee != callee))) {
 	if (p-- == tab) {
@@ -74,6 +82,7 @@ java_mon(struct methodblock *caller, struct methodblock *callee, int32_t time)
     }
     p->time += time;
     p->count++;
+    sysMonitorExit(_heap_lock);
 }
 
 static void
@@ -110,14 +119,40 @@ void
 java_mon_dump()
 {
     extern void prof_heap(FILE *fp);
-    FILE *fp = fopen("java.prof", "w");
+    FILE *fp;
+    if (!prof_file) prof_file = "java.prof";
+    fp = fopen(prof_file, "w");
 
     if (fp == 0) {
-	fprintf(stderr, "Can't write to java.prof\n");
+	fprintf(stderr, "Can't write to %s\n", prof_file);
 	return;
     }
 
+    sysMonitorEnter(_heap_lock);
     java_mon_dump_to_file(fp);
     prof_heap(fp);
+    sysMonitorExit(_heap_lock);
     fclose(fp);
 }
+
+/* javai_g.dll10039D08/10039D39/10039D4E/10039D7A. */
+void sun_misc_VM_resumeJavaMonitor(void *unused)
+{
+    sysMonitorEnter(_heap_lock);
+    if (!javamon_table) javamon(1); else java_monitor = 1;
+    sysMonitorExit(_heap_lock);
+}
+void sun_misc_VM_suspendJavaMonitor(void *unused)
+{ java_monitor = 0; }
+void sun_misc_VM_resetJavaMonitor(void *unused)
+{
+    int enabled;
+    sysMonitorEnter(_heap_lock);
+    enabled = java_monitor;
+    if (javamon_table) sysFree(javamon_table);
+    javamon(1);
+    java_monitor = enabled;
+    sysMonitorExit(_heap_lock);
+}
+void sun_misc_VM_writeJavaMonitorReport(void *unused)
+{ java_mon_dump(); }

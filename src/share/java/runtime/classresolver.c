@@ -683,6 +683,10 @@ unlock_classes()
     sysMonitorExit(_class_lock);
 }
 
+/* Sun10002EB2 queries ownership, not the process-wide depth counter. */
+int JDB_loadclass_locked(void)
+{ return _class_lock && sysMonitorEntered(_class_lock); }
+
 static ClassClass *
 Locked_FindClassFromClass(struct execenv *ee, char *name, bool_t resolve, ClassClass *from)
 {

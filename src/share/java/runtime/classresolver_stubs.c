@@ -79,6 +79,12 @@ int sysMonitorSizeof()
     return 1;
 }
 
+/* Standalone classfile tools have no runtime monitor ownership. */
+bool_t sysMonitorEntered(sys_mon_t *monitor)
+{
+    return 0;
+}
+
 
 
 /* Verify that current_class can a field of new_class, where that field's 

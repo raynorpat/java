@@ -1,4 +1,5 @@
 #include "sys_api.h"
+static long (*dynamic_link_signature)(char *) = sysDynamicLink;
 #include <stddef.h>
 #include "java_lang_Thread.h"
 #include "java_lang_ThreadGroup.h"
@@ -10,6 +11,7 @@ typedef char group_threads_offset[offsetof(Classjava_lang_ThreadGroup, nthreads)
  * This object is not linked; runtime regressions are covered by the VM tests. */
 int hpi_signatures(sys_thread_t **thread, void *cookie, sys_mon_t *monitor)
 {
+    long symbol = sysDynamicLink("hpi_signature_probe");
     int result = sysThreadBootstrap(thread, cookie);
     if (result != SYS_OK)
         return result;

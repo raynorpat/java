@@ -249,7 +249,7 @@ long get_nbinclasses(void);
 
 /* gc.c */
 
-void InitializeAlloc(long max, long min);
+int InitializeAlloc(long max, long min);
 HObject *AllocHandle(struct methodtable *, ClassObject *);
 extern struct arrayinfo arrayinfo[];
 extern int64_t TotalObjectMemory(void);

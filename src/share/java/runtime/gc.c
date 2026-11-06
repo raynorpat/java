@@ -51,11 +51,25 @@
 #include "java_lang_Thread.h"
 
 int manageAllocFailure(long n, int overflow_type, int overflow_act);
+void gc(int async_call, unsigned int free_space_goal);
 extern void runFinalization(void);
 
 /* Define this if you want lots of verbose info at runtime */
 #define TRACEGC 1
 int tracegc = 0;
+
+/* Sun 1.1.5 emergency heap barriers, set by the -mr/-my launcher options. */
+long barriersize_red;
+long barriersize_yellow;
+static HObject *reserve_red, *reserve_yellow;
+static int alloc_state = 1;
+static int allocating_reserve;
+static unsigned long reclaim_generation;
+static void tryLowerAllocState(unsigned long);
+static void notifyAllocState(int, int);
+static void releaseReserve(HObject **);
+extern int threadSuspendSuspendables(void);
+extern void threadSuspendMe(void);
 
 /*
  * Lock against heap modification.
@@ -235,9 +249,18 @@ realObjAlloc(struct methodtable *mptr, long n0)
     HObject *ret;
     int overflow_type = OVERFLOW_NONE;
     int on_overflow = OVERFLOW_ACT_GC;
+    int old_state, new_state, suspend_self = 0;
+    int reserve_request;
+    int state_retry = 1;
+    unsigned long saved_generation;
 
+RetryAfterStateChange:
+    suspend_self = 0;
     n = (n0 + sizeof(hdr) + (OBJECTGRAIN - 1)) & ~(OBJECTGRAIN - 1);
     HEAP_LOCK();
+    reserve_request = allocating_reserve;
+    old_state = alloc_state;
+    saved_generation = reclaim_generation;
     p = opoolhand;
     limit = opoollimit;
     while (1) {
@@ -293,11 +316,12 @@ realObjAlloc(struct methodtable *mptr, long n0)
 
 Overflow:
 	/* Allocation failed for lack of space: garbage collect or expand */
+        if (reserve_request) { HEAP_UNLOCK(); return NULL; }
 	on_overflow = manageAllocFailure(n, overflow_type, on_overflow);
 	if (on_overflow == OVERFLOW_ACT_FAIL) {
 	    /* Tried everything, couldn't satisfy request, so fail */
-	    HEAP_UNLOCK();
-	    return 0;
+            ret = NULL;
+            goto AllocationDone;
 	} else {
 	    /* opoolhand has been reset by GC */
 	    p = opool;
@@ -319,7 +343,19 @@ GotIt:                          /* p points to new object */
     }
 
     heap_memory_changes++;
+AllocationDone:
+    if (reserve_request) { HEAP_UNLOCK(); return ret; }
+    if (alloc_state != 1 && (alloc_state <= old_state || ret || !state_retry))
+        tryLowerAllocState(saved_generation);
+    new_state = alloc_state;
+    if (new_state > old_state) suspend_self = threadSuspendSuspendables();
     HEAP_UNLOCK();
+    if (new_state != old_state) notifyAllocState(old_state, new_state);
+    if (suspend_self) threadSuspendMe();
+    if (new_state > old_state && !ret && state_retry) {
+        state_retry = 0;
+        goto RetryAfterStateChange;
+    }
 	    
     return ret;
 }
@@ -780,6 +816,76 @@ expandObjectSpace(long n, unsigned char *last_free)
  * thing is called with the heap lock, so doesn't have to worry about
  * someone else coming along and allocating or causing another GC.
  */
+static void releaseReserve(HObject **reserve)
+{
+    HObject *object = *reserve;
+    unsigned char *body;
+    if (!object || !unhand(object)) return;
+    body = (unsigned char *)unhand(object) - sizeof(hdr);
+    if (obj_geth(body) & 1) return;
+    FreeObjectCtr += obj_len(body);
+    FreeHandleCtr += sizeof(JHandle);
+    obj_setfree(body);
+    object->obj = NULL;
+    *reserve = NULL;
+}
+
+/* Called under the heap lock; reserve requests never recursively collect. */
+static void tryLowerAllocState(unsigned long saved_generation)
+{
+    if (saved_generation == reclaim_generation) return;
+    if (alloc_state == 3) {
+        allocating_reserve = 1;
+        reserve_red = ArrayAlloc(12, barriersize_red);
+        allocating_reserve = 0;
+        if (!reserve_red) return;
+        alloc_state = barriersize_yellow ? 2 : 1;
+        if (verbosegc) fprintf(stderr, "<GC: allocstate down to %s>\n", alloc_state == 2 ? "Yellow" : "Green");
+    }
+    if (alloc_state == 2) {
+        allocating_reserve = 1;
+        reserve_yellow = ArrayAlloc(13, barriersize_yellow >> 1);
+        allocating_reserve = 0;
+        if (reserve_yellow) {
+            alloc_state = 1;
+            if (verbosegc) fprintf(stderr, "<GC: allocstate down to Green>\n");
+        }
+    }
+}
+
+static void notifyAllocState(int previous, int current)
+{
+    ExecEnv *ee = EE();
+    JavaFrame *frame = ee ? ee->current_frame : NULL;
+    stack_item *saved_top = frame ? frame->optop : NULL;
+    ClassClass *vm;
+#ifdef DEBUG
+    unsigned int saved_debug_flags = ee->debugFlags;
+#endif
+    /* deviation: the old interpreter caches optop. Publish its full operand
+     * area before nested Java callbacks so live operands are neither skipped
+     * by GC nor overwritten by the callback's pseudo-frame. */
+    if (frame && frame->current_method)
+        frame->optop = frame->ostack + frame->current_method->maxstack;
+#ifdef DEBUG
+    /* Match DECACHE_OPTOP: the published frame is authoritative throughout
+     * the nested interpreter invocation; restore the outer cache afterward. */
+    ee->debugFlags &= ~EE_DEBUG_OPTOP_CACHED;
+#endif
+    vm = FindClass(ee, "sun/misc/VM", TRUE);
+    if (vm) execute_java_static_method(ee, vm, "asChange", "(II)V", previous, current);
+    if (frame) frame->optop = saved_top;
+#ifdef DEBUG
+    ee->debugFlags = saved_debug_flags;
+#endif
+}
+
+long sun_misc_VM_getState(void *unused)
+{
+    if (alloc_state != 1) gc(0, ~0U);
+    return alloc_state;
+}
+
 int
 manageAllocFailure(long n, int overflow_type, int overflow_act) {
     int freeObject;
@@ -834,7 +940,7 @@ manageAllocFailure(long n, int overflow_type, int overflow_act) {
 
 	case OVERFLOW_ACT_FINALIZE:
 	    /*
-	     * Objects on the FinalizeMeQ are left to the finalizer thread,
+	     * deviation: objects on FinalizeMeQ are left to the finalizer thread,
 	     * which gc0() has notified.  Running finalizers here, inside an
 	     * allocation, would execute Java code while the interpreter's
 	     * caller still has its operand stack top cached, so a GC during a
@@ -882,6 +988,20 @@ manageAllocFailure(long n, int overflow_type, int overflow_act) {
 	    break;
 
 	case OVERFLOW_ACT_DESPERATE:
+
+            /* Sun 1.1.5 consumes the yellow barrier before the red barrier. */
+            if (alloc_state == 1 && barriersize_yellow != 0) {
+                releaseReserve(&reserve_yellow);
+                alloc_state = 2;
+                if (verbosegc) fprintf(stderr, "<GC: allocstate up to Yellow because of allocation request of %d bytes>\n", n);
+                return OVERFLOW_ACT_GC;
+            }
+            if (alloc_state != 3 && barriersize_red != 0) {
+                releaseReserve(&reserve_red);
+                alloc_state = 3;
+                if (verbosegc) fprintf(stderr, "<GC: allocstate up to Red because of allocation request of %d bytes>\n", n);
+                return OVERFLOW_ACT_GC;
+            }
 	    if (verbosegc) {
 		fprintf(stderr, "<GC: totally out of heap space>\n");
 	    }
@@ -916,13 +1036,27 @@ manageAllocFailure(long n, int overflow_type, int overflow_act) {
     }
 }
 
-void
-markChildren(register JHandle * h, register JHandle * limit)
+/* Sun 1.1.5 bounds recursion at 30 and defers work into 100 fixed cells.
+ * An array stack represents the original cell freelist without allocating
+ * during collection.  Exhaustion requests another complete handle scan. */
+static JHandle *mark_pending[100];
+static int mark_pending_count;
+static int mark_rescan;
+
+static void
+markChildrenDepth(register JHandle * h, register JHandle * limit, int depth)
 {
     register ClassClass *cb;
     register JHandle *sub, *needsmark;
     register ClassObject *p;
     SetLimits();
+    if (depth > 30) {
+        if (mark_pending_count < 100)
+            mark_pending[mark_pending_count++] = h;
+        else
+            mark_rescan = 1;
+        return;
+    }
 ScanNext:
     needsmark = 0;
     p = unhand(h);
@@ -953,7 +1087,7 @@ ScanNext:
 #endif /* TRACEGC */
 			    if (sub < limit) {
 				if (needsmark) {
-				    markChildren(needsmark, limit);
+				    markChildrenDepth(needsmark, limit, depth + 1);
 				}
 				needsmark = sub;
 			    }
@@ -981,7 +1115,7 @@ ScanNext:
 #endif /* TRACEGC */
 		    if (sub < limit) {
 			if (needsmark) {
-			    markChildren(needsmark, limit);
+			    markChildrenDepth(needsmark, limit, depth + 1);
 			}
 			needsmark = sub;
 		    }
@@ -999,6 +1133,14 @@ ScanNext:
 #endif /* TRACEGC */
 }
 
+void
+markChildren(JHandle *h, JHandle *limit)
+{
+    do {
+        markChildrenDepth(h, limit, 0);
+        h = mark_pending_count ? mark_pending[--mark_pending_count] : 0;
+    } while (h);
+}
 
 static int
 scanThread(sys_thread_t *t, void *arg)
@@ -1316,18 +1458,21 @@ scanHandles(void)
     SetLimits();
     JHandle *hp;
 
-    hp = (JHandle *) hpool;
-    while ((unsigned char *) hp <= hpmax) {
-        if (hp->obj) {
-	    if (ValidObject(hp->obj) && IsMarked(hp->obj)) {
-		MarkPtr((JHandle *) hp, HardMark);
-	    }
-	    if (IsMarked(hp)) {
-		markChildren(hp, hp + 1);
-	    }
+    do {
+        mark_rescan = 0;
+        hp = (JHandle *) hpool;
+        while ((unsigned char *) hp <= hpmax) {
+            if (hp->obj) {
+                if (ValidObject(hp->obj) && IsMarked(hp->obj)) {
+                    MarkPtr((JHandle *) hp, HardMark);
+                }
+                if (IsMarked(hp)) {
+                    markChildren(hp, hp + 1);
+                }
+            }
+            hp++;
         }
-        hp++;
-    }
+    } while (mark_rescan);
 }
 
 /*
@@ -1398,6 +1543,8 @@ prepareFinalization(void)
 	    markChildren(hp, (JHandle *) hpmax);
 	}
     }
+    if (mark_rescan)
+        scanHandles();
 }
 
 /*
@@ -1433,6 +1580,7 @@ freeSweep(unsigned int free_space_goal)
 		obj_len((char *) hp->obj - sizeof(hdr)) - sizeof(hdr));
 #endif /* DEBUG */
 	    FreeObjectCtr += obj_len((char *) hp->obj - sizeof(hdr));
+            reclaim_generation++;
 	    sysAssert(FreeObjectCtr <= TotalObjectCtr);
 	    if (verbosegc) {
 	        nfreed++;
@@ -1761,6 +1909,8 @@ gc0_locked(int async_call, unsigned int free_space_goal)
 
     MARK(GCTHREAD);
     scanThreads();
+    markJNIRoot(reserve_red);
+    markJNIRoot(reserve_yellow);
     /* Reconstructed: Sun scanStringTable marks interned strings strongly. */
     {
         extern struct StrIDhash *stringHash;
@@ -1882,9 +2032,18 @@ gc0(int async_call, unsigned int free_space_goal)
 void
 gc(int async_call, unsigned int free_space_goal)
 {
+    int old_state, new_state, suspend_self = 0;
+    unsigned long saved_generation;
     HEAP_LOCK();
+    old_state = alloc_state;
+    saved_generation = reclaim_generation;
     (void) gc0(async_call, free_space_goal);
+    if (alloc_state != 1) tryLowerAllocState(saved_generation);
+    new_state = alloc_state;
+    if (new_state > old_state) suspend_self = threadSuspendSuspendables();
     HEAP_UNLOCK();
+    if (new_state != old_state) notifyAllocState(old_state, new_state);
+    if (suspend_self) threadSuspendMe();
 }
 
 /*
@@ -1989,21 +2148,15 @@ InitializeGC(int max, int min)
 
 #define BACKOFF_FACTOR 0.75
 
-void
+int
 InitializeAlloc(long max_request, long min_request)
 {
     long max, min;
-
-    /*
-     * Sanity check the initial requests: enforce constraint that
-     * max_request >= min_request.  For backward compatibility, min_request
-     * overrides max_request.  REMIND: this still allows us to try to start
-     * up with ridiculous values, but enforcing reasonable values is
-     * machine-dependent and must be done elsewhere.
-     */
-    if (max_request < min_request) {
-	max_request = min_request;
-    }
+    if (barriersize_red < 0 || barriersize_yellow < 0 ||
+        min_request > max_request - barriersize_red ||
+        min_request + barriersize_red > max_request - barriersize_yellow)
+        return 0;
+    min_request += barriersize_red + barriersize_yellow;
 
     /*
      * Allocate the initial heap memory.  In the abstract we first map
@@ -2097,6 +2250,15 @@ InitializeAlloc(long max_request, long min_request)
     _heap_lock = (sys_mon_t *) sysMalloc(sysMonitorSizeof());
     memset((char *) _heap_lock, 0, sysMonitorSizeof());
     HEAP_LOCK_INIT();
+    alloc_state = 1;
+    reclaim_generation = 0;
+    allocating_reserve = 1;
+    if (barriersize_red) reserve_red = ArrayAlloc(12, barriersize_red);
+    if (barriersize_yellow) reserve_yellow = ArrayAlloc(13, barriersize_yellow >> 1);
+    allocating_reserve = 0;
+    if ((barriersize_red && !reserve_red) || (barriersize_yellow && !reserve_yellow))
+        out_of_memory();
+    return 1;
 }
 
 
@@ -2150,6 +2312,8 @@ struct arrayinfo arrayinfo[] = {
     { T_SHORT,      SIGNATURE_SHORT,	"short[]",      sizeof(short)},
     { T_INT,        SIGNATURE_INT,	"int[]",        sizeof(int)},
     { T_LONG,       SIGNATURE_LONG,	"long[]",       sizeof(int64_t)},
+    { 12,           SIGNATURE_BYTE,     "ubyte[]", sizeof(char)},
+    { 13,           SIGNATURE_SHORT,    "ushort[]", sizeof(short)},
 #ifdef NO_LONGER_SUPPORTED
     { T_UBYTE,      SIGNATURE_BYTE,	"ubyte[]",      sizeof(char)},
     { T_USHORT,     SIGNATURE_SHORT,	"ushort[]",     sizeof(unsigned short)},

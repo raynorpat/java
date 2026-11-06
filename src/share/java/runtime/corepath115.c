@@ -6,6 +6,7 @@
 #include "interpreter.h"
 #include "javaString.h"
 #include "sys_api.h"
+#include "path_md.h"
 #ifdef XP_PC
 #include <windows.h>
 #define CANON_SIZE 260
@@ -92,13 +93,24 @@ static int canonical_path(char *path, char *result)
 #endif
 }
 
+int sysCanonicalPath(char *path, char *result, int result_len)
+{
+    char canonical[CANON_SIZE];
+    size_t length;
+    if (result_len <= 0 || canonical_path(path, canonical) < 0) return -1;
+    length = strlen(canonical);
+    if (length >= (size_t)result_len) return -1;
+    memcpy(result, canonical, length + 1);
+    return 0;
+}
+
 HString *java_io_File_canonPath(HObject *self, HString *name)
 {
     char *path, result[CANON_SIZE];
     int status;
     path = allocCString(name);
     if (!path) return NULL;
-    status = canonical_path(sysNativePath(path), result);
+    status = sysCanonicalPath(sysNativePath(path), result, sizeof(result));
     sysFree(path);
     if (status < 0) { SignalError(0, "java/io/IOException", "bad path error"); return NULL; }
     return makeJavaString(result, strlen(result));

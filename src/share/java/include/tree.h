@@ -1,20 +1,23 @@
 /*
- * @(#)tree.h	1.21 95/05/21 James Gosling
- *
- * Copyright (c) 1994 Sun Microsystems, Inc. All Rights Reserved.
- *
- * Permission to use, copy, modify, and distribute this software
- * and its documentation for NON-COMMERCIAL purposes and without
- * fee is hereby granted provided that this copyright notice
- * appears in all copies. Please refer to the file "copyright.html"
- * for further important copyright and licensing information.
- *
- * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF
- * THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
- * TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR
- * ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR
- * DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
+ * @(#)tree.h	1.27 96/11/23
+ * 
+ * Copyright (c) 1995, 1996 Sun Microsystems, Inc. All Rights Reserved.
+ * 
+ * This software is the confidential and proprietary information of Sun
+ * Microsystems, Inc. ("Confidential Information").  You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Sun.
+ * 
+ * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+ * SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
+ * SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+ * THIS SOFTWARE OR ITS DERIVATIVES.
+ * 
+ * CopyrightVersion 1.1_beta
+ * 
  */
 
 /*
@@ -31,13 +34,6 @@ extern int   SkipSourceChecks;
 extern char *progname;
 extern ClassClass **binclasses;
 extern long nbinclasses, sizebinclasses;
-extern int verbose;
-extern int verbosegc;
-extern int verifyclasses;
-extern int noasyncgc;
-
-extern int ImportAcceptable;
-extern int InhibitExecute;
 
 /* User specifiable attributes */
 #define ACC_PUBLIC            0x0001    /* visible to everyone */
@@ -46,13 +42,13 @@ extern int InhibitExecute;
 #define ACC_STATIC            0x0008    /* instance variable is static */
 #define ACC_FINAL             0x0010    /* no further subclassing, overriding */
 #define ACC_SYNCHRONIZED      0x0020    /* wrap method call in monitor lock */
-#define ACC_SUPER             0x0020    /* new 1.0.2 handling of invokenonvirtual/invokespecial. 
-                                           See section 4.1 of Java VM Spec */
+#define ACC_SUPER             0x0020    /* funky handling of invokespecial */
 #define ACC_THREADSAFE        0x0040    /* can cache in registers */
 #define ACC_TRANSIENT         0x0080    /* not persistant */
 #define ACC_NATIVE            0x0100    /* implemented in C */
 #define ACC_INTERFACE         0x0200    /* class is an interface */
 #define ACC_ABSTRACT	      0x0400	/* no definition provided */
+#define ACC_XXUNUSED1         0x0800    /*  */
 
 #define ACC_WRITTEN_FLAGS     0x0FFF    /* flags actually put in .class file */
 

@@ -1,6 +1,13 @@
 # Runtime ABI export audit
 
 Primary source: vendor/jdk1.1.5/bin/javai_g.dll, IDA instance1493265a537f.
+The full Debug export manifest is tools/exports-sun115-debug.txt, captured from
+idautils.Entries():287 actual exports. IDA also lists the PE startup entry
+DllEntryPoint with ordinal equal to its address268842176; that non-export is
+excluded. Comparing all names against the286-name Release manifest shows one
+Debug-only entry, `_set_debugger_hooks@12` (ordinal274, address10002980), and no
+Release-only entries. Configuration-specific gates must use these separate
+manifests; the expected set is not the reconstructed DLL's current exports.
 The missing-name list in out/tests-win.log was compared against
 tools/exports-sun115.txt and current definitions. Existing global runtime
 functions are exposed through javai.def. ProcedureFindThrowTag's internal
@@ -18,7 +25,7 @@ New exports115.c helpers:
 - Win32 sleep1004D3DC calls Sleep(seconds*1000) and returns0. POSIX supplies its
   existing libc sleep implementation.
 
-Recovered but intentionally NOT supplied as placeholders:
+Recovered native entry points:
 
 | Operation | Evidence |
 | --- | --- |
@@ -33,17 +40,47 @@ Recovered but intentionally NOT supplied as placeholders:
 | VM.resumeJavaMonitor / suspendJavaMonitor | 10039D08 / 10039D39 |
 | VM.resetJavaMonitor / writeJavaMonitorReport | 10039D4E / 10039D7A |
 
-Debugger integration needs a native breakpoint table connected to interpreter
-dispatch, quickening, and thread stepping. Current BREAKPTS-disabled builds
-treat breakpoint opcode as nop; merely exporting a table setter would not
-implement debugger support. The older enabled path instead uses Java
-BreakpointHandler storage. JDB lock queries must reflect actual monitor
-ownership, not the global class_lock_depth counter.
+breakpoints115.c now implements the native table and hook callbacks. Debug
+interpreter dispatch, quickening, exception notification, and single stepping
+use that implementation rather than the older Java BreakpointHandler storage.
+Sun10002980 registers step/breakpoint/exception hooks;10002C80 dispatches saved
+opcodes and detects phantom breakpoints;10002D39 preserves rewritten opcodes.
+JDB lock queries use actual monitor ownership. The coordinated debugger lock
+maps to current class/heap/finalizer/thread/cache/registry/code locks; the current
+heap lock also protects strings/JNI. Sun's separate exit and allocator locks
+have no counterparts, so this remains a documented synchronization mapping.
 
-Profiler helpers can map to profiler.c's real table, but reset/resume must
-coordinate with active writers before freeing the table. VM GC-state and
+Release differs from Debug: explicitly opened javai.dll instance09acfa8fc72a
+shows get_opcode10002320 returning the byte and set_breakpoint10002330,
+clear_breakpoint10002340, set_single_step_thread10002350 as empty functions.
+Those Release no-ops are direct binary behavior, not substitute implementations.
+The harness ignores their unspecified return registers.
+
+Debug115 invokes a real Java target while its first bytecode is patched, checks
+restoration and error types, and tests debugger class-lock ownership. The same
+JNI harness runs on Sun using its methodblock.code offset24, verified at1001864C;
+the current VM uses offsetof(methodblock,code). Actual Sun Release exits0 with
+false/true/true/false/false/true; actual Sun Debug exits0 with all six true, both
+with empty stderr. Debug115.expected and Debug115-debug.expected are captured
+separately. Sun java_g inserts _g into the explicitly loaded library filename,
+so capture needs an identical debug115_g.dll copy.
+
+Profiler helpers now operate on profiler.c's real table. Heap-lock protection
+coordinates reset/resume with active writers and report traversal instead of
+Sun's separate profiling lock. Profiler115 verifies the report contains the
+native suspend call and reset removes it. It calls System.exit because Sun's
+sun.misc.VM initializes non-daemon notification threads. The reconstructed
+Windows Debug VM exits0 and exactly matches normalized oracle output.
+VM GC-state and
 thread-suspension routines require deeper migration of policy/suspension state.
 Fixed green/false values or empty functions would not reconstruct these APIs.
+
+Release DumpThreads/DumpMonitors now compile their real existing diagnostic
+implementations. The stack dump prints each current frame before advancing;
+the former DEBUG-only code advanced first and could dereference a null frame.
+jio_printf1004E364 and jio_fprintf1004E3A4 delegate to jio_vfprintf1004E3DE, which
+uses an embedding callback or libc vfprintf. The callback is JNICALL as required
+by JDK1_1InitArgs. Local stdio macros are undefined around the libc fallback.
 
 Legacy extra native adapters currently support the old class-library baseline.
 Before hiding them from the DLL export table, introduce a built-in native-name

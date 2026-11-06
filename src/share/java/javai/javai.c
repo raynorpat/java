@@ -40,6 +40,7 @@
 #include "installpath.h"
 #include "bool.h"
 #include "jio.h"
+#include "jni.h"
 
 #ifndef NATIVE
 #include "iomgr.h"
@@ -74,7 +75,7 @@ extern int verbose_class_loading;
 extern void _java_lang_init(void);
 
 extern Hjava_lang_Thread *InitializeClassThread(ExecEnv *ee, char **);
-extern void InitializeAlloc(long max, long min);
+extern int InitializeAlloc(long max, long min);
 #ifndef NATIVE
 extern void InitializeSbrk(void);
 #endif /* NATIVE */
@@ -257,7 +258,7 @@ int java_initialize_runtime(ExecEnv *ee, int MinHeapSize, int MaxHeapSize)
 #ifdef USE_MALLOC
     MinHeapSize = MaxHeapSize;
 #endif /* USE_MALLOC */
-    InitializeAlloc(MaxHeapSize, MinHeapSize);
+    if (!InitializeAlloc(MaxHeapSize, MinHeapSize)) return 1;
     InitializeInterpreter();	/* Call before InitializeClassThread() */
 
     self = InitializeClassThread(ee, &errmsg);
@@ -305,377 +306,6 @@ int java_initialize_runtime(ExecEnv *ee, int MinHeapSize, int MaxHeapSize)
     return 0;
 }
 
-/*
-** Start an execution environment based on the arguments
-** provided in argv
-** ( called by start_java or set_argfile_opts, which is called by start_java )
-*/
-static int start_exec_env(int argc, char** argv) 
-{
-    int MinHeapSize = MINHEAPSIZE;
-    int MaxHeapSize = MAXHEAPSIZE;
-	long T;
-    Hjava_lang_Thread *self;
-    int on_exit(void (*)(), void *);
-	struct methodblock *mb = 0;
-	extern int noasyncgc;
-	extern int tracegc;
-	long debugport = 0L;
-    ExecEnv ee;
-	char * errmsg;
-
-    char *sourcefile = 0;
-    char **args = argv;
-    char **dargv = argv;
-
-    verifyclasses = VERIFY_REMOTE; /* we've decided this is the default */
-    while (--argc > 0)
-	if ((++argv)[0][0] == '-' && sourcefile == 0)
-#ifdef TRACING
-	    if (strcmp(*argv, "-t") == 0)
-		trace++;
-	    else if (strcmp(*argv, "-tm") == 0)
-		tracem++;
-	    else
-#endif
-#ifdef MONITOR
-	    if (strcmp(*argv, "-m") == 0) {
-    		MonitorSetup();
-	    }
-	    else
-#endif	    
-            if (strcmp(*argv, "-v") == 0 || strcmp(*argv, "-verbose") == 0)
-		verbose++;
-	    else if (strcmp(*argv, "-debug") == 0)
-		debugagent++;
-	    else if (strncmp(*argv, "-debugport", 10) == 0 &&
-		     (T = atomi(&argv[0][10])) >= 0)
-		debugport = T;
-	    else if (strcmp(*argv, "-noasyncgc") == 0)
-		noasyncgc++;
-	    else if (strcmp(*argv, "-verbosegc") == 0)
-		verbosegc++;
-	    else if (strcmp(*argv, "-verbosecl") == 0)
-		verbose_class_loading++;
-	    else if (strcmp(*argv, "-verify") == 0)
-		verifyclasses = VERIFY_ALL;
-            else if (strcmp(*argv, "-verifyremote") == 0)
-		verifyclasses = VERIFY_REMOTE;
-            else if (strcmp(*argv, "-noverify") == 0)
-		verifyclasses = VERIFY_NONE;
-	    else if (strcmp(*argv, "-tracegc") == 0)
-		tracegc++;
-	    else if (strcmp(*argv, "-prof") == 0) {
-		extern void javamon(int i);
-		sysAtexit(java_mon_dump);
-		javamon(1);
-	    } else if (strcmp(*argv, "-cs") == 0 || 
-		     strcmp(*argv, "-checksource") == 0)
-		SkipSourceChecks = 0;
-	    else if (strncmp(*argv, "-ss", 3) == 0 &&
-		     (T = atomi(&argv[0][3])) > 1000)
-		ProcStackSize = T;
-	    else if (strncmp(*argv, "-oss", 3) == 0 &&
-		     (T = atomi(&argv[0][3])) > 1000)
-		JavaStackSize = T;
-	    else if (strncmp(*argv, "-ms", 3) == 0 &&
-		     (T = atomi(&argv[0][3])) > 1000)
-		MinHeapSize = T;
-	    else if (strncmp(*argv, "-mx", 3) == 0 &&
-		     (T = atomi(&argv[0][3])) > 1000)
-		MaxHeapSize = T;
-            else if (strncmp(*argv, "-D", 2) == 0)
-		add_user_prop(*argv + 2);
-#ifdef LOGGING
-	    else if (strncmp(*argv, "-l", 2) == 0 &&
-		     (T = atomi(&argv[0][2])) >= 0)
-		logging_level = T;
-#endif
-	    else if (strncmp(*argv, "-classpath", 10) == 0) {
-		if (argc > 1) {
-		    char *buf = (char *)malloc(strlen(argv[1]) + 32);
-		    sprintf(buf, "CLASSPATH=%s", argv[1]);
-		    putenv(buf);
-		    argc--; argv++;
-		} else {
-		    fprintf(stderr,
-			    "-classpath requires class path specification\n");
-		    usage();
-		    return 1;
-                } 
-	    } else if (strncmp(*argv, "-addpath", 10) == 0) {
-	    	char *cpcurrent = getenv("CLASSPATH");
-	    	if (cpcurrent == NULL)
-			  cpcurrent = "";
-	    		
-			if (argc > 1) {
-			  char *buf = (char *)malloc(strlen(cpcurrent)+strlen(argv[1])+32);
-			  sprintf(buf, "CLASSPATH=%s;%s", getenv("CLASSPATH"), argv[1]);
-			  putenv(buf);
-			  argc--; argv++;
-			} else {
-			  fprintf(stderr,
-					  "+classpath requires class path specification\n");
-			  usage();
-			  return 1;
-			}
-	    } else if (strcmp(*argv, "-h") == 0 || 
-                       strcmp(*argv, "-help") == 0 ||
-		       strncmp(*argv, "?", 1) == 0 || 
-                       strncmp(*argv, "-?", 2) == 0) {
-		usage();
-		return 0;
-            } else if (strcmp(*argv, "-version") == 0) {
-                fprintf(stderr, "%s version \"1.1.5\"\n", progname);
-                return 0;
-	    } else {
-		fprintf(stderr, "%s: illegal argument\n", *argv);
-		usage();
-		return 1;
-	    }
-	else if (sourcefile)
-	    *dargv++ = *argv;
-	else {
-	    sourcefile = *argv;
-	}
-    *dargv = 0;
-
-	/* the rest of the args belong to the java program */
-    if (java_initialize_runtime(&ee, MinHeapSize, MaxHeapSize)) return 1;
-
-    if (sourcefile == 0) {
-	usage();
-	return 1;
-    } if (strchr(sourcefile, '/')) {
-	fprintf(stderr, "Invalid class name: %s\n", sourcefile);
-	usage();
-	return 1;
-    } else {
-	ClassClass *cb;
-	int i, c;
-	char classname[200];
-
-	/* Allow the use of '.' in class names (convert to /) */
-	for (i = 0; i < sizeof classname - 1 && (c = sourcefile[i]) != 0; i++) {
-	    classname[i] = c;
-	    if (c == '.') sourcefile[i] = '/';
-	    if (c == '/') classname[i] = '.';
-	}
-	classname[i] = 0;
-
-	cb = FindClass(&ee, sourcefile, TRUE);
-	if (cb == 0) {
-	    fprintf(stderr, "Can't find class %s\n", classname);
-	    return 1;
-	}
-	cb->flags |= CCF_Sticky;
-
-	if (debugagent) {
-	    ClassClass *agentcb = FindClass(&ee, "sun/tools/debug/Agent", 
-					    TRUE);
-	    if (agentcb == 0) {
-		fprintf(stderr, "Can't find class sun.tools.debug.Agent\n");
-		return 1;
-	    }
-	    execute_java_static_method(0, agentcb, "boot", "(I)V", debugport);
-	}
-
-	/* Finish initialization of the main thread */
-	InitializeMainThread();
-
-	mb = cbMethods(cb);
-	for (i = cb->methods_count; --i >= 0; mb++) {
-	    if ((strcmp(fieldname(&mb->fb), "main") == 0) &&
-		(strncmp(fieldsig(&mb->fb), "([Ljava/lang/String;)", 20) == 0)){
-		
-		if (fieldsig(&mb->fb)[21] == SIGNATURE_VOID)
-		    break;
-		/* If we matched all the way to the return type, and its 
-		 * return type is not SIGNATURE_VOID, then we know there is
-		 * no method match because the compiler would complain about
-		 * duplicate method declaration. */
-		fprintf(stderr, "In class %s: main must return void\n",
-			classname);
-		return 1;
-	    }
-	}
-	if (i < 0) {
-	    fprintf(stderr, "In class %s: void main(String argv[]) is not defined\n",
-		    classname);
-	    return 1;
-	}
-	
-	if ((mb->fb.access & (ACC_STATIC|ACC_PUBLIC))
-	    != (ACC_STATIC|ACC_PUBLIC)) {
-	    fprintf(stderr, "In class %s: main must be public and static\n", classname);
-	    return 1;
-	}
-
-#if !defined(XP_PC) || defined(_WIN32)
-        do_execute_java_method(&ee, cb, 0, 0, mb, TRUE,
-                               (JHandle *)commandLineArguments(dargv - args, args, &ee));
-#else
-        /*
-        ** For 16-bit windows initialize the floating-point system before executing
-        ** the java method.  Restore the previous FP settings after the call...
-        */
-        {
-            LPVOID oldHandler;
-
-            oldHandler = _FPInit(); 
-            do_execute_java_method(&ee, cb, 0, 0, mb, TRUE,
-                                   (JHandle *)commandLineArguments(dargv - args, args, &ee));
-            _FPTerm(oldHandler);
-	}
-#endif
-
-	if (exceptionOccurred(&ee)) {
-	    if (ee.thread && THREAD(ee.thread)->group) {
-		void *t = (void *)ee.exception.exc;
-		exceptionClear(&ee);
-		execute_java_dynamic_method(&ee, (void *)THREAD(ee.thread)->group, 
-		    "uncaughtException", "(Ljava/lang/Thread;Ljava/lang/Throwable;)V", ee.thread, t);
-	    }
-	}
-    }
-
-    /*
-     * The primordial thread is not allowed to exit until all user
-     * threads have exited.  Note that the primordial thread's
-     * resources (e.g. its Java stack) have not been reclaimed at this
-     * point, even though it's got no chance of running again.  The
-     * thread is still on the active thread queue and will be scanned
-     * on GC, so has to be left intact.  This should be revisited.
-     */
-    WaitToDie();
-    {
-        extern void (*sysFinalizersOnExit)(int);
-        if (sysFinalizersOnExit) sysFinalizersOnExit(0);
-    }
-
-#if defined(XP_PC) /* jag, hack hack :) */
-    if( WSACleanup() ) {
-        fprintf(stderr, "error shutting down winsock\n");
-        return 1;
-    }
-#endif
-
-    return 0;
-
-}
-
-/*
-** Reads command line arguments from one or more files.
-** This is a std workaround for the limited command line
-** length on windows
-*/
-static int
-set_argfile_opts(int nfiles, char** files) {
-  char* buf;
-  int bufsize = INITBUFSIZE;
-  int numchars = 0;
-  int begin = 0;
-  char** argv;
-  int argvsize = INITNARGS;
-  int argc = 0;
-  int c;
-  FILE *responseFile;
-  int i, j = 0;
-  int errcode;
-  void * reallocd; /* tmp ptr to memory that has been realloc'd */
-
-  if( !(buf = (char*) malloc( sizeof(char) * bufsize)) ){
-	fprintf(stderr,"Out of memory.\n");
-	return 1;
-  }
-
-  if( !(argv = (char**) malloc( sizeof(char*) * argvsize)) ){
-	free( buf );
-	fprintf(stderr, "Out of memory.\n");
-	return 1;
-  }
-
-  *argv = progname; /* crude but quick: keep argv[0] the same for parsing */
-  argc++;
-
-  while( nfiles-- ) {
-	if( (responseFile = fopen( files[j++],"r")) == NULL ) {
-	  fprintf(stderr, "unable to open argument file %s", argv[1] );
-	  errcode = 1;
-	  goto Fail_Cleanup;
-	  return 1;
-	}
-
-	/* read the entire file into memory */
-	numchars = 0;
-	while( (c = getc(responseFile) ) != EOF ) {
-	  buf[numchars++] = (char) c;
-	  if( numchars >= bufsize ) {
-		bufsize *= 2;
-		if( !(reallocd = realloc( buf, sizeof(char) * bufsize)) ) {
-		  fprintf(stderr,"Out of memory.\n");
-		  errcode = 1;
-		  goto Fail_Cleanup;
-		} else {
-		  buf = (char*) reallocd;
-		}
-	  }
-	}
-
-	/* break into tokens */
-	begin = 0;
-	for( i = 0; i < bufsize; i++) {
-	  if( isspace(buf[i]) ) {
-		buf[i] = (char) NULL;
-		argv[argc++] = strdup(buf + begin);
-		while( i < (bufsize-1) && isspace(buf[i+1]))
-		  buf[++i] = (char) NULL;
-		begin = i + 1;
-		if( argc >= argvsize ) {
-		  argvsize *= 2;
-		  if( !(reallocd = realloc( argv, sizeof(char*) * argvsize)) ) {
-			fprintf(stderr,"Out of memory.\n");
-			errcode = 1;
-			goto Fail_Cleanup;
-		  } else {
-			argv = (char**) reallocd;
-		  }
-		}
-	  }
-	}
-
-	if( fclose( responseFile ) ) {
-	  fprintf(stderr,"error closing response file %s\n", files[j-1]);
-	  errcode = 1;
-	  goto Fail_Cleanup;
-	}
-  }
-
-  if( !(reallocd = realloc( argv,  sizeof(char*) * argc)) ) {
-	/* this should never happen, really */
-	fprintf(stderr,"Out of memory.\n");
-	errcode = 1;
-	goto Fail_Cleanup;
-  } else {
-	argv = (char**) reallocd;
-  }
-
-  free(buf); buf = NULL; 
-  errcode = start_exec_env( argc, argv );
-Fail_Cleanup:
-  if ( buf ) { /* we got here due to error in this proc, before start_exec_env */
-	free( buf );
-  }
-  if( errcode ) { /* free stuff that the GC would have gotten */
-	for( i = 1; i < argc; i++ ) { /* argv[0] points to the real argv! */
-	  free( argv[i] );
-	}
-  }
-  free( argv ); /* this isn't really argv -- see above */
-  return errcode;
-}
-
-
 int java_initialize_platform(void)
 {
 #if defined(XP_PC) /* jag, hack hack :) */
@@ -708,47 +338,149 @@ int java_initialize_platform(void)
     return 0;
 }
 
+/* javai_g.dll 100012d5: the public launcher uses the invocation API. */
 JAVA_PUBLIC_API(int)
-start_java(int argc, char **argv)
+java_main(int argc, char **argv)
 {
-	int ret = 0;
+    JDK1_1InitArgs init;
+    JavaVM *vm;
+    JNIEnv *env;
+    ExecEnv *ee;
+    ClassClass *cb, *owner;
+    struct methodblock *main_method = NULL;
+    HArrayOfString *arguments;
+    const char *main_error = "void main(String argv[]) is not defined";
+    char *class_name, *p, *default_path;
+    const char *user_path = getenv("CLASSPATH");
+    int i, result = 0, profiling = 0;
+    long size;
+    extern int tracegc;
+    extern char *prof_file;
+    extern long barriersize_red, barriersize_yellow;
 
-    if (java_initialize_platform()) return 1;
-
-#ifdef DEBUG
-/*    on_exit(PrintStats, 0); */
+    JNI_GetDefaultJavaVMInitArgs(&init);
+    if (!user_path) user_path = ".";
+    default_path = malloc(strlen(user_path) + strlen(init.classpath) + 2);
+    if (!default_path) return 1;
+    sprintf(default_path, "%s%c%s", user_path, PATH_SEPARATOR, init.classpath);
+    init.classpath = default_path;
+    progname = strrchr(argv[0], LOCAL_DIR_SEPARATOR);
+    progname = progname ? progname + 1 : argv[0];
+    while (--argc > 0 && (*++argv)[0] == '-') {
+        p = *argv;
+#ifdef TRACING
+        if (!strcmp(p, "-t")) trace++;
+        else if (!strcmp(p, "-tm")) tracem++;
+        else
 #endif
-    {   /* assume -cs if executed as "java"
-	   rather than "java" [DOES THIS MAKE SENSE ANY MORE??? */
-	char *p = &argv[0][strlen(argv[0]) - 1];
-	if (p[0] == 'g' && p[-1] == '_')
-	    p -= 2;
-	if (p[0] != 'k')
-	    SkipSourceChecks = 1;
+        if (!strcmp(p, "-v") || !strcmp(p, "-verbose")) init.verbose = 1;
+        else if (!strcmp(p, "-debug")) init.debugging = 1;
+        else if (!strcmp(p, "-noagent")) init.debugPort = -1;
+        else if (!strcmp(p, "-debugport") || !strcmp(p, "-classpath")) {
+            if (argc <= 1) {
+                fprintf(stderr, "%s\n", !strcmp(p, "-classpath") ?
+                        "-classpath requires class path specification" :
+                        "-debugport requires port number");
+                usage(); return 1;
+            }
+            if (!strcmp(p, "-classpath")) init.classpath = argv[1];
+            else init.debugPort = atol(argv[1]);
+            argc--; argv++;
+        } else if (!strcmp(p, "-noasyncgc")) init.disableAsyncGC = 1;
+        else if (!strcmp(p, "-verbosegc")) init.enableVerboseGC = 1;
+        else if (!strcmp(p, "-noclassgc")) init.enableClassGC = 0;
+        else if (!strcmp(p, "-verify")) init.verifyMode = VERIFY_ALL;
+        else if (!strcmp(p, "-verifyremote")) init.verifyMode = VERIFY_REMOTE;
+        else if (!strcmp(p, "-noverify")) init.verifyMode = VERIFY_NONE;
+        else if (!strcmp(p, "-tracegc")) tracegc++;
+        else if (!strcmp(p, "-prof")) { profiling = 1; init.enableClassGC = 0; }
+        else if (!strncmp(p, "-prof:", 6) && p[6]) {
+            prof_file = p + 6; profiling = 1; init.enableClassGC = 0;
+        }
+        else if (!strncmp(p, "-ss", 3)) {
+            if ((size = atomi(p + 3)) >= 1000) init.nativeStackSize = size;
+        } else if (!strncmp(p, "-oss", 4)) {
+            if ((size = atomi(p + 4)) >= 1000) init.javaStackSize = size;
+        } else if (!strncmp(p, "-ms", 3)) {
+            if ((size = atomi(p + 3)) >= 1000) init.minHeapSize = size;
+        } else if (!strncmp(p, "-mx", 3)) {
+            if ((size = atomi(p + 3)) >= 1000) init.maxHeapSize = size;
+        } else if (!strncmp(p, "-mr", 3)) {
+            if ((size = atomi(p + 3)) > 0) barriersize_red = size;
+        } else if (!strncmp(p, "-my", 3)) {
+            if ((size = atomi(p + 3)) > 0) barriersize_yellow = size;
+        } else if (!strncmp(p, "-D", 2)) add_user_prop(p + 2);
+#ifdef LOGGING
+        else if (!strncmp(p, "-l", 2)) logging_level = atomi(p + 2);
+#endif
+        else if (!strcmp(p, "-help") || !strcmp(p, "-h") || !strcmp(p, "-?")) {
+            usage(); return 0;
+        } else if (!strcmp(p, "-version") || !strcmp(p, "-fullversion")) {
+            fprintf(stderr, "%s %sversion \"%s\"\n", progname,
+                    !strcmp(p, "-version") ? "" : "full ",
+                    !strcmp(p, "-version") ? "1.1.5" : "JDK1.1.5K");
+            return 0;
+        } else {
+            fprintf(stderr, "%s: illegal argument\n", p);
+            usage(); return 1;
+        }
     }
-
-    /* Store the base of the primordial thread's stack */
-    mainstktop = (stackp_t) &argc;
-
-    if ((progname = strrchr(argv[0], LOCAL_DIR_SEPARATOR)) != 0) {
-	progname++;
-    } else {
-	progname = argv[0];
+    if (argc <= 0) { usage(); return 1; }
+    class_name = *argv++;
+    argc--;
+    if (strchr(class_name, '\\')) {
+        fprintf(stderr, "Invalid class name '%s'\n", class_name);
+        usage(); return 1;
     }
-
-	if( argc >= 2 && strcmp(argv[1],"-argfile") == 0 ) {
-	  if( argc < 3 ) {
-		fprintf(stderr,
-			    "-argfile requires argfile specification\n");
-		usage();
-		return 1;
-	  }
-	  ret = set_argfile_opts( argc - 2, argv + 2 );
-	} else { 
-	  ret = start_exec_env( argc, argv );
-	}
-
-	return ret;
+    for (p = class_name; *p; p++) if (*p == '.') *p = '/';
+    if (JNI_CreateJavaVM(&vm, &env, &init)) { sysExit(1); return 1; }
+    ee = EE();
+    /* deviation: keep the primordial root bound in this live launcher frame. */
+    mainstktop = (stackp_t)&argc;
+    if (profiling) {
+        extern void javamon(int);
+        sysAtexit(java_mon_dump);
+        javamon(1);
+    }
+    cb = FindClass(ee, class_name, TRUE);
+    if (!cb) {
+        fprintf(stderr, "Can't find class %s\n", class_name);
+        sysExit(1); return 1;
+    }
+    cb->flags |= CCF_Sticky;
+    FindClass(ee, JAVAPKG "Compiler", TRUE);
+    for (owner = cb; owner && !main_method;
+         owner = cbSuperclass(owner) ? unhand(cbSuperclass(owner)) : NULL) {
+        for (i = 0; i < owner->methods_count; i++) {
+            struct methodblock *method = &cbMethods(owner)[i];
+            if (strcmp(fieldname(&method->fb), "main") ||
+                strncmp(fieldsig(&method->fb), "([Ljava/lang/String;)", 21)) continue;
+            if (fieldsig(&method->fb)[21] != SIGNATURE_VOID)
+                main_error = "main must return void";
+            else if ((method->fb.access & (ACC_STATIC | ACC_PUBLIC)) != (ACC_STATIC | ACC_PUBLIC))
+                main_error = "main must be public and static";
+            else { main_method = method; main_error = NULL; }
+            goto found_main;
+        }
+    }
+found_main:
+    if (main_error) {
+        fprintf(stderr, "In class %s: %s\n", class_name, main_error);
+        sysExit(1); return 1;
+    }
+    arguments = commandLineArguments(argc, argv, ee);
+    if (!arguments) { sysExit(1); return 1; }
+    do_execute_java_method(ee, cb, NULL, NULL, main_method, TRUE, (JHandle *)arguments);
+    if (exceptionOccurred(ee) && ee->thread && THREAD(ee->thread)->group) {
+        JHandle *error = ee->exception.exc;
+        exceptionClear(ee);
+        execute_java_dynamic_method(ee, (HObject *)THREAD(ee->thread)->group,
+            "uncaughtException", "(Ljava/lang/Thread;Ljava/lang/Throwable;)V", ee->thread, error);
+        result = 1;
+    }
+    WaitToDie();
+    sysExit(result);
+    return result;
 }
 
 void

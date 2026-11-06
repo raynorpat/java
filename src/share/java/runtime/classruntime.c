@@ -282,15 +282,16 @@ invokeAbstractMethod(JHandle *o, struct methodblock *mb, int args_size,
 bool_t
 dynoLink(struct methodblock *mb)
 {
+    extern unsigned char *builtin_native_lookup(const char *);
     char sym[300];
-    void* lib;
     ClassClass *cb = fieldclass(&mb->fb);
     if (cbLoader(cb)) {
 	return 0;
     }
     mangleMethodName(mb, sym, sizeof(sym), "_stub");
-    mb->code = (unsigned char *)sysDynamicLink(sym, &lib);
-    mb->lib = lib;
+    mb->code = builtin_native_lookup(sym);
+    if (mb->code == NULL)
+        mb->code = (unsigned char *)sysDynamicLink(sym);
     return (mb->code != 0);
 }
 

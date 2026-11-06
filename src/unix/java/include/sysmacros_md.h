@@ -31,7 +31,7 @@ typedef struct sys_dir sys_dir_t;
 typedef struct { char *d_name; } sys_dirent_t;
 extern sys_dir_t *sysOpenDir(const char *path);
 extern sys_dirent_t *sysReadDir(sys_dir_t *dir);
-extern void sysCloseDir(sys_dir_t *dir);
+extern int sysCloseDir(sys_dir_t *dir);
 
 #define sysOpen(name,mode,mask)         open(name,mode,mask)
 #define sysRead(fd,buf,n)               read(fd,buf,n)
@@ -42,6 +42,9 @@ extern void sysCloseDir(sys_dir_t *dir);
 #define sysIsAbsolute(path)             (*(path) == '/')
 #define sysUnlink(path)                 unlink(path)
 #define sysStat(path,buf)               stat(path,buf)
+#define sysFStat(fd,buf)                fstat(fd,buf)
+#define sysRename(src,dst)              rename(src,dst)
+#define sysRmdir(path)                  rmdir(path)
 #define sysMkdir(path,mode)             mkdir(path,mode)
 #define sysAccess(path,mode)            access(path,mode)
 

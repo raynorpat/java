@@ -1,0 +1,8 @@
+initial=1
+suspended=false
+yellow
+red
+recovered=1
+suspended=true
+some=true
+all=false

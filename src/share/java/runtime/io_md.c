@@ -184,8 +184,6 @@ int sysWriteFD(Classjava_io_FileDescriptor *fd, char *buf, int32_t nbytes)
 /* XXX long* pbytes probably wrong on OSF1 */
 int sysAvailableFD(Classjava_io_FileDescriptor *fd, long *pbytes)
 {
-    off_t cur, end;
-
     int fdnum = (int) fd->fd - 1;
     if (fdnum == -1) {
 	return 0;
@@ -199,29 +197,7 @@ int sysAvailableFD(Classjava_io_FileDescriptor *fd, long *pbytes)
 	return 0;
     }
 
-#ifdef XP_UNIX
-    {
-	struct stat stbuf;
-	if (fstat(fdnum, &stbuf) >= 0) {
-	    int mode = stbuf.st_mode;
-	    if (S_ISCHR(mode) || S_ISFIFO(mode) || S_ISSOCK(mode)) {
-		if (ioctl(fdnum, FIONREAD, pbytes) >= 0) {
-		    return 1;
-		}
-	    }
-	}
-    }
-#endif
-
-    if ((cur = lseek(fdnum, 0L, SEEK_CUR)) == -1) {
-        return 0;
-    } else if ((end = lseek(fdnum, 0L, SEEK_END)) == -1) {
-        return 0;
-    } else if (lseek(fdnum, cur, SEEK_SET) == -1) {
-        return 0;
-    }
-    *pbytes = end - cur;
-    return 1;
+    return sysAvailable(fdnum, pbytes);
 }
 
 long sysLseekFD(Classjava_io_FileDescriptor *fd, long offset, long whence)

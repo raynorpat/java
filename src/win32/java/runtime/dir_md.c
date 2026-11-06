@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include "sys_api.h"
 
 struct sys_dir {
@@ -47,12 +48,13 @@ sys_dirent_t *sysReadDir(sys_dir_t *dir)
     return &dir->entry;
 }
 
-void sysCloseDir(sys_dir_t *dir)
+int sysCloseDir(sys_dir_t *dir)
 {
     if (dir) {
-	FindClose(dir->handle);
+	if (!FindClose(dir->handle)) { errno = EBADF; return -1; }
 	free(dir);
     }
+    return 0;
 }
 
 /* os.name and os.version, as reported since JDK 1.0. */

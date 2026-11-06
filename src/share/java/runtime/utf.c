@@ -53,7 +53,7 @@
  * buffer for the result.
  */
 
-char *unicode2utf(unicode *unistring, uint32_t length, char *buffer, uint32_t buflength)
+char *unicode2utf(unicode *unistring, int length, char *buffer, int buflength)
 {
     int32_t i;
     unicode *uniptr;
@@ -100,7 +100,7 @@ char *unicode2utf(unicode *unistring, uint32_t length, char *buffer, uint32_t bu
 /* Return the number of characters that would be needed to hold the unicode
  * string in utf.  This INCLUDES the NULL!
  */
-int unicode2utfstrlen(unicode *unistring, uint32_t unilength)
+int unicode2utfstrlen(unicode *unistring, int unilength)
 {
     int result_length = 1;
     
