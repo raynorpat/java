@@ -9,6 +9,11 @@ struct cthread_queue { struct cthread_queue_item *head, *tail; };
 typedef struct mutex { int lock; char *name; } *mutex_t;
 typedef struct condition { int lock; struct cthread_queue queue; char *name; } *condition_t;
 #define cthread_self() (ur_cthread_self()->incarnation)
+cthread_t cthread_fork(void *(*)(void *), void *);
+void cthread_detach(cthread_t);
+void *cthread_join(cthread_t);
+void cthread_yield(void);
+void cthread_exit(void *);
 ur_cthread_t ur_cthread_self(void);
 void spin_lock(int *);
 void cond_broadcast(condition_t);

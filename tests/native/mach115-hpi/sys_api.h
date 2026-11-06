@@ -10,6 +10,9 @@ typedef void *stackp_t;
 sys_thread_t *sysThreadSelf(void);
 int sysThreadAlloc(sys_thread_t **, stackp_t, void *);
 int sysThreadFree(sys_thread_t *);
+int sysThreadCreate(long, unsigned int, void *(*)(void *), sys_thread_t **, void *);
+int sysThreadBootstrap(sys_thread_t **, void *);
+void sysThreadExit(void);
 void sysThreadInit(sys_thread_t *, stackp_t);
 stackp_t sysThreadStackBase(sys_thread_t *);
 void sysThreadSetStackBase(sys_thread_t *, stackp_t);
@@ -22,4 +25,6 @@ int sysMonitorNotifyAll(sys_mon_t *);
 bool_t sysMonitorInUse(sys_mon_t *);
 #define SYS_OK 0
 #define SYS_NOMEM -5
+#define SYS_ERR -1
+#define SYS_NORESOURCE -6
 #endif

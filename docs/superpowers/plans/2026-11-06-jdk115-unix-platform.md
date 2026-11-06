@@ -127,3 +127,14 @@ see evidence. Bootstrap/create/exit, priority, roots and suspension remain open.
 New owner-supplied Solaris1.1.8/16 material is inventoried in
 2026-11-06-solaris118-inventory.md. The owner chose X11 AWT first, then a full
 Solaris reconstruction; Phase3 continues and the 1.1.5 version target stays.
+
+Task 3, startup slice: recovered Create and its startup gate, the C VM portion
+of Bootstrap, and native cthreads Exit. Failed forks clean up; failed Mach
+suspension cancels the callback, releases/joins the child, then frees the
+unpublished record. Foundation/NSThread integration remains with AppKit;
+native Exit avoids the original use-after-free. RED/GREEN lifecycle probes
+cover failures, publication, daemon accounting, argument propagation and
+bootstrap/exit ordering. Strict C89/i386, Windows Debug/Release and external
+SDK-header probes pass. Full Windows Debug110/110, Linux Release98 passed plus
+audio skip. No profiler recurrence in this run. Task3 remains incomplete for
+priority, stack/register roots, suspension/resumption and system-thread setup.

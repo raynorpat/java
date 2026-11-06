@@ -4,6 +4,7 @@
  */
 #include <stdlib.h>
 #include <string.h>
+#include <mach/mach.h>
 #include "sys_api.h"
 #include "cthreads/threads_md.h"
 #include "cthreads/monitor_md.h"
@@ -14,7 +15,71 @@
 extern sys_mon_t *_queue_lock;
 extern int ActiveThreadCount;
 extern int UserThreadCount;
+extern stackp_t mainstktop;
 static sys_thread_t *threads;
+
+/* 5C144B78: the child cannot enter Java until the creator releases this gate. */
+static void *thread_start_func(void *arg)
+{
+    sys_thread_t *t = (sys_thread_t *)arg;
+    if (!mutex_try_lock(&t->start_mutex)) mutex_wait_lock(&t->start_mutex);
+    t->start_mutex.lock = 0;
+    /* Startup rollback releases the child without calling Java. */
+    if (t->start_func == NULL) return NULL;
+    return t->start_func(t->start_arg);
+}
+
+/* 5C144BB4. cthread_fork uses its own stack size; the original ignores size.
+ * Deviation: delay detach until startup succeeds, so a failed suspension can
+ * release and join the unpublished child before freeing its start argument.
+ */
+int sysThreadCreate(long size, unsigned int flags, void *(*func)(void *),
+                    sys_thread_t **result, void *cookie)
+{
+    sys_thread_t *t;
+    thread_t kernel_thread;
+    int objc_thread = 0;
+    (void)size;
+    t = (sys_thread_t *)malloc(sizeof(*t));
+    if (t == NULL) return SYS_NOMEM;
+    memset(t, 0, sizeof(*t));
+    t->cookie = cookie;
+    t->state = SUSPENDED;
+    t->system_thread = flags != 1;
+    t->run_static_initializers = TRUE;
+    if (!mutex_try_lock(&t->start_mutex)) mutex_wait_lock(&t->start_mutex);
+    t->start_func = func;
+    t->start_arg = cookie;
+    t->cthread = cthread_fork(thread_start_func, t);
+    if (t->cthread == NULL) {
+        free(t);
+        return SYS_NORESOURCE;
+    }
+    do {
+        /* DR2 cthread real_thread is at byte4, independently of SDK layout. */
+        memcpy(&kernel_thread, (char *)t->cthread + 4, sizeof(kernel_thread));
+        if (kernel_thread == 0) cthread_yield();
+    } while (kernel_thread == 0);
+    if (thread_suspend(kernel_thread) != 0) {
+        t->start_func = NULL;
+        t->start_mutex.lock = 0;
+        cthread_join(t->cthread);
+        free(t);
+        return SYS_ERR;
+    }
+    t->start_mutex.lock = 0;
+    memcpy((char *)t->cthread + 124, &objc_thread, sizeof(objc_thread));
+    memcpy((char *)t->cthread + 116, &t, sizeof(t));
+    sysMonitorEnter(_queue_lock);
+    ++ActiveThreadCount;
+    t->next = threads;
+    threads = t;
+    if (!t->system_thread) ++UserThreadCount;
+    sysMonitorExit(_queue_lock);
+    cthread_detach(t->cthread);
+    *result = t;
+    return SYS_OK;
+}
 
 int sysThreadAlloc(sys_thread_t **result, stackp_t base, void *cookie)
 {
@@ -40,6 +105,15 @@ int sysThreadAlloc(sys_thread_t **result, stackp_t base, void *cookie)
     sysMonitorExit(_queue_lock);
     *result = t;
     return SYS_OK;
+}
+
+/* 5C144A38, VM portion. Foundation's NSThread initialization belongs to the
+ * later AppKit integration, not this Sun VM's C platform backend. */
+int sysThreadBootstrap(sys_thread_t **result, void *cookie)
+{
+    int status = sysThreadAlloc(result, mainstktop, cookie);
+    if (status == SYS_OK) (*result)->primordial_thread = TRUE;
+    return status;
 }
 
 sys_thread_t *sysThreadSelf(void)
@@ -91,6 +165,15 @@ int sysThreadFree(sys_thread_t *t)
     memcpy((char *)t->cthread + 116, &empty, sizeof(empty));
     free(t);
     return SYS_OK;
+}
+
+/* Native cthreads exit path from 5C144E24. The AppKit-owned NSThread path
+ * belongs to the later Objective-C integration. In particular, do not copy
+ * the original's read of t->cthread after sysThreadFree has released t. */
+void sysThreadExit(void)
+{
+    sysThreadFree(sysThreadSelf());
+    cthread_exit(NULL);
 }
 
 int sysThreadEnumerateOver_unlocked(int (*func)(sys_thread_t *, void *), void *arg)

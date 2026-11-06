@@ -8,12 +8,19 @@
 #include "cthreads/monitor_md.h"
 #include "java_lang_Thread.h"
 #include "monitor_cache.h"
+#include <mach/mach.h>
 
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"line %d: %s\n",__LINE__,#x); exit(1); } } while (0)
 static struct sys_mon queue;
 sys_mon_t *_queue_lock = &queue;
 int ActiveThreadCount, UserThreadCount;
-static struct { unsigned char prefix[116]; void *data; } native[3];
+stackp_t mainstktop;
+static struct native_thread {
+    unsigned int next, real_thread;
+    unsigned char prefix[108];
+    void *data;
+    int reserved, objc;
+} native[3], child;
 static struct ur_cthread current;
 static int locked, enters, fail_alloc, visits, stop_after;
 static int expected_lock = 1;
@@ -23,6 +30,11 @@ static sys_thread_t *dying;
 static int monitor_present, monitor_in_use, join_locked, deleted, notified, freed;
 static int queue_notified;
 static ExecEnv *saved_ee;
+static int creating, fail_fork, fail_suspend, forked, joined, detached, yielded;
+static int started, suspended, force_wait, waited;
+static int exited;
+static sys_thread_t *pending;
+static void *(*child_entry)(void *);
 extern int sysThreadEnumerateOver_unlocked(int (*)(sys_thread_t *, void *), void *);
 
 void *mach_test_malloc(size_t size)
@@ -88,12 +100,76 @@ static int check_removed(sys_thread_t *t, void *arg)
 static void mach_test_free(void *p)
 {
     int count = 0;
+    if (creating) {
+        CHECK(p == pending && ActiveThreadCount == 0 && UserThreadCount == 0);
+        CHECK(!child.data && !detached && (!fail_suspend || joined));
+        CHECK(sysThreadEnumerateOver_unlocked(check_removed, &count) == 0 && !count);
+        ++freed; free(p); return;
+    }
     CHECK(p == dying && !locked && !join_locked && !dying->cacheKey);
     CHECK(dying->next == NULL && sysThreadSelf() == NULL);
     CHECK(sysThreadEnumerateOver_unlocked(check_removed, &count) == 0);
     CHECK(count == ActiveThreadCount);
     ++freed;
     free(p);
+}
+int mutex_try_lock(mutex_t m)
+{
+    if (force_wait) { force_wait = 0; return 0; }
+    if (m->lock) return 0;
+    m->lock = 1; return 1;
+}
+void mutex_wait_lock(mutex_t m)
+{
+    CHECK(!m->lock); ++waited; m->lock = 1;
+}
+cthread_t cthread_fork(void *(*entry)(void *), void *arg)
+{
+    pending = (sys_thread_t *)arg;
+    CHECK(pending->start_mutex.lock && pending->state == SUSPENDED);
+    CHECK(pending->run_static_initializers && !pending->jump_buf_valid);
+    CHECK(!pending->next && !pending->stack_base && !pending->mutex.lock);
+    CHECK(!ActiveThreadCount && !UserThreadCount);
+    ++forked; child_entry = entry;
+    return fail_fork ? NULL : (cthread_t)&child;
+}
+void cthread_yield(void)
+{
+    CHECK(pending->start_mutex.lock && !child.data && !child.real_thread);
+    ++yielded; child.real_thread = 73;
+}
+kern_return_t thread_suspend(thread_t thread)
+{
+    CHECK(thread == 73 && pending->start_mutex.lock && !child.data);
+    CHECK(!ActiveThreadCount && !UserThreadCount && !detached);
+    if (fail_suspend) return 5;
+    suspended = 1; return 0;
+}
+void cthread_detach(cthread_t t)
+{
+    CHECK(t == (cthread_t)&child && suspended && ActiveThreadCount == 1);
+    CHECK(child.data == pending && !child.objc);
+    ++detached;
+}
+void *cthread_join(cthread_t t)
+{
+    CHECK(t == (cthread_t)&child && !suspended && !detached);
+    CHECK(!pending->start_mutex.lock && pending->start_func == NULL);
+    CHECK(child_entry(pending) == NULL && !started);
+    ++joined; return NULL;
+}
+static void *start_java(void *arg)
+{
+    CHECK(arg == pending->cookie && arg == pending->start_arg);
+    CHECK(!pending->start_mutex.lock && child.data == pending);
+    CHECK(ActiveThreadCount == 1 && detached && sysThreadSelf() == pending);
+    ++started; return &child;
+}
+void cthread_exit(void *result)
+{
+    CHECK(result == NULL && sysThreadSelf() == NULL);
+    CHECK(!ActiveThreadCount && !UserThreadCount && !locked && !join_locked);
+    ++exited;
 }
 static int visit(sys_thread_t *t, void *arg)
 {
@@ -112,7 +188,8 @@ int main(void)
     memset(objects, 0, sizeof(objects));
     memset(cookie, 0, sizeof(cookie));
     for (i = 0; i < 3; ++i) cookie[i].obj = &objects[i];
-    CHECK(sizeof(void *) == 4 && sizeof(native[0]) == 120);
+    CHECK(sizeof(void *) == 4 && offsetof(struct native_thread, data) == 116);
+    CHECK(offsetof(struct native_thread, objc) == 124);
     current.incarnation = (cthread_t)&native[0];
     CHECK(sysThreadSelf() == NULL);
     CHECK(sysThreadEnumerateOver(visit, &visits) == 0 && visits == 0);
@@ -187,7 +264,50 @@ int main(void)
     dying = NULL;
     CHECK(ActiveThreadCount == 0 && UserThreadCount == 0 && queue_notified == 4);
     CHECK(sysThreadSelf() == NULL && freed == 5);
-    puts("Mach thread allocation/enumeration/teardown contracts passed");
+    /* Creation is not published until the child is suspended. Failed startup
+     * must neither call Java nor leave an OS thread referring to freed storage. */
+    creating = 1; fail_alloc = 1; out = &initial;
+    CHECK(sysThreadCreate(8192, 1, start_java, &out, NULL) == SYS_NOMEM);
+    CHECK(out == &initial && !forked && freed == 5);
+    fail_alloc = 0; fail_fork = 1;
+    CHECK(sysThreadCreate(8192, 1, start_java, &out, NULL) == SYS_NORESOURCE);
+    CHECK(out == &initial && forked == 1 && freed == 6 && !joined && !started);
+    fail_fork = 0; fail_suspend = 1;
+    CHECK(sysThreadCreate(8192, 1, start_java, &out, NULL) == SYS_ERR);
+    CHECK(out == &initial && forked == 2 && freed == 7 && joined == 1 && !started);
+    CHECK(yielded == 1 && !ActiveThreadCount && !UserThreadCount);
+    fail_suspend = 0;
+    for (i = 0; i < 2; ++i) {
+        memset(&child, 0, sizeof(child)); child.objc = 123;
+        if (i) child.real_thread = 73;
+        joined = detached = started = suspended = 0;
+        force_wait = 1;
+        CHECK(sysThreadCreate(8192, i, start_java, &out, i ? &cookie[i] : NULL) == SYS_OK);
+        CHECK(out == pending && out->state == SUSPENDED && !out->start_mutex.lock);
+        CHECK(out->system_thread == (i == 0) && UserThreadCount == i);
+        CHECK(!started && detached == 1 && !joined && waited == i+1);
+        current.incarnation = (cthread_t)&child;
+        suspended = 0; /* Test-only OS resume; sysThreadResume has its own later probe. */
+        CHECK(child_entry(out) == &child && started == 1);
+        creating = 0; dying = out; saved_ee = NULL; deleted = 0;
+        CHECK(sysThreadFree(out) == SYS_OK);
+        dying = NULL; creating = 1;
+        CHECK(!child.data && !ActiveThreadCount && !UserThreadCount);
+    }
+    creating = 0; fail_alloc = 1; out = &initial;
+    current.incarnation = (cthread_t)&native[0]; mainstktop = &stacks[0];
+    CHECK(sysThreadBootstrap(&out, &cookie[0]) == SYS_NOMEM);
+    CHECK(out == &initial && !sysThreadSelf() && !ActiveThreadCount && !UserThreadCount);
+    fail_alloc = 0;
+    CHECK(sysThreadBootstrap(&out, &cookie[0]) == SYS_OK);
+    CHECK(out == sysThreadSelf() && out->primordial_thread && !out->system_thread);
+    CHECK(out->state == RUNNABLE && out->stack_base == mainstktop);
+    CHECK(out->cookie == &cookie[0] && out->run_static_initializers);
+    dying = out; saved_ee = NULL; deleted = 0;
+    sysThreadExit();
+    dying = NULL;
+    CHECK(exited == 1 && !sysThreadSelf() && !ActiveThreadCount && !UserThreadCount);
+    puts("Mach thread lifecycle contracts passed");
     return 0;
 }
 

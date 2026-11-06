@@ -305,3 +305,47 @@ selfhost reruns passed, followed by a full Linux run with98 passed and the
 expected audio-device skip. This records an unresolved intermittent profiler
 failure, not a fix. Logs: out/phase3-free-{win,linux}-{build,tests}.log and
 out/phase3-free-linux-retest.log. Task3 remains open for the remaining lifecycle.
+
+## Task 3: creation, bootstrap and native exit
+
+Recovered thread_start_func (5C144B78) and sysThreadCreate (5C144BB4): allocate
+the192-byte record, initialize SUSPENDED/system-thread flags, hold the startup
+mutex, fork a child and wait for its Mach thread port at cthread byte4. Suspend
+the child before releasing its gate and publishing TLS (byte116), clearing
+the Objective-C flag (byte124), and registering it under _queue_lock. As in
+the binary, the requested stack size is unused: cthread_fork owns that choice.
+
+Ruling: postpone cthread_detach until successful registration. On fork failure,
+free the unpublished record and return SYS_NORESOURCE. On thread_suspend
+failure, clear the start callback, release the gate, join the child, then free
+the record and return SYS_ERR. The original detaches immediately and retries
+suspension indefinitely; it also fails to check the fork result. The plan
+requires partial-failure cleanup, and joining prevents the child from reading
+a freed startup argument. Cost: a transient suspension error now fails the
+creation attempt instead of retrying forever. The OS contract still must
+ensure that a successful fork eventually publishes its Mach thread port.
+
+Ruling: implement the Sun VM portion of bootstrap (5C144A38) through
+sysThreadAlloc(mainstktop), then mark the record primordial. Foundation's
+NSThread setup and the Objective-C-owned exit path are deferred to AppKit,
+consistent with the approved C VM/Objective-C AWT boundary. Native
+sysThreadExit releases VM state with sysThreadFree, then calls cthread_exit;
+it never reads the freed record as the original does. Cost: Objective-C-owned
+threads still need the later AppKit adapter; this is not full Foundation
+interop and the production Mach backend remains disabled.
+
+The lifecycle probe now covers malloc/fork/suspend failures with unchanged
+result/counts/list/TLS, joining before free, no Java callback on rollback,
+delayed and ready Mach ports, daemon/user accounting, gate release before
+callback, cookie argument/return propagation, bootstrap OOM and stack base,
+and native exit after cleanup. RED: missing Create, Bootstrap and Exit symbols.
+GREEN: strict optimized C89/i386, MSVC Debug/Release, and GNU89/i386 with the
+external SDK's Mach headers and SDK jmp_buf. The SDK run still supplies opaque
+binary-layout cthread records and OS doubles; it does not resolve the SDK's
+known full-record mismatch or prove actual Mach concurrency.
+
+Final suites: Windows Debug110/110; Linux Release98 passed plus the expected
+audio-device skip. No recurrence of the earlier profiler failure in these
+runs; its root cause remains unresolved. Logs:
+out/phase3-create-{win,linux}-{build,tests}.log. Task3 remains open for priority,
+stack/register roots, suspend/resume and remaining system-thread initialization.
