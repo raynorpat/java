@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <ctype.h>
+#include <float.h>	/* DBL_MAX */
 #include "tree.h"
 #include "oobj.h"
 #include "interpreter.h"
@@ -467,6 +468,20 @@ CFieldName(ClassClass* cb, struct fieldblock* fb, int currentSlot, char* buf)
     sprintf(buf, "%s_%s", prefixString, cppname);
 }
 
+/* Spell non-finite values as Inf/-Inf/NaN on every C runtime. */
+static void
+PrintFloatingValue(FILE* f, char* name, double d, char suffix)
+{
+    if (d != d)
+	fprintf(f, "#define %s\tNaN%c\n", name, suffix);
+    else if (d > DBL_MAX)
+	fprintf(f, "#define %s\tInf%c\n", name, suffix);
+    else if (d < -DBL_MAX)
+	fprintf(f, "#define %s\t-Inf%c\n", name, suffix);
+    else
+	fprintf(f, "#define %s\t%g%c\n", name, d, suffix);
+}
+
 void
 PrintKnownValue(FILE* f, char* cfname, struct fieldblock* fb, char* hcname)
 {
@@ -480,7 +495,7 @@ PrintKnownValue(FILE* f, char* cfname, struct fieldblock* fb, char* hcname)
 	Java8 t1;
 	double d;
 	d = GET_DOUBLE(t1, twoword_static_address(fb));
-	fprintf(f, "#define %s\t%gD\n", name, d);
+	PrintFloatingValue(f, name, d, 'D');
     } else if (fb->signature[0] == SIGNATURE_LONG) {
 	Java8 t1;
 	int64_t l;
@@ -489,8 +504,8 @@ PrintKnownValue(FILE* f, char* cfname, struct fieldblock* fb, char* hcname)
 	ll2str(l, buf, buf + sizeof(buf));
 	fprintf(f, "#define %s\t%sLL\n", name, buf);
     } else if (fb->signature[0] == SIGNATURE_FLOAT) {
-	fprintf(f, "#define %s\t%gf\n", name,
-		*normal_static_address(fb));
+	/* The slot holds the float's bits, not an int to convert. */
+	PrintFloatingValue(f, name, *(float *)normal_static_address(fb), 'f');
     } else {
 	fprintf(f, "#define %s\t%dL\n", name,
 		*normal_static_address(fb));

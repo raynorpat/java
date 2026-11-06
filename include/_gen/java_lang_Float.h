@@ -6,11 +6,11 @@
 #define _Included_java_lang_Float
 
 typedef struct Classjava_lang_Float {
-#define java_lang_Float_POSITIVE_INFINITY	-1.9967f
-#define java_lang_Float_NEGATIVE_INFINITY	-1.99671f
-#define java_lang_Float_NaN	-1.9967f
-#define java_lang_Float_MAX_VALUE	-1.9967f
-#define java_lang_Float_MIN_VALUE	-1.9967f
+#define java_lang_Float_POSITIVE_INFINITY	Inff
+#define java_lang_Float_NEGATIVE_INFINITY	-Inff
+#define java_lang_Float_NaN	NaNf
+#define java_lang_Float_MAX_VALUE	3.40282e+38f
+#define java_lang_Float_MIN_VALUE	1.4013e-45f
     float value;
 } Classjava_lang_Float;
 HandleTo(java_lang_Float);
