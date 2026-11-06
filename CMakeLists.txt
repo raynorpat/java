@@ -58,7 +58,7 @@ function(prefixed out dir)
   set(${out} ${r} PARENT_SCOPE)
 endfunction()
 
-# --- VM runtime DLL. javai.c loads it by this name to resolve native stubs. ---
+# --- VM runtime DLL (javai.dll). javai.c loads it by name to resolve native stubs. ---
 prefixed(runtime_sources runtime agent jrijdk class date debug globals io math
   object opnames profiler runtime security string stubs system thread threads
   utf util zip classinitialize classresolver common_exceptions threadruntime
@@ -68,14 +68,8 @@ prefixed(md_sources md car_md gc_md io_md link_md math_md misc_md mon_md path_md
   ionet_md stubs_md trace_md agentthread compiler_md process_md properties_md
   socket_md system_md thread_md)
 
-# The original .def names the DLL jrt32301.dll; drop that line so the name follows the target.
-file(READ nsjava/nsjava32.def def)
-string(REGEX REPLACE "LIBRARY[^\n]*\n" "" def "${def}")
-file(WRITE "${gen}/javai.def" "${def}")
-
-add_library(javai SHARED nsjava/nsjava.c java/javai.c ${runtime_sources}
-  ${md_sources} "${gen}/javai.def")
-set_target_properties(javai PROPERTIES OUTPUT_NAME jrt3230)
+add_library(javai SHARED java/javai.c java/javai_dll.c ${runtime_sources}
+  ${md_sources} java/javai.def)
 add_dependencies(javai nspr_headers)
 target_link_libraries(javai nspr wsock32 winmm user32 advapi32)
 
@@ -97,7 +91,7 @@ endforeach()
 
 # --- Smoke tests (ctest -C Release). Classes are prebuilt with JDK 1.1.5 javac (class file 45.3). ---
 enable_testing()
-configure_file(classsrc/java_3.02.win "${CMAKE_BINARY_DIR}/classes.zip" COPYONLY)
+configure_file(classsrc/classes.zip "${CMAKE_BINARY_DIR}/classes.zip" COPYONLY)
 set(test_cp "${CMAKE_SOURCE_DIR}/tests/smoke;${CMAKE_BINARY_DIR}/classes.zip")
 add_test(NAME hello COMMAND java -classpath "${test_cp}" Hello)
 set_tests_properties(hello PROPERTIES PASS_REGULAR_EXPRESSION "VM: 2 4 0.*sum=9999900000")
@@ -112,6 +106,6 @@ add_test(NAME javah COMMAND ${CMAKE_COMMAND} -DJAVAH=$<TARGET_FILE:javah>
 
 # --- JDK image ---
 install(TARGETS java javah javap javai nspr RUNTIME DESTINATION bin ARCHIVE DESTINATION lib)
-install(FILES classsrc/java_3.02.win DESTINATION lib RENAME classes.zip)
+install(FILES classsrc/classes.zip DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY md-include/ DESTINATION include/win32 FILES_MATCHING PATTERN "*.h")

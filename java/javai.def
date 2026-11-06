@@ -1,0 +1,28 @@
+EXPORTS
+        ; Launcher entry point
+        start_java
+
+        ; Native method interface used by native libraries (AWT, audio)
+        ArrayAlloc
+        EE
+        FindClass
+        NameAndTypeToHash
+        SignalError
+        allocCString
+        do_execute_java_method
+        exceptionDescribe
+        execute_java_constructor
+        execute_java_constructor_vararg
+        execute_java_dynamic_method
+        is_instance_of
+        javaString2CString
+        javaStringLength
+        makeCString
+        makeJavaString
+        monitorEnter
+        monitorExit
+        monitorNotify
+        monitorNotifyAll
+        monitorWait
+        threadSelf
+        GetThreadClassBlock

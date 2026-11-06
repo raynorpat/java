@@ -710,9 +710,7 @@ start_java(int argc, char **argv)
 
 #ifdef XP_PC
 #if defined(_WIN32)
-	PR_LoadLibrary("jrt3230.dll");
-	PR_LoadStaticLibrary("jpeg.dll",	NULL);
-	PR_LoadStaticLibrary("net.dll",		NULL);
+	PR_LoadLibrary("javai.dll");
 #else
 	PR_LoadLibrary("jrt1630.dll");
 	PR_LoadStaticLibrary("jpeg.dll",	NULL);

@@ -1,5 +1,0 @@
-LIBRARY jrt3221.dll
-
-EXPORTS
-        ; JRI Native Methods Interface
-        JRI_GetCurrentEnv
