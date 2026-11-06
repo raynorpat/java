@@ -6,6 +6,14 @@
 #include <stddef.h>
 #include <mach/cthreads.h>
 #include <mach/message.h>
+#ifdef TEST_VM_CONDVARS
+#include "sys_api.h"
+#include "cthreads/threads_md.h"
+#include "cthreads/condvar_md.h"
+static sys_thread_t vm_thread;
+sys_thread_t *sysThreadSelf(void) { return &vm_thread; }
+void cond_broadcast(condition_t c) { condition_broadcast_timeout(c); }
+#endif
 
 #define CHECK(x) do { if (!(x)) { fprintf(stderr, "line %d: %s\n", __LINE__, #x); exit(1); } } while (0)
 struct proc { struct proc *next; void *incarnation; int state; port_t reply, wait; };
@@ -65,6 +73,9 @@ int msg_send(msg_header_t *m, int options, unsigned int ms)
 }
 int msg_receive(msg_header_t *m, int options, unsigned int ms)
 {
+#ifdef TEST_VM_CONDVARS
+    CHECK(vm_thread.state==CONDVAR_WAIT);
+#endif
     CHECK(!mutex.lock && !cv.lock);
     CHECK(m->msg_size==24 && m->msg_local_port==self.wait);
     CHECK(options==(timeout==(unsigned int)-1 ? 0 : RCV_TIMEOUT));
@@ -78,25 +89,38 @@ int msg_receive(msg_header_t *m, int options, unsigned int ms)
     if (self.state!=3) condition_signal_timeout(&cv);
     CHECK(self.state==3); return 0;
 }
+static int wait_for_condition(condition_t c, mutex_t m, unsigned int ms)
+{
+#ifdef TEST_VM_CONDVARS
+    int status;
+    vm_thread.state=RUNNING;
+    status=ms==(unsigned int)-1 ? condvarWait(c,m,CONDVAR_WAIT)
+        : condvarTimedWait(c,m,ms,CONDVAR_WAIT);
+    CHECK(vm_thread.state==RUNNING);
+    return status;
+#else
+    return condition_wait_timeout(c,m,ms);
+#endif
+}
 int main(void)
 {
     CHECK(sizeof(void *)==4 && sizeof(msg_header_t)==24);
     CHECK(sizeof(struct condition)==16 && sizeof(struct mutex)==8);
     CHECK(offsetof(struct proc,state)==8 && offsetof(struct proc,wait)==16);
-    reset(0); CHECK(condition_wait_timeout(&cv,&mutex,timeout)==0);
+    reset(0); CHECK(wait_for_condition(&cv,&mutex,timeout)==0);
     CHECK(receives==1 && sends==1 && sent[0]==11 && mutex.lock && self.state==0);
     reset(1); enqueue(&first); block_lock=1;
-    CHECK(condition_wait_timeout(&cv,&mutex,timeout)==-3);
+    CHECK(wait_for_condition(&cv,&mutex,timeout)==-3);
     CHECK(cv.queue.head==(struct cthread_queue_item *)&first && first.next==&last);
     CHECK(cv.queue.tail==(struct cthread_queue_item *)&last && !last.next);
     CHECK(self.state==0 && mutex.lock && blocked==1 && !errors);
     reset(2); timeout=(unsigned int)-1;
-    CHECK(condition_wait_timeout(&cv,&mutex,timeout)==0 && receives==2);
-    reset(3); CHECK(condition_wait_timeout(&cv,&mutex,timeout)==0 && receives==2);
+    CHECK(wait_for_condition(&cv,&mutex,timeout)==0 && receives==2);
+    reset(3); CHECK(wait_for_condition(&cv,&mutex,timeout)==0 && receives==2);
     CHECK(sends==1 && !cv.queue.head && mutex.lock);
-    reset(4); CHECK(condition_wait_timeout(&cv,&mutex,timeout)==0 && receives==2);
+    reset(4); CHECK(wait_for_condition(&cv,&mutex,timeout)==0 && receives==2);
     CHECK(sends==1 && !cv.queue.head && mutex.lock);
-    reset(5); CHECK(condition_wait_timeout(&cv,&mutex,timeout)==-1);
+    reset(5); CHECK(wait_for_condition(&cv,&mutex,timeout)==-1);
     CHECK(errors==1 && mutex.lock); /* Original error path leaves the waiter queued. */
     reset(6); condition_signal_timeout(&cv); CHECK(!sends && !cv.lock);
     enqueue(&first); enqueue(&last); condition_signal_timeout(&cv);

@@ -45,7 +45,7 @@ writing them. Keep the shared VM and its established bug fixes intact.
 - [x] Start binary inventory and compare it to the existing Unix implementation.
   Verify recovered addresses, allocation sizes and field accesses in IDA;
   record results in 2026-11-06-jdk115-unix-platform-evidence.md.
-- [ ] Recover remaining thread/monitor fields and Mach condition-message format.
+- [x] Recover remaining thread/monitor fields and Mach condition-message format.
   Obtain matching SDK declarations before choosing types. Add 32-bit layout
   tests and native contract cases for init/destroy, notify-one/broadcast,
   timeout and interrupted waits. Observe failing cases before implementation.
@@ -90,3 +90,14 @@ Linux Release full95 passed plus one expected device skip. Production pthread
 selection is unchanged. Task 2 remains open for complete records and VM
 condvar wrappers; see the evidence document for protocol details and the
 reserved-message-bits ruling.
+
+Task 2 complete: original framework headers supply the full records, verified
+at size192/68 with i386 SDK jump-buffer layout. Six reconstructed VM wrappers
+pass isolated contract and integrated Mach-protocol tests. RED: missing
+headers/wrapper source. GREEN: strict C89/i386 native tests, external SDK
+header/layout tests, Windows Debug full109/109 and Linux Release full97 passed
+plus one expected audio-device skip; MSVC Release focused3/3. Logs are
+out/phase3-condvar-{win,linux}-tests.log. The Linux VM remains on pthreads;
+enabling a usable Mach VM backend depends on the remaining lifecycle and
+monitor-runtime tasks. The original monitor header's disabled C++ comment was
+converted to a C89 block comment; declarations are unchanged.

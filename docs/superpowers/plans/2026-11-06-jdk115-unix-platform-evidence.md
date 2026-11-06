@@ -158,3 +158,61 @@ The VM continues to use pthreads on Linux. This file is currently built only
 by the protocol test; condvar init/destroy and VM state wrappers, full thread
 records and backend selection remain open. Tests cover deterministic race
 interleavings, not real Mach scheduling or concurrency.
+
+## Original records and VM condition wrappers
+
+The framework also contains its original headers under
+Versions/A/Headers (distinct from the missing OS cthreads headers). The
+thread/monitor field recovery is now grounded in those shipped sources:
+
+- threads_md.h version1.19 (97/10/08), copied unchanged to
+  src/unix/java/include/cthreads/threads_md.h. Original and copied SHA-256:
+  a46f03b2fa37e9be93166d16cd77799ffabd71a8691ba640b48b5a186daff803.
+- monitor_md.h version1.22 (97/02/17), copied to the same directory. Original
+  SHA-256: 1689e8b0bb2970a59768f4d08dcfeddef74e267557656da053b73f912f83fa0d.
+  The sole adaptation converts its disabled // macro comment to a C89 block
+  comment. All declarations and original license notices are retained.
+
+These resolve the previously unnamed fields, including awt_cookie,
+primordial_thread, mpending_suspend/cpending_suspend, run_static_initializers,
+the per-thread/start mutexes, start_func/start_arg, jump_buf_valid/jump_buf,
+monitor_entry_count/mon_wait and the monitor-cache fields. The original monitor
+record also identifies oldPriority at offset64 and its two counted wait queues.
+Both headers are retained with Git text conversion disabled.
+
+The i386 SDK's bsd/i386/setjmp.h defines jmp_buf using a sigcontext of eighteen
+32-bit fields, hence 72 bytes. A host glibc or MSVC jmp_buf is not a replacement.
+Layout tests enforce thread size192, monitor size68 and the key offsets:
+state20, interrupted40, start_mutex56, jump_buf76, monitor_entry_count148,
+mon_wait152, cacheKey156 and monitorCache160; monitor condition12/28,
+queues44/52, owner60 and oldPriority64.
+
+The referenced but unshipped condvar_md.h is reconstructed from the six original
+entry points. condvar_md.c implements init/destroy, wait/timed-wait,
+signal/broadcast. Init preserves the condition name; destroy calls the OS
+cond_broadcast only for a nonempty queue and then leaves its spinlock held,
+as the original does. Wait captures sysThreadSelf once, sets its supplied hint
+state, delegates to condition_wait_timeout, and restores RUNNING on every
+return. A missing VM record is permitted. Return codes are passed through.
+
+RED: the new native test failed for the absent headers and wrapper source.
+GREEN: strict C89/i386 wrapper/layout and combined protocol tests pass. The
+layout test also passes at -O2 against external SDK public Mach headers and
+the actual SDK bsd/i386/setjmp.h, using only fake OS/VM functions. Test-only
+sys_api.h and the 72-byte jump-buffer substitute stay under tests/native; no
+test SDK is installed or used by the production VM.
+
+The three Mach targets run separately: primitive IPC protocol, wrapper/layout
+contracts, and wrappers linked to real reconstructed primitives with fake IPC.
+The combined test checks the VM thread hint during receive and RUNNING after
+success, timeout and error, including both timeout/notification races.
+
+Backend selection is deliberately not enabled yet: the Linux VM continues to
+compile its existing pthread records and runtime. Thread lifecycle and Mach
+monitor runtime are the next implementation tasks; no real Mach concurrency
+or execution on DR2 is claimed by these tests.
+
+Final checks for this slice: Windows Debug full109/109, Linux Release97 passed
+plus the expected audio-device skip, and MSVC Release focused3/3. Zero test
+failures. Logs: out/phase3-condvar-{win,linux}-tests.log. Original header
+whitespace/license formatting is preserved rather than cleaned up.
