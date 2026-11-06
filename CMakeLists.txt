@@ -100,6 +100,8 @@ endforeach()
 
 # --- Smoke tests (ctest -C Release). Classes are prebuilt with JDK 1.1.5 javac (class file 45.3). ---
 enable_testing()
+add_executable(jni-layout tests/native/jni-layout.c)
+add_test(NAME jni-layout COMMAND jni-layout)
 include(CMakeParseArguments)
 function(java_test)
   cmake_parse_arguments(JT "" "NAME;CLASS" "ARGS;VM_ARGS" ${ARGN})
