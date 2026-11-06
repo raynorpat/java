@@ -2,8 +2,11 @@ cmake_minimum_required(VERSION 3.0...3.10)
 file(MAKE_DIRECTORY "${OUT}")
 if(DEFINED JAVAC)
   file(MAKE_DIRECTORY "${OUT}/classes")
+  # Coverage stores source byte offsets; compile LF text on every checkout.
+  configure_file("${ROOT}/tests/vm/JCov115.java" "${OUT}/JCov115.java"
+    @ONLY NEWLINE_STYLE UNIX)
   execute_process(COMMAND "${JAVAC}" -nowarn -prof=jcov -d "${OUT}/classes"
-    "${ROOT}/tests/vm/JCov115.java"
+    "${OUT}/JCov115.java"
     RESULT_VARIABLE compile_status OUTPUT_VARIABLE compile_output ERROR_VARIABLE compile_output TIMEOUT 60)
   if(NOT "${compile_status}" STREQUAL "0" OR NOT "${compile_output}" STREQUAL "")
     message(FATAL_ERROR "Coverage fixture compilation failed (${compile_status}): ${compile_output}")
