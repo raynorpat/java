@@ -38,7 +38,7 @@ sysMonitorExit(sys_mon_t *m)
 }
 
 int
-sysMonitorInit(sys_mon_t *m, bool_t in_cache)
+sysMonitorInit(sys_mon_t *m)
 {
     return SYS_ERR;
 }

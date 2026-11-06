@@ -39,7 +39,7 @@ int sysMonitorSizeof(void)
     return sizeof(struct sys_mon);
 }
 
-int sysMonitorInit(sys_mon_t *mon, bool_t in_cache)
+int sysMonitorInit(sys_mon_t *mon)
 {
     memset(mon, 0, sizeof(*mon));	/* initialized on first use */
     return SYS_OK;

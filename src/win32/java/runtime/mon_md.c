@@ -23,7 +23,7 @@ int sysMonitorSizeof(void)
     return sizeof(struct sys_mon);
 }
 
-int sysMonitorInit(sys_mon_t *mon, bool_t in_cache)
+int sysMonitorInit(sys_mon_t *mon)
 {
     memset(mon, 0, sizeof(*mon));	/* zero is SRWLOCK_INIT / CONDITION_VARIABLE_INIT */
     return SYS_OK;

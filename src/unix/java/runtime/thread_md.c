@@ -197,10 +197,11 @@ void intrInit(void)
     pthread_setspecific(tls, t);
 }
 
-int sysThreadBootstrap(sys_thread_t **tp)
+int sysThreadBootstrap(sys_thread_t **tp, void *cookie)
 {
     sys_thread_t *t = sysThreadSelf();
 
+    t->cookie = cookie;
     QUEUE_LOCK();
     add_thread(t);
     QUEUE_UNLOCK();

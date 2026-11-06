@@ -83,7 +83,7 @@ typedef struct   sys_thread sys_thread_t;
 typedef struct   sys_mon sys_mon_t;
 typedef void   * stackp_t;
 
-EXPORTED int 	 sysThreadBootstrap(sys_thread_t **);
+EXPORTED int 	 sysThreadBootstrap(sys_thread_t **, void *);
 EXPORTED void 	 sysThreadInitializeSystemThreads(void);
 EXPORTED int 	 sysThreadCreate(long, uint_t flags, 
 				     void *(*)(void *), 
@@ -114,7 +114,7 @@ JAVA_PUBLIC_API(void)	 sysThreadDumpInfo(sys_thread_t *, FILE*);
  * System API for monitors
  */
 EXPORTED int     sysMonitorSizeof(void);
-EXPORTED int     sysMonitorInit(sys_mon_t *, bool_t);
+EXPORTED int     sysMonitorInit(sys_mon_t *);
 EXPORTED int     sysMonitorEnter(sys_mon_t *);
 EXPORTED bool_t  sysMonitorEntered(sys_mon_t *);
 EXPORTED int     sysMonitorExit(sys_mon_t *);

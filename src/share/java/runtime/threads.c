@@ -84,7 +84,7 @@ threadBootstrap(TID tid, stackp_t sb)
 
     /* Bootstrap the current process into the main, primordial thread */
 
-    sysThreadBootstrap(&t);
+    sysThreadBootstrap(&t, (void *) tid);
 
     THREAD(tid)->priority = NormalPriority;
     threadSetPriority(tid, NormalPriority);

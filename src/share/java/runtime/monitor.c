@@ -37,7 +37,7 @@
 void 
 monitorInit(monitor_t *mon) 
 {
-    sysMonitorInit(&sysmon(mon), TRUE);
+    sysMonitorInit(&sysmon(mon));
 }
 
 /*-
@@ -179,7 +179,7 @@ monitorRegister(sys_mon_t *mid, char *name)
 {
     reg_mon_t *reg;
 
-    sysMonitorInit(mid, FALSE);
+    sysMonitorInit(mid);
     reg = (reg_mon_t *) sysMalloc(sizeof(reg_mon_t));
     if (!reg) {
 	SignalError((struct execenv *) THREAD(threadSelf())->eetop,
