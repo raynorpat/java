@@ -149,7 +149,7 @@ time_t sysMktime(struct tm *t)
 }
 
 
-#ifdef XP_PC
+#if defined(XP_PC) && !(defined(_MSC_VER) && _MSC_VER >= 1800)
 /* rjp -- revisit */
 double rint( double a0 )
 {

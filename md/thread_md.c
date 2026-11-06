@@ -6,6 +6,8 @@
 #include "prmon.h"
 #include "prdump.h"
 #include "finalize.h"
+#include "interpreter.h"	/* obj_monitor */
+#include "monitor.h"
 #ifdef XP_MAC
 #include <Memory.h>
 #endif
@@ -163,7 +165,11 @@ void sysThreadExit(void)
     ** problems.
     */
     if (p) {
+	/* Wake joiners (Thread.join waits on the thread object while isAlive()). */
+	monitorEnter(obj_monitor(p));
 	THREAD(p)->PrivateInfo = 0;
+	monitorNotifyAll(obj_monitor(p));
+	monitorExit(obj_monitor(p));
  
 	/* Delete java stack now that we are done with it */
 	eep = (ExecEnv *) THREAD(p)->eetop;

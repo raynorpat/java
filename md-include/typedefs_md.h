@@ -158,7 +158,8 @@ extern double drand48();
 #define popen    _popen
 #endif  /* XP_PC */
 
-#if defined(XP_PC) || defined(XP_MAC)
+/* MSVC 2013+ supplies rint in the CRT */
+#if (defined(XP_PC) && !(defined(_MSC_VER) && _MSC_VER >= 1800)) || defined(XP_MAC)
 extern double rint( double x);
 #endif
 

@@ -95,8 +95,15 @@ sysGetClassPath(void)
 		
 		/* 	Grab the environment variable containting the list of class paths
 			and make a copy of it for local munging. */
-		if ((cps = (char*)CLASSPATH()) == 0) {
-			cps = ".:classes";
+		if ((cps = (char*)CLASSPATH()) == 0 && (cps = getenv("CLASSPATH")) == 0) {
+			/* Like the JDK: .;<java home>\lib\classes.zip, java home = <exe dir>\.. */
+			static char def[MAX_PATH + 32];
+			char home[MAX_PATH], *p;
+			GetModuleFileNameA(NULL, home, sizeof home);
+			if ((p = strrchr(home, '\\')) != NULL) *p = 0;	/* program */
+			if ((p = strrchr(home, '\\')) != NULL) *p = 0;	/* bin */
+			sprintf(def, ".;%s\\lib\\classes.zip", home);
+			cps = def;
 		}
 		if ((cps = strdup(cps)) == 0) {
 			return 0;				/* Out of memeory */

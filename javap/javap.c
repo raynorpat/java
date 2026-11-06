@@ -33,6 +33,8 @@ extern int decode_verbose;
 static void usage(char *progname);
 
 #include <path_md.h>
+#include "prglobal.h"
+#include "prarena.h"
 
 #define RELEASE "1.0"
 
@@ -50,6 +52,7 @@ main(argc, argv)
     } else {
 	progname = argv[0];
     }
+    PR_Init("javap", 16, 0, 0);	/* zip_open uses NSPR monitors */
 	cp = getenv("CLASSPATH");
     if (cp) cp = strdup(cp);
     setCLASSPATH(cp);
@@ -168,9 +171,15 @@ OpenCode(char *fn, char *sfn, char *dir, struct stat * st)
     return codefd;
 }
 
+/* Same as javah: the class loader allocates from classStorageArena. */
 ClassClass *AllocClass(void)
 {
-    return (ClassClass*) calloc(sizeof(ClassClass), 1);
+    ClassClass *cb = (ClassClass*) calloc(sizeof(ClassClass), 1);
+    if (cb != NULL) {
+	cb->classStorageArena = (ClassArena*) calloc(sizeof(ClassArena), 1);
+	PR_InitArenaPool(&(cb->classStorageArena->pool), "class pool", 2 * 1024, 4);
+    }
+    return cb;
 }
 
 void *AllocContext(size_t size)
