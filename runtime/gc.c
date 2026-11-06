@@ -1027,8 +1027,9 @@ scanThread(sys_thread_t *t, void *arg)
     /* Mark thread object */
     MarkPtr(p, HardMark);
 
-    base = threadStackBase((TID)p);
-    ssc  = threadStackPointer((TID)p);
+    /* Use t, not p's PrivateInfo: an exiting thread clears that while still listed. */
+    base = sysThreadStackBase(t);
+    ssc  = sysThreadStackPointer(t);
 
     if (p == me) {
 	ssc = (unsigned char **) &me;
