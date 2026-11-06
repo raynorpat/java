@@ -40,13 +40,13 @@ void javaStringPrint(Hjava_lang_String *);
 /*
  * Return the length of the String object.
  */
-JRI_PUBLIC_API(int32_t) javaStringLength(Hjava_lang_String *);
+JAVA_PUBLIC_API(int32_t) javaStringLength(Hjava_lang_String *);
 
 
 /*
  * Create and return a new Java String object, initialized from the C string.
  */
-JRI_PUBLIC_API(Hjava_lang_String *) makeJavaString(char *, int);
+JAVA_PUBLIC_API(Hjava_lang_String *) makeJavaString(char *, int);
 
 /*
  * Create a new C string initialized from the specified Java string,
@@ -75,6 +75,6 @@ unicode *javaString2unicode(Hjava_lang_String *, unicode *, int);
  * No allocation occurs. Assumes that len is the size of the buffer.
  * The C string's address is returned.
  */
-JRI_PUBLIC_API(char *)javaString2CString(Hjava_lang_String *, char *, int);
+JAVA_PUBLIC_API(char *)javaString2CString(Hjava_lang_String *, char *, int);
 
 #endif /* !_JAVASTRING_H_ */

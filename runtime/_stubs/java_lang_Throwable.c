@@ -3,7 +3,7 @@
 /* Stubs for class java/lang/Throwable */
 
 /* SYMBOL: "java/lang/Throwable/printStackTrace0(Ljava/io/PrintStream;)V", Java_java_lang_Throwable_printStackTrace0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Throwable_printStackTrace0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_Throwable_printStackTrace0(void *, void *);
 	(void) java_lang_Throwable_printStackTrace0(_P_[0].p,((_P_[1].p)));
@@ -11,7 +11,7 @@ Java_java_lang_Throwable_printStackTrace0_stub(stack_item* _P_, struct execenv* 
 }
 
 /* SYMBOL: "java/lang/Throwable/fillInStackTrace()Ljava/lang/Throwable;", Java_java_lang_Throwable_fillInStackTrace_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Throwable_fillInStackTrace_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_lang_Throwable_fillInStackTrace(void *);
 	_P_[0].p = java_lang_Throwable_fillInStackTrace(_P_[0].p);

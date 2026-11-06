@@ -45,7 +45,7 @@ monitorInit(monitor_t *mon)
  * monitorEnter().  If there is no monitor cached for the given key
  * create one on the fly.
  */
-JRI_PUBLIC_API(void)
+JAVA_PUBLIC_API(void)
 monitorEnter(unsigned int key)
 {
     monitor_t *mid = createMonitor(key);
@@ -57,7 +57,7 @@ monitorEnter(unsigned int key)
     CACHE_UNLOCK();
 }
 
-JRI_PUBLIC_API(void)
+JAVA_PUBLIC_API(void)
 monitorExit(unsigned int key)
 {
     monitor_t *mid;
@@ -89,7 +89,7 @@ unlock:
  * Wake up the first thread waiting on the condition variable
  * associated with this monitor.
  */
-JRI_PUBLIC_API(void)
+JAVA_PUBLIC_API(void)
 monitorNotify(unsigned int key)
 {
     monitor_t *mid = lookupMonitor(key);

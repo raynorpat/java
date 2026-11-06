@@ -3,7 +3,7 @@
 /* Stubs for class java/lang/Math */
 
 /* SYMBOL: "java/lang/Math/sin(D)D", Java_java_lang_Math_sin_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_sin_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -13,7 +13,7 @@ Java_java_lang_Math_sin_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/cos(D)D", Java_java_lang_Math_cos_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_cos_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -23,7 +23,7 @@ Java_java_lang_Math_cos_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/tan(D)D", Java_java_lang_Math_tan_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_tan_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -33,7 +33,7 @@ Java_java_lang_Math_tan_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/asin(D)D", Java_java_lang_Math_asin_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_asin_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -43,7 +43,7 @@ Java_java_lang_Math_asin_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/acos(D)D", Java_java_lang_Math_acos_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_acos_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -53,7 +53,7 @@ Java_java_lang_Math_acos_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/atan(D)D", Java_java_lang_Math_atan_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_atan_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -63,7 +63,7 @@ Java_java_lang_Math_atan_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/exp(D)D", Java_java_lang_Math_exp_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_exp_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -73,7 +73,7 @@ Java_java_lang_Math_exp_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/log(D)D", Java_java_lang_Math_log_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_log_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -83,7 +83,7 @@ Java_java_lang_Math_log_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/sqrt(D)D", Java_java_lang_Math_sqrt_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_sqrt_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -93,7 +93,7 @@ Java_java_lang_Math_sqrt_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/IEEEremainder(DD)D", Java_java_lang_Math_IEEEremainder_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_IEEEremainder_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -104,7 +104,7 @@ Java_java_lang_Math_IEEEremainder_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/ceil(D)D", Java_java_lang_Math_ceil_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_ceil_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -114,7 +114,7 @@ Java_java_lang_Math_ceil_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/floor(D)D", Java_java_lang_Math_floor_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_floor_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -124,7 +124,7 @@ Java_java_lang_Math_floor_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/rint(D)D", Java_java_lang_Math_rint_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_rint_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -134,7 +134,7 @@ Java_java_lang_Math_rint_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/atan2(DD)D", Java_java_lang_Math_atan2_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_atan2_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -145,7 +145,7 @@ Java_java_lang_Math_atan2_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Math/pow(DD)D", Java_java_lang_Math_pow_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Math_pow_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;

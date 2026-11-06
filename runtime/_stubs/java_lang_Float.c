@@ -3,7 +3,7 @@
 /* Stubs for class java/lang/Float */
 
 /* SYMBOL: "java/lang/Float/toString(F)Ljava/lang/String;", Java_java_lang_Float_toString_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Float_toString_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_lang_Float_toString(void *, float);
 	_P_[0].p = java_lang_Float_toString(NULL,((_P_[0].f)));
@@ -11,7 +11,7 @@ Java_java_lang_Float_toString_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Float/valueOf(Ljava/lang/String;)Ljava/lang/Float;", Java_java_lang_Float_valueOf_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Float_valueOf_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_lang_Float_valueOf(void *, void *);
 	_P_[0].p = java_lang_Float_valueOf(NULL,((_P_[0].p)));
@@ -19,7 +19,7 @@ Java_java_lang_Float_valueOf_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Float/floatToIntBits(F)I", Java_java_lang_Float_floatToIntBits_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Float_floatToIntBits_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_lang_Float_floatToIntBits(void *, float);
 	_P_[0].i = java_lang_Float_floatToIntBits(NULL,((_P_[0].f)));
@@ -27,7 +27,7 @@ Java_java_lang_Float_floatToIntBits_stub(stack_item* _P_, struct execenv* _EE_) 
 }
 
 /* SYMBOL: "java/lang/Float/intBitsToFloat(I)F", Java_java_lang_Float_intBitsToFloat_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Float_intBitsToFloat_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern float java_lang_Float_intBitsToFloat(void *, long);
 	_P_[0].f = java_lang_Float_intBitsToFloat(NULL,((_P_[0].i)));

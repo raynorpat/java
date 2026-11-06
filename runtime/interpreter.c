@@ -35,7 +35,6 @@
 #include <string.h>
 #include <stdarg.h>
 #include "bool.h"
-#include "jriext.h"
 
 #ifndef XP_MAC
 #include <memory.h>
@@ -150,13 +149,6 @@ JavaStack *CreateNewJavaStack(ExecEnv *ee, JavaStack *previous_stack)
     return stack;
 }
 
-extern const JRIEnvInterface jri_NativeInterface;
-extern const JRIRuntimeInterface jri_RuntimeInterface;
-extern const JRIReflectionInterface jri_ReflectionInterface;
-extern const JRIDebuggerInterface jri_DebuggerInterface;
-extern const JRICompilerInterface jri_CompilerInterface;
-extern const JRIExprInterface jri_ExprInterface;
-
 /*
  * Note that CreatenewJavaStack may return 0 if we run out of malloc
  * space.  Users of InitializeExecEnv should test for this case by checking
@@ -174,19 +166,6 @@ void InitializeExecEnv(ExecEnv *ee, JHandle *thread) {
         unhand((Hjava_lang_Thread *)thread)->eetop = (long)ee;
     }
     exceptionClear(ee);
-
-    /* Stuff for the JRI: */
-    ee->nativeInterface		= &jri_NativeInterface;
-    ee->runtimeInterface	= &jri_RuntimeInterface;
-    ee->reflectionInterface	= &jri_ReflectionInterface;
-    ee->debuggerInterface	= &jri_DebuggerInterface;
-    ee->compilerInterface	= &jri_CompilerInterface;
-    ee->exprInterface		= &jri_ExprInterface;
-    ee->globalRefs.element	= NULL;
-    ee->globalRefs.size		= 0;
-    ee->globalRefs.top		= 0;
-
-    ee->mochaContext		= NULL;
 
 #ifdef JAVA_PREEMPT_USING_COUNT
     ee->opcodeCount             = 0;
@@ -228,17 +207,6 @@ void DeleteExecEnv(ExecEnv *ee, JHandle *thread) {
         this_stack = next_stack;
     }
 
-    /* JRI */
-    {
-	RefTable* refs = &ee->globalRefs;
-	if (refs->element) {
-	    sysFree(refs->element);
-	    refs->element = NULL;
-	}
-	refs->size = 0;
-	refs->top = 0;
-    }
-
     OSTACK_UNLOCK();
 
     ee->initial_stack = 0;
@@ -276,7 +244,7 @@ bool_t ExecuteJava(unsigned char  *, ExecEnv *ee);
  * and may return a single 4 byte value which may be an integer, a pointer to
  * an object handle, whatever.
  */
-JRI_PUBLIC_API(long)
+JAVA_PUBLIC_API(long)
 execute_java_dynamic_method(ExecEnv *ee, HObject *obj, 
 			   char *method_name, char *signature, ...)
 {
@@ -409,7 +377,7 @@ HObject *execute_java_constructor_vararg(struct execenv *ee,
     return obj;
 }
 
-JRI_PUBLIC_API(HObject *)
+JAVA_PUBLIC_API(HObject *)
 execute_java_constructor(struct execenv *ee,
 				  char *classname,
 				  ClassClass *cb,
@@ -423,7 +391,7 @@ execute_java_constructor(struct execenv *ee,
     return obj;
 }
 
-JRI_PUBLIC_API(long)
+JAVA_PUBLIC_API(long)
 do_execute_java_method(ExecEnv *ee, void *obj, 
 		      char *method_name, char *signature, 
 		      struct methodblock *mb,
@@ -833,7 +801,7 @@ set_breakpoint_opcode(unsigned char *pc, unsigned char opcode)
 bool_t is_subclass_of(ClassClass *, ClassClass *, ExecEnv *);
 
 
-JRI_PUBLIC_API(bool_t)
+JAVA_PUBLIC_API(bool_t)
 is_instance_of(JHandle * h, ClassClass *dcb, ExecEnv *ee)
 {
     if (h == NULL) {		/* null can be cast to anything */

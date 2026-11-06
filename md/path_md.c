@@ -34,7 +34,6 @@
 #include "io_md.h"
 #include "path.h"	/* for cpe_t */
 #include "zip.h"	/* for zip_t */
-#include "jri.h"
 
 #ifdef XP_PC
 #define strcasecmp(a,b)     strcmpi(a,b)
@@ -71,13 +70,13 @@ sysNativePath(char *path)
 
 static const char* clpath = NULL;
 
-JRI_PUBLIC_API(const char*)
+JAVA_PUBLIC_API(const char*)
 CLASSPATH(void)
 {
 	return clpath;
 }
 
-JRI_PUBLIC_API(void)
+JAVA_PUBLIC_API(void)
 setCLASSPATH(const char* cp)
 {
 	if (clpath) free((char*)clpath);

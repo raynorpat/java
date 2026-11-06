@@ -3,7 +3,7 @@
 /* Stubs for class java/lang/Double */
 
 /* SYMBOL: "java/lang/Double/toString(D)Ljava/lang/String;", Java_java_lang_Double_toString_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Double_toString_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _t0;
 	extern void* java_lang_Double_toString(void *, double);
@@ -12,7 +12,7 @@ Java_java_lang_Double_toString_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Double/valueOf(Ljava/lang/String;)Ljava/lang/Double;", Java_java_lang_Double_valueOf_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Double_valueOf_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_lang_Double_valueOf(void *, void *);
 	_P_[0].p = java_lang_Double_valueOf(NULL,((_P_[0].p)));
@@ -20,7 +20,7 @@ Java_java_lang_Double_valueOf_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Double/doubleToLongBits(D)J", Java_java_lang_Double_doubleToLongBits_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Double_doubleToLongBits_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;
@@ -30,7 +30,7 @@ Java_java_lang_Double_doubleToLongBits_stub(stack_item* _P_, struct execenv* _EE
 }
 
 /* SYMBOL: "java/lang/Double/longBitsToDouble(J)D", Java_java_lang_Double_longBitsToDouble_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Double_longBitsToDouble_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t0;

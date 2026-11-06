@@ -3,7 +3,7 @@
 /* Stubs for class java/lang/Thread */
 
 /* SYMBOL: "java/lang/Thread/currentThread()Ljava/lang/Thread;", Java_java_lang_Thread_currentThread_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Thread_currentThread_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_lang_Thread_currentThread(void *);
 	_P_[0].p = java_lang_Thread_currentThread(NULL);
@@ -11,7 +11,7 @@ Java_java_lang_Thread_currentThread_stub(stack_item* _P_, struct execenv* _EE_) 
 }
 
 /* SYMBOL: "java/lang/Thread/yield()V", Java_java_lang_Thread_yield_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Thread_yield_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_Thread_yield(void *);
 	(void) java_lang_Thread_yield(NULL);
@@ -19,7 +19,7 @@ Java_java_lang_Thread_yield_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Thread/sleep(J)V", Java_java_lang_Thread_sleep_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Thread_sleep_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _t0;
 	extern void java_lang_Thread_sleep(void *, int64_t);
@@ -28,7 +28,7 @@ Java_java_lang_Thread_sleep_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Thread/start()V", Java_java_lang_Thread_start_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Thread_start_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_Thread_start(void *);
 	(void) java_lang_Thread_start(_P_[0].p);
@@ -36,7 +36,7 @@ Java_java_lang_Thread_start_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Thread/isAlive()Z", Java_java_lang_Thread_isAlive_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Thread_isAlive_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_lang_Thread_isAlive(void *);
 	_P_[0].i = (java_lang_Thread_isAlive(_P_[0].p) ? 1 : 0);
@@ -44,7 +44,7 @@ Java_java_lang_Thread_isAlive_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Thread/countStackFrames()I", Java_java_lang_Thread_countStackFrames_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Thread_countStackFrames_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_lang_Thread_countStackFrames(void *);
 	_P_[0].i = java_lang_Thread_countStackFrames(_P_[0].p);
@@ -52,7 +52,7 @@ Java_java_lang_Thread_countStackFrames_stub(stack_item* _P_, struct execenv* _EE
 }
 
 /* SYMBOL: "java/lang/Thread/setPriority0(I)V", Java_java_lang_Thread_setPriority0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Thread_setPriority0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_Thread_setPriority0(void *, long);
 	(void) java_lang_Thread_setPriority0(_P_[0].p,((_P_[1].i)));
@@ -60,7 +60,7 @@ Java_java_lang_Thread_setPriority0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Thread/stop0(Ljava/lang/Object;)V", Java_java_lang_Thread_stop0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Thread_stop0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_Thread_stop0(void *, void *);
 	(void) java_lang_Thread_stop0(_P_[0].p,((_P_[1].p)));
@@ -68,7 +68,7 @@ Java_java_lang_Thread_stop0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Thread/suspend0()V", Java_java_lang_Thread_suspend0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Thread_suspend0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_Thread_suspend0(void *);
 	(void) java_lang_Thread_suspend0(_P_[0].p);
@@ -76,7 +76,7 @@ Java_java_lang_Thread_suspend0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/Thread/resume0()V", Java_java_lang_Thread_resume0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_Thread_resume0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_Thread_resume0(void *);
 	(void) java_lang_Thread_resume0(_P_[0].p);

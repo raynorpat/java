@@ -42,7 +42,6 @@
 #include "java_lang_Throwable.h"
 #include "java_lang_Thread.h"
 
-#include "jri.h"
 
 #if defined(XP_PC) && !defined(_WIN32)
 #if !defined(stderr)
@@ -374,7 +373,7 @@ InitializeInvoker(ClassClass *cb)
     }
 }
 
-JRI_PUBLIC_API(void)
+JAVA_PUBLIC_API(void)
 SignalError(struct execenv * ee, char *ename, char *DetailMessage)
 {
     ClassClass          *cb;
@@ -647,7 +646,7 @@ MakeByteString(char *str, long len)
 }
 
 
-JRI_PUBLIC_API(ExecEnv *)
+JAVA_PUBLIC_API(ExecEnv *)
 EE()
 {
     ExecEnv *ee;

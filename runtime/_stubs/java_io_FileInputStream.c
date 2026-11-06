@@ -3,7 +3,7 @@
 /* Stubs for class java/io/FileInputStream */
 
 /* SYMBOL: "java/io/FileInputStream/open(Ljava/lang/String;)V", Java_java_io_FileInputStream_open_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_FileInputStream_open_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_io_FileInputStream_open(void *, void *);
 	(void) java_io_FileInputStream_open(_P_[0].p,((_P_[1].p)));
@@ -11,7 +11,7 @@ Java_java_io_FileInputStream_open_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/FileInputStream/read()I", Java_java_io_FileInputStream_read_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_FileInputStream_read_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_FileInputStream_read(void *);
 	_P_[0].i = java_io_FileInputStream_read(_P_[0].p);
@@ -19,7 +19,7 @@ Java_java_io_FileInputStream_read_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/FileInputStream/readBytes([BII)I", Java_java_io_FileInputStream_readBytes_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_FileInputStream_readBytes_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_FileInputStream_readBytes(void *, void *, long, long);
 	_P_[0].i = java_io_FileInputStream_readBytes(_P_[0].p,((_P_[1].p)),((_P_[2].i)),((_P_[3].i)));
@@ -27,7 +27,7 @@ Java_java_io_FileInputStream_readBytes_stub(stack_item* _P_, struct execenv* _EE
 }
 
 /* SYMBOL: "java/io/FileInputStream/skip(J)J", Java_java_io_FileInputStream_skip_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_FileInputStream_skip_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	Java8 _t1;
@@ -37,7 +37,7 @@ Java_java_io_FileInputStream_skip_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/FileInputStream/available()I", Java_java_io_FileInputStream_available_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_FileInputStream_available_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_FileInputStream_available(void *);
 	_P_[0].i = java_io_FileInputStream_available(_P_[0].p);
@@ -45,7 +45,7 @@ Java_java_io_FileInputStream_available_stub(stack_item* _P_, struct execenv* _EE
 }
 
 /* SYMBOL: "java/io/FileInputStream/close()V", Java_java_io_FileInputStream_close_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_FileInputStream_close_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_io_FileInputStream_close(void *);
 	(void) java_io_FileInputStream_close(_P_[0].p);

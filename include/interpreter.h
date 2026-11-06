@@ -138,27 +138,7 @@ typedef union stack_item {
 #endif
 } stack_item;
 
-typedef struct RefTable {
-    JHandle**	element;	/* array of JHandle* */
-    uint32_t	size;
-    uint32_t	top;
-} RefTable;
-
 struct execenv {
-    /* Stuff for the JRI: */
-    const JRIEnvInterface*		nativeInterface;
-    const JRIRuntimeInterface*		runtimeInterface;
-    const JRIReflectionInterface*	reflectionInterface;
-    const JRIDebuggerInterface*		debuggerInterface;
-    const JRICompilerInterface*		compilerInterface;
-    const JRIExprInterface*		exprInterface;
-    RefTable				globalRefs;
-
-    /* Stuff for MoJava */
-    /* MochaContext * to use for mocha calls */
-    void              *mochaContext;
-
-    /* Previous stuff: */
     struct javastack  *initial_stack;
     struct javaframe  *current_frame; 
     JHandle           *thread;	    /* vague type to avoid include files */
@@ -283,7 +263,7 @@ extern int tracegc;
  */
 extern bool_t UseLosslessQuickOpcodes;
 void SignalError1(struct execenv *, ClassClass *, char *);
-JRI_PUBLIC_API(void) SignalError(struct execenv *, char *, char *);
+JAVA_PUBLIC_API(void) SignalError(struct execenv *, char *, char *);
 
 JavaStack *CreateNewJavaStack(ExecEnv *ee, JavaStack *previous_stack);
 
@@ -296,16 +276,16 @@ HObject *execute_java_constructor_vararg(struct execenv *ee,
 				  char *classname,
 				  ClassClass *cb,
 				  char *signature, va_list args);
-JRI_PUBLIC_API(HObject *)execute_java_constructor(ExecEnv *,
+JAVA_PUBLIC_API(HObject *)execute_java_constructor(ExecEnv *,
 				 char *classname,
 				 ClassClass *cb,
 				 char *signature, ...);
 long execute_java_static_method(ExecEnv *, ClassClass *cb,
 			       char *method_name, char *signature, ...);
-JRI_PUBLIC_API(long) execute_java_dynamic_method(ExecEnv *, HObject *obj,
+JAVA_PUBLIC_API(long) execute_java_dynamic_method(ExecEnv *, HObject *obj,
 				char *method_name, char *signature, ...);
      
-JRI_PUBLIC_API(long) do_execute_java_method(ExecEnv *ee, void *obj, 
+JAVA_PUBLIC_API(long) do_execute_java_method(ExecEnv *ee, void *obj, 
 			   char *method_name, char *signature, 
 			   struct methodblock *mb,
 			   bool_t isStaticCall, ...);
@@ -320,7 +300,7 @@ long now(void);
 bool_t isSpecialSuperCall(ClassClass *current_class, struct methodblock *mb);
 
 void InitializeInterpreter(void);
-JRI_PUBLIC_API(bool_t) is_instance_of(JHandle * h, ClassClass *dcb, ExecEnv *ee);
+JAVA_PUBLIC_API(bool_t) is_instance_of(JHandle * h, ClassClass *dcb, ExecEnv *ee);
 bool_t is_subclass_of(ClassClass *cb, ClassClass *dcb, ExecEnv *ee);
 bool_t array_is_instance_of_array_type(JHandle * h, ClassClass *cb,
 				       ExecEnv *ee);
@@ -339,8 +319,8 @@ char *unicode2rd(unicode *, long);
 HArrayOfChar *MakeString(char *, long);
 extern int ImportAcceptable;
 
-JRI_PUBLIC_API(ClassClass *) FindClass(struct execenv *, char *, bool_t resolve);
-JRI_PUBLIC_API(ClassClass *)FindClassFromClass(struct execenv *, char *, bool_t resolve, ClassClass *from);
+JAVA_PUBLIC_API(ClassClass *) FindClass(struct execenv *, char *, bool_t resolve);
+JAVA_PUBLIC_API(ClassClass *)FindClassFromClass(struct execenv *, char *, bool_t resolve, ClassClass *from);
 char* RunStaticInitializers(ClassClass *cb);
 void InitializeInvoker(ClassClass *cb);
 
@@ -373,9 +353,9 @@ bool_t IsSameClassPackage(ClassClass *class1, ClassClass *class2);
 
 typedef uint32_t hash_t;
 char *GetClassConstantClassName(cp_item_type *constant_pool, cp_index_type index);
-JRI_PUBLIC_API(hash_t) NameAndTypeToHash(char *name, char *type, ClassClass *from);
-JRI_PUBLIC_API(char *) IDToNameAndTypeString(hash_t ID);
-JRI_PUBLIC_API(char *) IDToType(hash_t ID);
+JAVA_PUBLIC_API(hash_t) NameAndTypeToHash(char *name, char *type, ClassClass *from);
+JAVA_PUBLIC_API(char *) IDToNameAndTypeString(hash_t ID);
+JAVA_PUBLIC_API(char *) IDToType(hash_t ID);
 
 HObject *newobject(ClassClass *cb, unsigned char *pc, struct execenv *ee);
 
@@ -383,7 +363,7 @@ HObject *newobject(ClassClass *cb, unsigned char *pc, struct execenv *ee);
 char *pc2string(unsigned char *pc, struct methodblock *mb, char *buf, char *limit);
 
 extern int InhibitExecute;
-JRI_PUBLIC_API(JHandle *)ArrayAlloc(int32_t, int32_t);
+JAVA_PUBLIC_API(JHandle *)ArrayAlloc(int32_t, int32_t);
 JHandle *ObjAlloc(ClassClass *, long);
 int32_t sizearray(int32_t, int32_t);
 extern char *remote_classname(JHandle *);
@@ -414,15 +394,15 @@ unsigned Signature2ArgsSize(char *method_signature);
 /* from classresolver.c */
 char *InitializeClass(ClassClass * cb, char **detail);
 char *ResolveClass(ClassClass * cb, char **detail);
-JRI_PUBLIC_API(ClassClass *)FindClass(struct execenv *ee, char *name, bool_t resolve);
-JRI_PUBLIC_API(ClassClass *)FindClassFromClass(struct execenv *ee, char *name, 
+JAVA_PUBLIC_API(ClassClass *)FindClass(struct execenv *ee, char *name, bool_t resolve);
+JAVA_PUBLIC_API(ClassClass *)FindClassFromClass(struct execenv *ee, char *name, 
 			       bool_t resolve, ClassClass *from);
 struct fieldblock **makeslottable(ClassClass * clb);
 void lock_classes(void);
 void unlock_classes(void);
 
-extern JRI_PUBLIC_API(const char*) CLASSPATH(void);
-extern JRI_PUBLIC_API(void) setCLASSPATH(const char*);
+extern JAVA_PUBLIC_API(const char*) CLASSPATH(void);
+extern JAVA_PUBLIC_API(void) setCLASSPATH(const char*);
 
 /* from threadruntime.c */
 struct Hjava_lang_Thread *InitializeClassThread(ExecEnv *ee, char **errmsg);
@@ -465,7 +445,7 @@ void Str2IDFree(struct StrIDhash **);
 void Str2IDApply(struct StrIDhash *hash_ptr,
 		 void (*f)(struct StrIDhash *h, void *arg, void *param),
 		 void *arg);
-JRI_PUBLIC_API(ExecEnv *)EE(void);
+JAVA_PUBLIC_API(ExecEnv *)EE(void);
 
 /* Miscellaneous functions in util.c */
 char *unicode2rd(unicode *s, long len);
@@ -497,7 +477,7 @@ void ReadInCompiledCode(void *context, struct methodblock *mb,
 
 bool_t PCinCompiledCode(unsigned char *pc, struct methodblock *mb);
 unsigned char *CompiledCodePC(JavaFrame *frame, struct methodblock *mb);
-JRI_PUBLIC_API(JavaFrame *)CompiledFramePrev(JavaFrame *frame, JavaFrame *buf);
-JRI_PUBLIC_API(void)SetCompiledFrameAnnotation(JavaFrame *frame, JHandle *obj);
+JAVA_PUBLIC_API(JavaFrame *)CompiledFramePrev(JavaFrame *frame, JavaFrame *buf);
+JAVA_PUBLIC_API(void)SetCompiledFrameAnnotation(JavaFrame *frame, JHandle *obj);
 #endif /* ! _INTERPRETER_H_ */
 

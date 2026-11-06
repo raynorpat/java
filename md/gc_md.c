@@ -157,22 +157,6 @@ static const char *TYPEOF(HObject *h)
 
 /************************************************************************/
 
-void
-RefTable_processRoots(RefTable* refTable)
-{
-    if (refTable->element) {
-#ifdef xDEBUG_warren
-	/*
-	** Change the above ifdef to see what's left in the global ref
-	** tables during gc.
-	*/
-	void RefTable_describe(RefTable* refTable);
-	RefTable_describe(refTable);
-#endif /* DEBUG_warren */
-        (*gcInfo->processRoot)((void**)refTable->element, refTable->top);
-    }
-}
-
 /*
 ** Scan a java thread looking for GC roots. This doesn't scan the java
 ** thread object (the java thread object is marked by the gc code when
@@ -247,12 +231,6 @@ static int PR_CALLBACK ScanJavaThread(PRThread *t, void *notused)
 	if (ee->exception.exc) {
             (*liveObject)((void**)&(ee->exception.exc), 1);
         }
-
-	/*
-	** JRI Stuff: Scavenge the global refTable
-	*/
-	if (ee->globalRefs.element)
-	    RefTable_processRoots(&ee->globalRefs);
     }
     return 1;
 }
@@ -1280,7 +1258,7 @@ HObject *ObjAlloc(ClassClass *cb, long n0)
     return handle;
 }
 
-JRI_PUBLIC_API(HObject *)
+JAVA_PUBLIC_API(HObject *)
 ArrayAlloc(int32_t t, int32_t l)
 {
     HObject *handle;

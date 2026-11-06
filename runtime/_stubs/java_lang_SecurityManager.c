@@ -3,7 +3,7 @@
 /* Stubs for class java/lang/SecurityManager */
 
 /* SYMBOL: "java/lang/SecurityManager/getClassContext()[Ljava/lang/Class;", Java_java_lang_SecurityManager_getClassContext_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_SecurityManager_getClassContext_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_lang_SecurityManager_getClassContext(void *);
 	_P_[0].p = java_lang_SecurityManager_getClassContext(_P_[0].p);
@@ -11,7 +11,7 @@ Java_java_lang_SecurityManager_getClassContext_stub(stack_item* _P_, struct exec
 }
 
 /* SYMBOL: "java/lang/SecurityManager/currentClassLoader()Ljava/lang/ClassLoader;", Java_java_lang_SecurityManager_currentClassLoader_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_SecurityManager_currentClassLoader_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_lang_SecurityManager_currentClassLoader(void *);
 	_P_[0].p = java_lang_SecurityManager_currentClassLoader(_P_[0].p);
@@ -19,7 +19,7 @@ Java_java_lang_SecurityManager_currentClassLoader_stub(stack_item* _P_, struct e
 }
 
 /* SYMBOL: "java/lang/SecurityManager/classDepth(Ljava/lang/String;)I", Java_java_lang_SecurityManager_classDepth_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_SecurityManager_classDepth_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_lang_SecurityManager_classDepth(void *, void *);
 	_P_[0].i = java_lang_SecurityManager_classDepth(_P_[0].p,((_P_[1].p)));
@@ -27,7 +27,7 @@ Java_java_lang_SecurityManager_classDepth_stub(stack_item* _P_, struct execenv* 
 }
 
 /* SYMBOL: "java/lang/SecurityManager/classLoaderDepth()I", Java_java_lang_SecurityManager_classLoaderDepth_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_SecurityManager_classLoaderDepth_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_lang_SecurityManager_classLoaderDepth(void *);
 	_P_[0].i = java_lang_SecurityManager_classLoaderDepth(_P_[0].p);
@@ -35,7 +35,7 @@ Java_java_lang_SecurityManager_classLoaderDepth_stub(stack_item* _P_, struct exe
 }
 
 /* SYMBOL: "java/lang/SecurityManager/checkClassLoader(I)Z", Java_java_lang_SecurityManager_checkClassLoader_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_SecurityManager_checkClassLoader_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_lang_SecurityManager_checkClassLoader(void *, long);
 	_P_[0].i = (java_lang_SecurityManager_checkClassLoader(_P_[0].p,((_P_[1].i))) ? 1 : 0);
@@ -43,7 +43,7 @@ Java_java_lang_SecurityManager_checkClassLoader_stub(stack_item* _P_, struct exe
 }
 
 /* SYMBOL: "java/lang/SecurityManager/checkInitialized()Z", Java_java_lang_SecurityManager_checkInitialized_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_SecurityManager_checkInitialized_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_lang_SecurityManager_checkInitialized(void *);
 	_P_[0].i = (java_lang_SecurityManager_checkInitialized(_P_[0].p) ? 1 : 0);
@@ -51,7 +51,7 @@ Java_java_lang_SecurityManager_checkInitialized_stub(stack_item* _P_, struct exe
 }
 
 /* SYMBOL: "java/lang/SecurityManager/checkScopePermission(I)Z", Java_java_lang_SecurityManager_checkScopePermission_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_SecurityManager_checkScopePermission_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_lang_SecurityManager_checkScopePermission(void *, long);
 	_P_[0].i = (java_lang_SecurityManager_checkScopePermission(_P_[0].p,((_P_[1].i))) ? 1 : 0);
@@ -59,7 +59,7 @@ Java_java_lang_SecurityManager_checkScopePermission_stub(stack_item* _P_, struct
 }
 
 /* SYMBOL: "java/lang/SecurityManager/setScopePermission()V", Java_java_lang_SecurityManager_setScopePermission_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_SecurityManager_setScopePermission_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_SecurityManager_setScopePermission(void *);
 	(void) java_lang_SecurityManager_setScopePermission(NULL);
@@ -67,7 +67,7 @@ Java_java_lang_SecurityManager_setScopePermission_stub(stack_item* _P_, struct e
 }
 
 /* SYMBOL: "java/lang/SecurityManager/setAppletScopePermission()V", Java_java_lang_SecurityManager_setAppletScopePermission_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_SecurityManager_setAppletScopePermission_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_SecurityManager_setAppletScopePermission(void *);
 	(void) java_lang_SecurityManager_setAppletScopePermission(NULL);
@@ -75,7 +75,7 @@ Java_java_lang_SecurityManager_setAppletScopePermission_stub(stack_item* _P_, st
 }
 
 /* SYMBOL: "java/lang/SecurityManager/resetScopePermission()V", Java_java_lang_SecurityManager_resetScopePermission_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_SecurityManager_resetScopePermission_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_SecurityManager_resetScopePermission(void *);
 	(void) java_lang_SecurityManager_resetScopePermission(NULL);

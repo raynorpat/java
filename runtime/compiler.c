@@ -139,11 +139,11 @@ unsigned char *CompiledCodePC(JavaFrame *frame, struct methodblock *mb) {
     return (p_CompiledCodePC == 0) ? NULL : p_CompiledCodePC(frame, mb);
 }
 
-JRI_PUBLIC_API(JavaFrame *)CompiledFramePrev(JavaFrame *frame, JavaFrame *buf) {
+JAVA_PUBLIC_API(JavaFrame *)CompiledFramePrev(JavaFrame *frame, JavaFrame *buf) {
     return (p_CompiledFramePrev == 0) ? frame->prev : p_CompiledFramePrev(frame, buf);
 }
 
-JRI_PUBLIC_API(void)SetCompiledFrameAnnotation(JavaFrame *frame, JHandle *obj) {
+JAVA_PUBLIC_API(void)SetCompiledFrameAnnotation(JavaFrame *frame, JHandle *obj) {
     /* ASSERT (p_SetCompiledFrameAnnotation != 0); */
     p_SetCompiledFrameAnnotation(frame, obj);
 }

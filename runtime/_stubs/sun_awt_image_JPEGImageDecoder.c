@@ -3,7 +3,7 @@
 /* Stubs for class sun/awt/image/JPEGImageDecoder */
 
 /* SYMBOL: "sun/awt/image/JPEGImageDecoder/readImage(Ljava/io/InputStream;[B)V", Java_sun_awt_image_JPEGImageDecoder_readImage_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_sun_awt_image_JPEGImageDecoder_readImage_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void sun_awt_image_JPEGImageDecoder_readImage(void *, void *, void *);
 	(void) sun_awt_image_JPEGImageDecoder_readImage(_P_[0].p,((_P_[1].p)),((_P_[2].p)));

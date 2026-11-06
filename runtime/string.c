@@ -24,7 +24,7 @@
 #include "path_md.h"
 #include "sys_api.h"
 
-JRI_PUBLIC_API(Hjava_lang_String *)
+JAVA_PUBLIC_API(Hjava_lang_String *)
 makeJavaString(char *str, int len) {
     HArrayOfChar *val;
     unicode *p;
@@ -50,7 +50,7 @@ void javaStringPrint(Hjava_lang_String *s) {
     }
 }
 
-JRI_PUBLIC_API(int32_t)
+JAVA_PUBLIC_API(int32_t)
 javaStringLength(Hjava_lang_String *s) {
     Classjava_lang_String *str;
     if (!s) {
@@ -71,7 +71,7 @@ unicode *javaString2unicode(Hjava_lang_String *s, unicode *buf, int len) {
     return buf;
 }
 
-JRI_PUBLIC_API(char *)
+JAVA_PUBLIC_API(char *)
 javaString2CString(Hjava_lang_String *s, char *buf, int buflen) {
     Classjava_lang_String *str;
     HArrayOfChar *hac;

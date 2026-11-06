@@ -25,7 +25,6 @@
 #define	_MONITOR_H_
 
 #include "sys_api.h"
-#include "jri.h"
 
 /*
  * Used by the monitor caching machanism to mark monitors as being
@@ -77,11 +76,11 @@ extern sys_mon_t *_registry_lock;
  */
 void monitorInit(monitor_t *mon);
 void monitorCacheInit(void);
-JRI_PUBLIC_API(void) monitorEnter(uint32);
-JRI_PUBLIC_API(void) monitorExit(uint32);
-JRI_PUBLIC_API(void) monitorWait(uint32, int32_t);
-JRI_PUBLIC_API(void) monitorNotify(uint32);
-JRI_PUBLIC_API(void) monitorNotifyAll(uint32);
+JAVA_PUBLIC_API(void) monitorEnter(uint32);
+JAVA_PUBLIC_API(void) monitorExit(uint32);
+JAVA_PUBLIC_API(void) monitorWait(uint32, int32_t);
+JAVA_PUBLIC_API(void) monitorNotify(uint32);
+JAVA_PUBLIC_API(void) monitorNotifyAll(uint32);
 
 /* Registry of static monitors */
 extern reg_mon_t *MonitorRegistry;

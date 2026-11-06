@@ -34,10 +34,6 @@ add_custom_command(OUTPUT "${gen}/prcpucfg.h"
   COMMAND gencfg > "${gen}/prcpucfg.h" DEPENDS gencfg)
 add_custom_target(nspr_headers DEPENDS "${gen}/prcpucfg.h")
 file(MAKE_DIRECTORY "${gen}")
-# shortcut: JRI (Netscape's native interface) headers also come from the netscape checkout until JRI is removed.
-foreach(h jri.h jriauto.h jriext.h jritypes.h jri_md.h minicom.h)
-  configure_file("${NSPR_SOURCE_DIR}/../include/${h}" "${gen}/${h}" COPYONLY)
-endforeach()
 
 set(nspr_sources)
 foreach(f file getopt linker log2 longlong page prabort prarena prdump prevent
@@ -59,7 +55,7 @@ function(prefixed out dir)
 endfunction()
 
 # --- VM runtime DLL (javai.dll). javai.c loads it by name to resolve native stubs. ---
-prefixed(runtime_sources runtime agent jrijdk class date debug globals io math
+prefixed(runtime_sources runtime agent class date debug globals io math
   object opnames profiler runtime security string stubs system thread threads
   utf util zip classinitialize classresolver common_exceptions threadruntime
   compiler check_class check_code classloader classruntime gifdecoder exception

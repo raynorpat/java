@@ -644,10 +644,10 @@ ClassClass *(*class_loader_func)(HObject *loader, char *name, long resolve) = 0;
 
 /*
 ** XXX
-** Make this a JRI_PUBLIC_API for now. It really isn't, but awt isn't following the
+** Make this a JAVA_PUBLIC_API for now. It really isn't, but awt isn't following the
 ** rules yet, and it does need this API.
 */
-JRI_PUBLIC_API(ClassClass *)
+JAVA_PUBLIC_API(ClassClass *)
 FindClass(struct execenv *ee, char *name, bool_t resolve)
 {
     return FindClassFromClass(ee, name, resolve,
@@ -724,7 +724,7 @@ Locked_FindClassFromClass(struct execenv *ee, char *name, bool_t resolve, ClassC
     return cb;
 }
 
-JRI_PUBLIC_API(ClassClass *)
+JAVA_PUBLIC_API(ClassClass *)
 FindClassFromClass(struct execenv *ee, char *name, bool_t resolve, ClassClass *from) {
     ClassClass *cb;
     lock_classes();
@@ -797,7 +797,7 @@ static HObject * classLoaderForType(char *type, ClassClass *from);
  * JRI_GetMethodID and JRI_GetFieldID). We need to remove any calls to it
  * from AWT, etc.
  */
-JRI_PUBLIC_API(hash_t)
+JAVA_PUBLIC_API(hash_t)
 NameAndTypeToHash(char *name, char *type, ClassClass *from)
 {
     /* This is a little ugly. There is a lot of code in util.c for
@@ -859,7 +859,7 @@ NameAndTypeToHash(char *name, char *type, ClassClass *from)
  * The string will be valid for at least as long as the corresponding
  * ClassLoader.
  */
-JRI_PUBLIC_API(char *)
+JAVA_PUBLIC_API(char *)
 IDToNameAndTypeString(hash_t ID) {
     return ID2Str(interfaceHash, ID & 0xFFFF, 0);
 }
@@ -870,7 +870,7 @@ IDToNameAndTypeString(hash_t ID) {
  * The string will be valid for at least as long as the corresponding
  * ClassLoader.
  */
-JRI_PUBLIC_API(char *)
+JAVA_PUBLIC_API(char *)
 IDToType(hash_t ID) {
     char *nameandtype = ID2Str(interfaceHash, ID & 0xFFFF, 0);
     char *space = strchr(nameandtype, ' ');

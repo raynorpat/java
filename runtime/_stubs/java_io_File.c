@@ -3,7 +3,7 @@
 /* Stubs for class java/io/File */
 
 /* SYMBOL: "java/io/File/exists0()Z", Java_java_io_File_exists0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_exists0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_File_exists0(void *);
 	_P_[0].i = (java_io_File_exists0(_P_[0].p) ? 1 : 0);
@@ -11,7 +11,7 @@ Java_java_io_File_exists0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/File/canWrite0()Z", Java_java_io_File_canWrite0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_canWrite0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_File_canWrite0(void *);
 	_P_[0].i = (java_io_File_canWrite0(_P_[0].p) ? 1 : 0);
@@ -19,7 +19,7 @@ Java_java_io_File_canWrite0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/File/canRead0()Z", Java_java_io_File_canRead0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_canRead0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_File_canRead0(void *);
 	_P_[0].i = (java_io_File_canRead0(_P_[0].p) ? 1 : 0);
@@ -27,7 +27,7 @@ Java_java_io_File_canRead0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/File/isFile0()Z", Java_java_io_File_isFile0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_isFile0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_File_isFile0(void *);
 	_P_[0].i = (java_io_File_isFile0(_P_[0].p) ? 1 : 0);
@@ -35,7 +35,7 @@ Java_java_io_File_isFile0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/File/isDirectory0()Z", Java_java_io_File_isDirectory0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_isDirectory0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_File_isDirectory0(void *);
 	_P_[0].i = (java_io_File_isDirectory0(_P_[0].p) ? 1 : 0);
@@ -43,7 +43,7 @@ Java_java_io_File_isDirectory0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/File/lastModified0()J", Java_java_io_File_lastModified0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_lastModified0_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	extern int64_t java_io_File_lastModified0(void *);
@@ -52,7 +52,7 @@ Java_java_io_File_lastModified0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/File/length0()J", Java_java_io_File_length0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_length0_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	extern int64_t java_io_File_length0(void *);
@@ -61,7 +61,7 @@ Java_java_io_File_length0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/File/mkdir0()Z", Java_java_io_File_mkdir0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_mkdir0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_File_mkdir0(void *);
 	_P_[0].i = (java_io_File_mkdir0(_P_[0].p) ? 1 : 0);
@@ -69,7 +69,7 @@ Java_java_io_File_mkdir0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/File/renameTo0(Ljava/io/File;)Z", Java_java_io_File_renameTo0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_renameTo0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_File_renameTo0(void *, void *);
 	_P_[0].i = (java_io_File_renameTo0(_P_[0].p,((_P_[1].p))) ? 1 : 0);
@@ -77,7 +77,7 @@ Java_java_io_File_renameTo0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/File/delete0()Z", Java_java_io_File_delete0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_delete0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_File_delete0(void *);
 	_P_[0].i = (java_io_File_delete0(_P_[0].p) ? 1 : 0);
@@ -85,7 +85,7 @@ Java_java_io_File_delete0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/File/list0()[Ljava/lang/String;", Java_java_io_File_list0_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_list0_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_io_File_list0(void *);
 	_P_[0].p = java_io_File_list0(_P_[0].p);
@@ -93,7 +93,7 @@ Java_java_io_File_list0_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/File/isAbsolute()Z", Java_java_io_File_isAbsolute_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_File_isAbsolute_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_File_isAbsolute(void *);
 	_P_[0].i = (java_io_File_isAbsolute(_P_[0].p) ? 1 : 0);

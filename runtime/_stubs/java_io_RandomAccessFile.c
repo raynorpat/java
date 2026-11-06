@@ -3,7 +3,7 @@
 /* Stubs for class java/io/RandomAccessFile */
 
 /* SYMBOL: "java/io/RandomAccessFile/open(Ljava/lang/String;Z)V", Java_java_io_RandomAccessFile_open_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_RandomAccessFile_open_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_io_RandomAccessFile_open(void *, void *, long);
 	(void) java_io_RandomAccessFile_open(_P_[0].p,((_P_[1].p)),((_P_[2].i)));
@@ -11,7 +11,7 @@ Java_java_io_RandomAccessFile_open_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/RandomAccessFile/read()I", Java_java_io_RandomAccessFile_read_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_RandomAccessFile_read_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_RandomAccessFile_read(void *);
 	_P_[0].i = java_io_RandomAccessFile_read(_P_[0].p);
@@ -19,7 +19,7 @@ Java_java_io_RandomAccessFile_read_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/RandomAccessFile/readBytes([BII)I", Java_java_io_RandomAccessFile_readBytes_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_RandomAccessFile_readBytes_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_io_RandomAccessFile_readBytes(void *, void *, long, long);
 	_P_[0].i = java_io_RandomAccessFile_readBytes(_P_[0].p,((_P_[1].p)),((_P_[2].i)),((_P_[3].i)));
@@ -27,7 +27,7 @@ Java_java_io_RandomAccessFile_readBytes_stub(stack_item* _P_, struct execenv* _E
 }
 
 /* SYMBOL: "java/io/RandomAccessFile/write(I)V", Java_java_io_RandomAccessFile_write_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_RandomAccessFile_write_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_io_RandomAccessFile_write(void *, long);
 	(void) java_io_RandomAccessFile_write(_P_[0].p,((_P_[1].i)));
@@ -35,7 +35,7 @@ Java_java_io_RandomAccessFile_write_stub(stack_item* _P_, struct execenv* _EE_) 
 }
 
 /* SYMBOL: "java/io/RandomAccessFile/writeBytes([BII)V", Java_java_io_RandomAccessFile_writeBytes_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_RandomAccessFile_writeBytes_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_io_RandomAccessFile_writeBytes(void *, void *, long, long);
 	(void) java_io_RandomAccessFile_writeBytes(_P_[0].p,((_P_[1].p)),((_P_[2].i)),((_P_[3].i)));
@@ -43,7 +43,7 @@ Java_java_io_RandomAccessFile_writeBytes_stub(stack_item* _P_, struct execenv* _
 }
 
 /* SYMBOL: "java/io/RandomAccessFile/getFilePointer()J", Java_java_io_RandomAccessFile_getFilePointer_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_RandomAccessFile_getFilePointer_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	extern int64_t java_io_RandomAccessFile_getFilePointer(void *);
@@ -52,7 +52,7 @@ Java_java_io_RandomAccessFile_getFilePointer_stub(stack_item* _P_, struct execen
 }
 
 /* SYMBOL: "java/io/RandomAccessFile/seek(J)V", Java_java_io_RandomAccessFile_seek_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_RandomAccessFile_seek_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _t1;
 	extern void java_io_RandomAccessFile_seek(void *, int64_t);
@@ -61,7 +61,7 @@ Java_java_io_RandomAccessFile_seek_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/io/RandomAccessFile/length()J", Java_java_io_RandomAccessFile_length_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_RandomAccessFile_length_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	extern int64_t java_io_RandomAccessFile_length(void *);
@@ -70,7 +70,7 @@ Java_java_io_RandomAccessFile_length_stub(stack_item* _P_, struct execenv* _EE_)
 }
 
 /* SYMBOL: "java/io/RandomAccessFile/close()V", Java_java_io_RandomAccessFile_close_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_io_RandomAccessFile_close_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_io_RandomAccessFile_close(void *);
 	(void) java_io_RandomAccessFile_close(_P_[0].p);

@@ -82,27 +82,27 @@ void monitorEnumerate(void (*f)(monitor_t*, void*), void *a) { }
 
 /* XXX these should be throwing IllegalMonitorStateException's */
 
-JRI_PUBLIC_API(void) monitorEnter(uint32 key)
+JAVA_PUBLIC_API(void) monitorEnter(uint32 key)
 {
     PR_CEnterMonitor((void*) key);
 }
 
-JRI_PUBLIC_API(void) monitorExit(uint32 key)
+JAVA_PUBLIC_API(void) monitorExit(uint32 key)
 {
     PR_CExitMonitor((void*) key);
 }
 
-JRI_PUBLIC_API(void) monitorNotify(uint32 key)
+JAVA_PUBLIC_API(void) monitorNotify(uint32 key)
 {
     PR_CNotify((void*) key);
 }
 
-JRI_PUBLIC_API(void) monitorNotifyAll(uint32 key)
+JAVA_PUBLIC_API(void) monitorNotifyAll(uint32 key)
 {
     PR_CNotifyAll((void*) key);
 }
 
-JRI_PUBLIC_API(void) monitorWait(uint32 key, int32_t milliseconds)
+JAVA_PUBLIC_API(void) monitorWait(uint32 key, int32_t milliseconds)
 {
     int64 sleep, ms2us;
     int rv;

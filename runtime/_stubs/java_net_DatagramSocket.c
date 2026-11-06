@@ -3,7 +3,7 @@
 /* Stubs for class java/net/DatagramSocket */
 
 /* SYMBOL: "java/net/DatagramSocket/datagramSocketCreate()V", Java_java_net_DatagramSocket_datagramSocketCreate_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_DatagramSocket_datagramSocketCreate_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_net_DatagramSocket_datagramSocketCreate(void *);
 	(void) java_net_DatagramSocket_datagramSocketCreate(_P_[0].p);
@@ -11,7 +11,7 @@ Java_java_net_DatagramSocket_datagramSocketCreate_stub(stack_item* _P_, struct e
 }
 
 /* SYMBOL: "java/net/DatagramSocket/datagramSocketBind(I)I", Java_java_net_DatagramSocket_datagramSocketBind_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_DatagramSocket_datagramSocketBind_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_net_DatagramSocket_datagramSocketBind(void *, long);
 	_P_[0].i = java_net_DatagramSocket_datagramSocketBind(_P_[0].p,((_P_[1].i)));
@@ -19,7 +19,7 @@ Java_java_net_DatagramSocket_datagramSocketBind_stub(stack_item* _P_, struct exe
 }
 
 /* SYMBOL: "java/net/DatagramSocket/datagramSocketSend(Ljava/net/DatagramPacket;)V", Java_java_net_DatagramSocket_datagramSocketSend_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_DatagramSocket_datagramSocketSend_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_net_DatagramSocket_datagramSocketSend(void *, void *);
 	(void) java_net_DatagramSocket_datagramSocketSend(_P_[0].p,((_P_[1].p)));
@@ -27,7 +27,7 @@ Java_java_net_DatagramSocket_datagramSocketSend_stub(stack_item* _P_, struct exe
 }
 
 /* SYMBOL: "java/net/DatagramSocket/datagramSocketPeek(Ljava/net/InetAddress;)I", Java_java_net_DatagramSocket_datagramSocketPeek_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_DatagramSocket_datagramSocketPeek_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_net_DatagramSocket_datagramSocketPeek(void *, void *);
 	_P_[0].i = java_net_DatagramSocket_datagramSocketPeek(_P_[0].p,((_P_[1].p)));
@@ -35,7 +35,7 @@ Java_java_net_DatagramSocket_datagramSocketPeek_stub(stack_item* _P_, struct exe
 }
 
 /* SYMBOL: "java/net/DatagramSocket/datagramSocketReceive(Ljava/net/DatagramPacket;)V", Java_java_net_DatagramSocket_datagramSocketReceive_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_DatagramSocket_datagramSocketReceive_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_net_DatagramSocket_datagramSocketReceive(void *, void *);
 	(void) java_net_DatagramSocket_datagramSocketReceive(_P_[0].p,((_P_[1].p)));
@@ -43,7 +43,7 @@ Java_java_net_DatagramSocket_datagramSocketReceive_stub(stack_item* _P_, struct 
 }
 
 /* SYMBOL: "java/net/DatagramSocket/datagramSocketClose()V", Java_java_net_DatagramSocket_datagramSocketClose_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_DatagramSocket_datagramSocketClose_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_net_DatagramSocket_datagramSocketClose(void *);
 	(void) java_net_DatagramSocket_datagramSocketClose(_P_[0].p);
@@ -51,7 +51,7 @@ Java_java_net_DatagramSocket_datagramSocketClose_stub(stack_item* _P_, struct ex
 }
 
 /* SYMBOL: "java/net/DatagramSocket/multicastJoinLeave(Ljava/net/InetAddress;Z)V", Java_java_net_DatagramSocket_multicastJoinLeave_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_DatagramSocket_multicastJoinLeave_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_net_DatagramSocket_multicastJoinLeave(void *, void *, long);
 	(void) java_net_DatagramSocket_multicastJoinLeave(_P_[0].p,((_P_[1].p)),((_P_[2].i)));

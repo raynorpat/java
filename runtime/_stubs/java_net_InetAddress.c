@@ -3,7 +3,7 @@
 /* Stubs for class java/net/InetAddress */
 
 /* SYMBOL: "java/net/InetAddress/getLocalHostName()Ljava/lang/String;", Java_java_net_InetAddress_getLocalHostName_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_InetAddress_getLocalHostName_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_net_InetAddress_getLocalHostName(void *);
 	_P_[0].p = java_net_InetAddress_getLocalHostName(NULL);
@@ -11,7 +11,7 @@ Java_java_net_InetAddress_getLocalHostName_stub(stack_item* _P_, struct execenv*
 }
 
 /* SYMBOL: "java/net/InetAddress/makeAnyLocalAddress(Ljava/net/InetAddress;)V", Java_java_net_InetAddress_makeAnyLocalAddress_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_InetAddress_makeAnyLocalAddress_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_net_InetAddress_makeAnyLocalAddress(void *, void *);
 	(void) java_net_InetAddress_makeAnyLocalAddress(NULL,((_P_[0].p)));
@@ -19,7 +19,7 @@ Java_java_net_InetAddress_makeAnyLocalAddress_stub(stack_item* _P_, struct exece
 }
 
 /* SYMBOL: "java/net/InetAddress/lookupHostAddr(Ljava/lang/String;)[B", Java_java_net_InetAddress_lookupHostAddr_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_InetAddress_lookupHostAddr_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_net_InetAddress_lookupHostAddr(void *, void *);
 	_P_[0].p = java_net_InetAddress_lookupHostAddr(NULL,((_P_[0].p)));
@@ -27,7 +27,7 @@ Java_java_net_InetAddress_lookupHostAddr_stub(stack_item* _P_, struct execenv* _
 }
 
 /* SYMBOL: "java/net/InetAddress/lookupAllHostAddr(Ljava/lang/String;)[[B", Java_java_net_InetAddress_lookupAllHostAddr_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_InetAddress_lookupAllHostAddr_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_net_InetAddress_lookupAllHostAddr(void *, void *);
 	_P_[0].p = java_net_InetAddress_lookupAllHostAddr(NULL,((_P_[0].p)));
@@ -35,7 +35,7 @@ Java_java_net_InetAddress_lookupAllHostAddr_stub(stack_item* _P_, struct execenv
 }
 
 /* SYMBOL: "java/net/InetAddress/getHostByAddr(I)Ljava/lang/String;", Java_java_net_InetAddress_getHostByAddr_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_InetAddress_getHostByAddr_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_net_InetAddress_getHostByAddr(void *, long);
 	_P_[0].p = java_net_InetAddress_getHostByAddr(NULL,((_P_[0].i)));
@@ -43,7 +43,7 @@ Java_java_net_InetAddress_getHostByAddr_stub(stack_item* _P_, struct execenv* _E
 }
 
 /* SYMBOL: "java/net/InetAddress/getInetFamily()I", Java_java_net_InetAddress_getInetFamily_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_net_InetAddress_getInetFamily_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern long java_net_InetAddress_getInetFamily(void *);
 	_P_[0].i = java_net_InetAddress_getInetFamily(NULL);

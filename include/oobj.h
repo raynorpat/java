@@ -32,7 +32,6 @@
 #include "bool.h"
 #include "oobj_md.h"
 #include "signature.h"
-#include "jriext.h"
 #include "prarena.h"
 
 #define JAVA_CLASSFILE_MAGIC	          0xCafeBabe

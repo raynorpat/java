@@ -1701,7 +1701,7 @@ PrintStub(FILE *f, char *cfname, char *cname, struct methodblock *mb)
 		/* We are using a JRI macro here in the non JRI case to get the
 		   correct external linkage on windows.  This makes us source incompatible
 		   with JDK stubs */
-	fprintf(f, "JRI_PUBLIC_API(stack_item*)\n%s(stack_item* _P_, struct execenv* _EE_) {\n",
+	fprintf(f, "JAVA_PUBLIC_API(stack_item*)\n%s(stack_item* _P_, struct execenv* _EE_) {\n",
 		funcall);
     }
     

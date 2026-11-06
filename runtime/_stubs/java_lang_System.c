@@ -3,7 +3,7 @@
 /* Stubs for class java/lang/System */
 
 /* SYMBOL: "java/lang/System/setSystemIO(Ljava/io/InputStream;Ljava/io/PrintStream;Ljava/io/PrintStream;)V", Java_java_lang_System_setSystemIO_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_System_setSystemIO_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_System_setSystemIO(void *, void *, void *, void *);
 	(void) java_lang_System_setSystemIO(NULL,((_P_[0].p)),((_P_[1].p)),((_P_[2].p)));
@@ -11,7 +11,7 @@ Java_java_lang_System_setSystemIO_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/System/currentTimeMillis()J", Java_java_lang_System_currentTimeMillis_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_System_currentTimeMillis_stub(stack_item* _P_, struct execenv* _EE_) {
 	Java8 _tval;
 	extern int64_t java_lang_System_currentTimeMillis(void *);
@@ -20,7 +20,7 @@ Java_java_lang_System_currentTimeMillis_stub(stack_item* _P_, struct execenv* _E
 }
 
 /* SYMBOL: "java/lang/System/arraycopy(Ljava/lang/Object;ILjava/lang/Object;II)V", Java_java_lang_System_arraycopy_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_System_arraycopy_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void java_lang_System_arraycopy(void *, void *, long, void *, long, long);
 	(void) java_lang_System_arraycopy(NULL,((_P_[0].p)),((_P_[1].i)),((_P_[2].p)),((_P_[3].i)),((_P_[4].i)));
@@ -28,7 +28,7 @@ Java_java_lang_System_arraycopy_stub(stack_item* _P_, struct execenv* _EE_) {
 }
 
 /* SYMBOL: "java/lang/System/initProperties(Ljava/util/Properties;)Ljava/util/Properties;", Java_java_lang_System_initProperties_stub */
-JRI_PUBLIC_API(stack_item*)
+JAVA_PUBLIC_API(stack_item*)
 Java_java_lang_System_initProperties_stub(stack_item* _P_, struct execenv* _EE_) {
 	extern void* java_lang_System_initProperties(void *, void *);
 	_P_[0].p = java_lang_System_initProperties(NULL,((_P_[0].p)));
