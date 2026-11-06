@@ -151,183 +151,7 @@ long sysSocketAvailableFD(Classjava_io_FileDescriptor *fd, long *pbytes)
 /************************************************************************/
 
 #ifdef XP_UNIX
-#include <signal.h>
 #include <sys/ioctl.h>
-#include <fcntl.h>
-
-int sysConnect(int fd, struct sockaddr* sa, int len)
-{
-#ifdef IRIX
-    static int first_time = 1;
-    static sigset_t timer_set;
-    sigset_t oldset;
-#endif
-    int rv;
-
-#ifdef IRIX
-    if (first_time) {
-	sigemptyset(&timer_set);
-	sigaddset(&timer_set, SIGALRM);
-	first_time = 0;
-    }
-    sigprocmask(SIG_BLOCK, &timer_set, &oldset);
-#endif
-    for (;;) {
-	rv = connect(fd, sa, len);
-	if (rv == 0) {
-	    break;
-	}
-	if ((errno == EINTR) || (errno == EWOULDBLOCK) ||
-	    (errno == EAGAIN) || (errno == EINPROGRESS)) {
-	    /* Call select here and wait for the connect to finish */
-	    fd_set wr;
-	    memset(&wr, 0, sizeof(wr));
-	    FD_SET(fd, &wr);
-	    rv = select(fd+1, 0, &wr, 0, 0);
-	    continue;
-	}
-	if ((errno == EISCONN) || (errno == EALREADY)) {
-	    /* Connection finished */
-	    rv = 0;
-	}
-	/* Some other error */
-	break;
-    }
-#ifdef IRIX
-    sigprocmask(SIG_SETMASK, &oldset, 0);
-#endif
-    return rv;
-}
-
-int sysAccept(int fd, struct sockaddr* sa, int *lenp)
-{
-#ifdef IRIX
-    static int first_time = 1;
-    static sigset_t timer_set;
-    sigset_t oldset;
-#endif
-    int rv;
-
-#ifdef IRIX
-    if (first_time) {
-	sigemptyset(&timer_set);
-	sigaddset(&timer_set, SIGALRM);
-	first_time = 0;
-    }
-    sigprocmask(SIG_BLOCK, &timer_set, &oldset);
-#endif
-    for (;;) {
-	rv = accept(fd, sa, lenp);
-	if (rv >= 0) {
-	    break;
-	}
-	if ((errno == EINTR) || (errno == EWOULDBLOCK) ||
-	    (errno == EAGAIN) || (errno == EINPROGRESS)) {
-	    /* Call select here and wait for the accept to finish */
-	    fd_set rd;
-	    memset(&rd, 0, sizeof(rd));
-	    FD_SET(fd, &rd);
-	    rv = select(fd+1, &rd, 0, 0, 0);
-	    continue;
-	}
-	/* Some other error */
-	break;
-    }
-#ifdef IRIX
-    sigprocmask(SIG_SETMASK, &oldset, 0);
-#endif
-    return rv;
-}
-
-int sysRecv(int fd, void *buf, int len, int flags)
-{
-    int rv;
-
-    for (;;) {
-	rv = recv(fd, buf, len, flags);
-	if (rv < 0) {
-	    if ((errno == EINTR) || (errno == EWOULDBLOCK) ||
-		(errno == EAGAIN)) {
-		/* Wait in select */
-		fd_set rd;
-		memset(&rd, 0, sizeof(rd));
-		FD_SET(fd, &rd);
-		rv = select(fd+1, &rd, 0, 0, 0);
-		continue;
-	    }
-	}
-	break;
-    }
-    return rv;
-}
-
-int sysSend(int fd, const void *buf, int len, int flags)
-{
-    int rv;
-
-    for (;;) {
-	rv = send(fd, buf, len, flags);
-	if (rv < 0) {
-	    if ((errno == EINTR) || (errno == EWOULDBLOCK) ||
-		(errno == EAGAIN)) {
-		/* Wait in select */
-		fd_set wr;
-		memset(&wr, 0, sizeof(wr));
-		FD_SET(fd, &wr);
-		rv = select(fd+1, 0, &wr, 0, 0);
-		continue;
-	    }
-	}
-	break;
-    }
-    return rv;
-}
-
-int sysRecvFrom(int fd, void *buf, int len, int flags,
-		struct sockaddr *from, int *fromlen)
-{
-    int rv;
-
-    for (;;) {
-	rv = recvfrom(fd, buf, len, flags, from, fromlen);
-	if (rv < 0) {
-	    if ((errno == EINTR) || (errno == EWOULDBLOCK) ||
-		(errno == EAGAIN)) {
-		/* Wait in select */
-		fd_set rd;
-		memset(&rd, 0, sizeof(rd));
-		FD_SET(fd, &rd);
-		rv = select(fd+1, &rd, 0, 0, 0);
-		continue;
-	    }
-	}
-	break;
-    }
-    return rv;
-}
-
-int sysSendTo(int fd, const void *buf, int len, int flags,
-	      struct sockaddr *to, int tolen)
-{
-    int rv;
-
-    for (;;) {
-	rv = sendto(fd, buf, len, flags, to, tolen);
-	if (rv < 0) {
-	    if ((errno == EINTR) || (errno == EWOULDBLOCK) ||
-		(errno == EAGAIN)) {
-		/* Wait in select */
-		fd_set wr;
-		memset(&wr, 0, sizeof(wr));
-		FD_SET(fd, &wr);
-		rv = select(fd+1, 0, &wr, 0, 0);
-		continue;
-	    }
-	}
-	break;
-    }
-    return rv;
-}
 
 long sysSocketAvailable(int fdnum, long *pbytes)
 {
@@ -341,20 +165,12 @@ long sysSocketAvailable(int fdnum, long *pbytes)
 
 void sysSocketInitializeFD(Classjava_io_FileDescriptor *fdptr, int fdnum)
 {
-    int flags;
+    int on = 1;
 
     fdptr->fd = fdnum+1;
 
     /* make the socket address immediatly available for reuse */
-    setsockopt(fdnum, SOL_SOCKET, SO_REUSEADDR, "yes", 4);
-
-    /* make the socket non-blocking with async-io */
-    flags = fcntl(fdnum, F_GETFL, 0);
-#if defined(FNDELAY)
-    fcntl(fdnum, F_SETFL, flags | FNDELAY);/* XXX async i/o ! */
-#elif defined(O_NONBLOCK)
-    fcntl(fdnum, F_SETFL, flags | O_NONBLOCK);/* XXX async i/o ! */
-#endif
+    setsockopt(fdnum, SOL_SOCKET, SO_REUSEADDR, (char *) &on, sizeof on);
 }
 
 #endif /* XP_UNIX */
