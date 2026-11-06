@@ -306,6 +306,8 @@ Overflow:
     }
 
 GotIt:                          /* p points to new object */
+    /* Java requires new objects and arrays to start zeroed. */
+    memset(p + sizeof(hdr), 0, n - sizeof(hdr));
     ret = AllocHandle(mptr, (ClassObject *) (p + sizeof(hdr)));
     if (ret == 0) {
 	obj_setfree(p);
@@ -635,6 +637,9 @@ expandHandleSpace(void)
      */
     incr = MIN_HANDLE_EXPANSION;
     incr = max(incr, TotalHandleCtr*preallocFactor - FreeHandleCtr);
+    /* Keep hpool HANDLEGRAIN aligned; rounding it up afterwards would
+       leave it above hpoolhand and make the memset below run wild. */
+    incr = (incr + HANDLEGRAIN-1) & ~(HANDLEGRAIN-1);
     hpool = hpool - incr;
     if (hpool < heapbase) {	/* We might get by with less... */
 	if (verbosegc) {
@@ -829,32 +834,14 @@ manageAllocFailure(long n, int overflow_type, int overflow_act) {
 
 	case OVERFLOW_ACT_FINALIZE:
 	    /*
-	     * Try finalizing then GCing again; next free refs
-	     *
-	     * If there are objects on the FinalizeMeQ they are known to
-	     * be garbage that can't be freed until they are finalized.
-	     * Synchronously finalize them, then garbage collect again.
+	     * Objects on the FinalizeMeQ are left to the finalizer thread,
+	     * which gc0() has notified.  Running finalizers here, inside an
+	     * allocation, would execute Java code while the interpreter's
+	     * caller still has its operand stack top cached, so a GC during a
+	     * finalizer could miss live objects in that frame.
 	     */
 	    overflow_act = OVERFLOW_ACT_REFS;
-	    if (FinalizeMeQ) {
-		if (verbosegc) {
-		    int count = 0;
-		    finalizer_t *finalizer = FinalizeMeQ;
-		    while (finalizer) {
-			count++;
-			finalizer = finalizer->next;
-		    }
-		    fprintf(stderr,
-			    "<GC: synchronously running %d finalizers>\n",
-			    count);
-		}
-		runFinalization();
-		last_free = gc0(0, n);
-	        break;
-	    } else {
-		continue;	/* Don't bother checking for progress */
-	    }
-
+	    continue;	/* Don't bother checking for progress */
 	case OVERFLOW_ACT_REFS:	    
 	    /*
 	     * If there are any refs defined, free some and GC again;
@@ -1081,6 +1068,18 @@ scanThread(sys_thread_t *t, void *arg)
 	    MarkPtr(ptr, HardMark);
 	}
 	ssc++;
+    }
+
+    /* A stopped native thread may hold its only reference in a register. */
+    {
+	int nregs;
+	unsigned char **regs = (unsigned char **) sysThreadRegisters(t, &nregs);
+	while (--nregs >= 0) {
+	    register unsigned char *ptr = regs[nregs];
+	    if (ValidHorO(ptr)) {
+		MarkPtr(ptr, HardMark);
+	    }
+	}
     }
 
     {
@@ -2009,6 +2008,8 @@ InitializeAlloc(long max_request, long min_request)
      */
     hpool = heapbase + (int) ((heaptop - heapbase) * 0.20);
     hpool = hpool - (int) (min_request * 0.20);
+    /* Align before committing, so hpool + min stays inside the commit. */
+    hpool = (unsigned char *) ((int) hpool & ~(HANDLEGRAIN-1));
     hpool = sysCommitMem(hpool, min_request, &min);
     if (!hpool) {
 	out_of_memory();	/* Can't start up */
