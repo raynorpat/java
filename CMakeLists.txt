@@ -109,7 +109,7 @@ target_link_libraries(javai zlib115 ${sys_libs})
 
 add_executable(java src/share/java/javai/java_stub.c)
 target_link_libraries(java javai)
-foreach(tool javac javap jar appletviewer)
+foreach(tool javac javap jar appletviewer native2ascii)
   add_executable(${tool} src/share/java/javai/tool_main.c src/${plat}/java/runtime/path_md.c
     src/share/java/runtime/zip.c ${file_hpi_sources})
   target_link_libraries(${tool} javai zlib115)
@@ -117,6 +117,7 @@ endforeach()
 target_compile_definitions(javac PRIVATE TOOL_CLASS="sun.tools.javac.Main")
 target_compile_definitions(javap PRIVATE TOOL_CLASS="sun.tools.javap.JavaP" TOOL_SIMPLE TOOL_HEAP="")
 target_compile_definitions(jar PRIVATE TOOL_CLASS="sun.tools.jar.Main" TOOL_SIMPLE)
+target_compile_definitions(native2ascii PRIVATE TOOL_CLASS="sun.tools.native2ascii.Main" TOOL_SIMPLE)
 target_compile_definitions(appletviewer PRIVATE TOOL_CLASS="sun.applet.AppletViewer" TOOL_APPLET TOOL_HEAP="")
 set(jre_sources src/share/java/jre/jre.c src/share/java/jre/jre_main.c src/${plat}/java/jre/jre_md.c)
 add_executable(jre ${jre_sources})
@@ -145,6 +146,10 @@ endforeach()
 
 # --- Smoke tests (ctest -C Release). Classes are prebuilt with JDK 1.1.5 javac (class file 45.3). ---
 enable_testing()
+add_test(NAME tools-native2ascii115 COMMAND ${CMAKE_COMMAND}
+  "-DTOOL=$<TARGET_FILE:native2ascii>" "-DROOT=${CMAKE_SOURCE_DIR}"
+  "-DOUT=${CMAKE_BINARY_DIR}/native2ascii115/$<CONFIG>"
+  -P "${CMAKE_SOURCE_DIR}/tests/tools/native2ascii115.cmake")
 if(WIN32)
   get_filename_component(msvc_bin "${CMAKE_LINKER}" DIRECTORY)
   add_test(NAME vm-exports COMMAND ${CMAKE_COMMAND}
@@ -399,7 +404,7 @@ add_test(NAME native COMMAND java -classpath "${native_cp}" NativeHello)
 set_tests_properties(native PROPERTIES PASS_REGULAR_EXPRESSION "native add=42 greet=hello java")
 
 # --- JDK image ---
-install(TARGETS java javac javah javap jar appletviewer jre javai RUNTIME DESTINATION bin LIBRARY DESTINATION lib
+install(TARGETS java javac javah javap jar appletviewer native2ascii jre javai RUNTIME DESTINATION bin LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
 if(WIN32)
   install(TARGETS javaw jrew RUNTIME DESTINATION bin)
