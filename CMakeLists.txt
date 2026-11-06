@@ -98,6 +98,9 @@ set_tests_properties(hello PROPERTIES PASS_REGULAR_EXPRESSION "VM: 2 4 0.*sum=99
 add_test(NAME threads COMMAND java -classpath "${test_cp}" Threads)
 set_tests_properties(threads PROPERTIES TIMEOUT 60
   PASS_REGULAR_EXPRESSION "count=80000 .*caught NPE.*gc ok, free=true")
+add_test(NAME props COMMAND java -classpath "${test_cp}" Props)
+set_tests_properties(props PROPERTIES PASS_REGULAR_EXPRESSION
+  "version=1\\.0\\.2.*vendor=Sun Microsystems Inc\\..*separator=\\\\.*home is dir=true.*child is dir=true.*classpath set=true")
 add_test(NAME javap COMMAND javap -c -classpath "${test_cp}" Hello)
 set_tests_properties(javap PROPERTIES PASS_REGULAR_EXPRESSION "invokevirtual")
 add_test(NAME javah COMMAND ${CMAKE_COMMAND} -DJAVAH=$<TARGET_FILE:javah>

@@ -22,6 +22,7 @@
 #include "prsystem.h"
 #include "oobj.h"
 #include "java_lang_System.h"
+#include "path_md.h"	/* sysJavaHome */
 
 /*
  * This routine initializes the system properties with
@@ -47,11 +48,10 @@ java_lang_System_initProperties(struct Hjava_lang_System *this,
     char buf[512];
 
     /* java properties */
-    PUTPROP(props, "java.version", "1.02");
-    PUTPROP(props, "java.vendor", "Netscape Communications Corporation");
-    PUTPROP(props, "java.vendor.url", "http://home.netscape.com");
-    v = getenv("JAVA_HOME");
-    PUTPROP(props, "java.home", v ? v : "/usr/local/netscape/java");
+    PUTPROP(props, "java.version", "1.0.2");
+    PUTPROP(props, "java.vendor", "Sun Microsystems Inc.");
+    PUTPROP(props, "java.vendor.url", "http://www.sun.com/");
+    PUTPROP(props, "java.home", sysJavaHome());
     sprintf(buf, "%d.%d", JAVA_VERSION, JAVA_MINOR_VERSION);
     PUTPROP(props, "java.class.version", buf);
     v = (char*)CLASSPATH();
@@ -67,11 +67,6 @@ java_lang_System_initProperties(struct Hjava_lang_System *this,
     PR_GetSystemInfo(PR_SI_ARCHITECTURE, buf, sizeof(buf));
     PUTPROP(props, "os.arch", buf);
 
-	/* jit */
-#ifdef XP_PC
-	PUTPROP(props, "java.compiler", "jit32301");
-#endif
-
     /* file system properties */
 #ifdef XP_UNIX
     PUTPROP(props, "file.separator", "/");
@@ -81,10 +76,9 @@ java_lang_System_initProperties(struct Hjava_lang_System *this,
     PUTPROP(props, "awt.font.symbol", "ZapfDingbats");
 #endif
 #ifdef XP_PC
-/*    PUTPROP(props, "file.separator", "\\"); */
-    PUTPROP(props, "file.separator", "/");
+    PUTPROP(props, "file.separator", "\\");
     PUTPROP(props, "path.separator", ";");
-    PUTPROP(props, "line.separator", "\n");    /* XXX what's the right thing*/
+    PUTPROP(props, "line.separator", "\r\n");
 
     PUTPROP(props, "awt.font.symbol", "ZapfDingbats");
 #endif
@@ -121,11 +115,6 @@ java_lang_System_initProperties(struct Hjava_lang_System *this,
     PUTPROP(props, "awt.imagefetchers", "4");
 #endif
 
-#ifdef XP_MAC
-    PUTPROP(props, "console.bufferlength", "8192");
-#else
-    PUTPROP(props, "console.bufferlength", "32768");
-#endif
 
     /* user defined properties, set by main */
     if (user_props != 0) {

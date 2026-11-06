@@ -30,6 +30,7 @@
 #define sysNativePath(path) (path)
 #elif XP_PC
 extern char *sysNativePath(char *path);
+extern const char *sysJavaHome(void);
 #elif XP_MAC
 #define sysNativePath(path) (path)
 /*

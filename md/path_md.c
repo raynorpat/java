@@ -36,22 +36,23 @@
 #include "zip.h"	/* for zip_t */
 #include "jri.h"
 
-#ifndef DEBUG_jwz	/* You're all a bunch of weenies. */
-# undef ZIP_NAME	/* Remove this ifdef to Do the Right Thing. */
-#endif
-
-#ifndef ZIP_NAME
-  /* This fallback value is only used if -DZIP_NAME was not passed in as
-     a cc option by the Makefile. */
-# define ZIP_NAME   "java_301"
-#endif
-
-char *path_md_zip_name = ZIP_NAME;
-
-
 #ifdef XP_PC
 #define strcasecmp(a,b)     strcmpi(a,b)
 
+/* The JDK directory: the running program lives in <java home>\bin. */
+const char *
+sysJavaHome(void)
+{
+    static char home[MAX_PATH];
+    char *p;
+
+    if (home[0] == 0) {
+	GetModuleFileNameA(NULL, home, sizeof home);
+	if ((p = strrchr(home, '\\')) != NULL) *p = 0;	/* program */
+	if ((p = strrchr(home, '\\')) != NULL) *p = 0;	/* bin */
+    }
+    return home;
+}
 
 char *
 sysNativePath(char *path)
@@ -96,14 +97,13 @@ sysGetClassPath(void)
 		/* 	Grab the environment variable containting the list of class paths
 			and make a copy of it for local munging. */
 		if ((cps = (char*)CLASSPATH()) == 0 && (cps = getenv("CLASSPATH")) == 0) {
-			/* Like the JDK: .;<java home>\lib\classes.zip, java home = <exe dir>\.. */
+			/* Like the JDK: .;<java home>\lib\classes.zip */
 			static char def[MAX_PATH + 32];
-			char home[MAX_PATH], *p;
-			GetModuleFileNameA(NULL, home, sizeof home);
-			if ((p = strrchr(home, '\\')) != NULL) *p = 0;	/* program */
-			if ((p = strrchr(home, '\\')) != NULL) *p = 0;	/* bin */
-			sprintf(def, ".;%s\\lib\\classes.zip", home);
+			sprintf(def, ".;%s\\lib\\classes.zip", sysJavaHome());
 			cps = def;
+		}
+		if (CLASSPATH() == 0) {
+			setCLASSPATH(strdup(cps));	/* reported as java.class.path */
 		}
 		if ((cps = strdup(cps)) == 0) {
 			return 0;				/* Out of memeory */
@@ -134,10 +134,7 @@ sysGetClassPath(void)
 			sysNativePath(path);
 			if (sysStat(path, &statBuf) == 0 && S_ISREG(statBuf.st_mode)) {		/* it's a file */
 				int len = strlen(path);
-                                int zip_len = strlen(path_md_zip_name);
-				if (((len > 4) && (strcasecmp(path+len-4, ".zip") == 0)) || /* Is it a zip file? */
-                                    ((len >= zip_len) && 
-                                     (strcasecmp(path+len-zip_len, path_md_zip_name) == 0))) { /* java_301 file ? */
+				if ((len > 4) && (strcasecmp(path+len-4, ".zip") == 0)) { /* Is it a zip file? */
 					zip_t *zip = zip_open(path);
 					if (zip != 0) {												/* successfully opened it */
 						cpe_t *cpe = sysMalloc(sizeof(cpe_t));
