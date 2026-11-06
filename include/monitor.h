@@ -76,11 +76,11 @@ extern sys_mon_t *_registry_lock;
  */
 void monitorInit(monitor_t *mon);
 void monitorCacheInit(void);
-JAVA_PUBLIC_API(void) monitorEnter(uint32);
-JAVA_PUBLIC_API(void) monitorExit(uint32);
-JAVA_PUBLIC_API(void) monitorWait(uint32, int32_t);
-JAVA_PUBLIC_API(void) monitorNotify(uint32);
-JAVA_PUBLIC_API(void) monitorNotifyAll(uint32);
+JAVA_PUBLIC_API(void) monitorEnter(uint32_t);
+JAVA_PUBLIC_API(void) monitorExit(uint32_t);
+JAVA_PUBLIC_API(void) monitorWait(uint32_t, int32_t);
+JAVA_PUBLIC_API(void) monitorNotify(uint32_t);
+JAVA_PUBLIC_API(void) monitorNotifyAll(uint32_t);
 
 /* Registry of static monitors */
 extern reg_mon_t *MonitorRegistry;

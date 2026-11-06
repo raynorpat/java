@@ -299,7 +299,7 @@ extern GCInfo *gcInfo;
 
 void ScanVerifyContext(void *ptr)
 {
-    void (*liveObject)(void **base, int32 count);
+    void (*liveObject)(void **base, int32_t count);
     context_type *cx = (context_type*) ptr;
 
     liveObject = gcInfo->liveObject;

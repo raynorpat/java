@@ -30,6 +30,7 @@
  * any macros for HPI functions have been moved to "sysmacros_md.h"
  */
 #include "typedefs_md.h"
+#include <stdio.h>	/* FILE */
 
 /*
  * Some platforms, notably Windows, require that extra keywords

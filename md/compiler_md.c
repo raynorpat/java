@@ -25,7 +25,7 @@ int InvokeCompiledMethodInt(struct methodblock *mb, void *a,
 int64_t InvokeCompiledMethodLong(struct methodblock *mb, void *a,
 				 stack_item *b, int c)
 {
-    int64 rv;
+    int64_t rv;
     abort();
     return rv;
 }

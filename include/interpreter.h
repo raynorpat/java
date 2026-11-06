@@ -113,7 +113,7 @@ extern char *Object2CString(JHandle *);
 #define obj_getslot(o, slot) uobj_getslot(unhand(o), slot)
 #define obj_setslot(o, slot, v) (obj_getslot(o, slot) = (v))
 
-#define obj_monitor(handlep) ((uint32) handlep)
+#define obj_monitor(handlep) ((uint32_t) handlep)
 
 
 struct arrayinfo {

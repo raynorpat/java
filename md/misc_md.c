@@ -27,7 +27,7 @@ char *vbase = (char*) 0x40000000;
 
 long sysGetMilliTicks(void)
 {
-    int64 now;
+    int64_t now;
     long l;
 
     now = PR_NowMS();
@@ -42,7 +42,7 @@ long sysTime(long *p)
 
 int64_t sysTimeMillis(void)
 {
-    int64 now;
+    int64_t now;
 
     now = PR_NowMS();
     return now;
@@ -50,7 +50,7 @@ int64_t sysTimeMillis(void)
 
 struct tm * sysGmtime(time_t * timer, struct tm *result)
 {
-	uint64	timeInMicros,
+	uint64_t	timeInMicros,
 			s2us;
 	PRTime	localPRTimeRecord;
 
@@ -77,7 +77,7 @@ struct tm * sysGmtime(time_t * timer, struct tm *result)
 
 struct tm * sysLocaltime( time_t *timer, struct tm * result )
 {
-	uint64	timeInMicros,
+	uint64_t	timeInMicros,
 			s2us;
 	PRTime	localPRTimeRecord;
 
@@ -122,9 +122,9 @@ void sysStrftime(char *buf, int buflen, char *fmt, struct tm *t)
 time_t sysMktime(struct tm *t)
 {
 	PRTime	 	prTimeRecord;
-	uint64		timeInMicros;
+	uint64_t		timeInMicros;
 	time_t		result;
-	uint64		resultLong,
+	uint64_t		resultLong,
 				divisor;
 
 	prTimeRecord.tm_usec = 0;

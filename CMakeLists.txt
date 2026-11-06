@@ -60,7 +60,7 @@ prefixed(runtime_sources runtime agent class date debug globals io math
   utf util zip classinitialize classresolver common_exceptions threadruntime
   compiler check_class check_code classloader classruntime gifdecoder exception
   exceptions filesystem interpreter)
-prefixed(md_sources md car_md gc_md io_md link_md math_md misc_md mon_md path_md
+prefixed(md_sources md gc_md io_md link_md math_md misc_md mon_md path_md
   ionet_md stubs_md trace_md agentthread compiler_md process_md properties_md
   socket_md system_md thread_md)
 
@@ -75,7 +75,7 @@ target_link_libraries(java javai)
 # --- Standalone tools, each with its reduced runtime subset ---
 prefixed(tool_runtime runtime classloader classresolver classresolver_stubs
   globals runtime_stubs utf util zip)
-add_executable(javah javah/javah.c ${tool_runtime} md/car_md.c md/path_md.c
+add_executable(javah javah/javah.c ${tool_runtime} md/path_md.c
   md/stubs_md.c md/system_md.c)
 add_executable(javap javap/javap.c javap/console.c ${tool_runtime} runtime/check_class.c
   runtime/check_code.c runtime/decode.c md/path_md.c md/system_md.c
@@ -94,6 +94,8 @@ set_tests_properties(hello PROPERTIES PASS_REGULAR_EXPRESSION "VM: 2 4 0.*sum=99
 add_test(NAME threads COMMAND java -classpath "${test_cp}" Threads)
 set_tests_properties(threads PROPERTIES TIMEOUT 60
   PASS_REGULAR_EXPRESSION "count=80000 .*caught NPE.*gc ok, free=true")
+add_test(NAME longs COMMAND java -classpath "${test_cp}" Longs)
+set_tests_properties(longs PROPERTIES PASS_REGULAR_EXPRESSION "longs ok")
 add_test(NAME props COMMAND java -classpath "${test_cp}" Props)
 set_tests_properties(props PROPERTIES PASS_REGULAR_EXPRESSION
   "version=1\\.0\\.2.*vendor=Sun Microsystems Inc\\..*separator=\\\\.*home is dir=true.*child is dir=true.*classpath set=true")

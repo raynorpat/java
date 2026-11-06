@@ -289,7 +289,7 @@ ResolveMethods(ClassClass *cb)
     for (size = 0; size < (int) cb->methods_count; size++, mb++) {
 	int32_t offset = (int32_t)mb->fb.u.offset;
 	if (offset > 0) { 
-	    sysAssert((uint32)offset < mslot);
+	    sysAssert((uint32_t)offset < mslot);
 	    mt_slot(new_table, offset) = mb;
 	}
     }

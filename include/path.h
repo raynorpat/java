@@ -22,17 +22,15 @@
 
 #include "path_md.h"
 #include "zip.h"
-#include "car_md.h"
 
 /*
  * Class path element, which is either a directory or zip file.
  */
 typedef struct {
-    enum { CPE_DIR, CPE_ZIP, CPE_CAR } type;
+    enum { CPE_DIR, CPE_ZIP } type;
     union {
 	zip_t *zip;
 	char *dir;
-	CARFile *car;
     } u;
 } cpe_t;
 

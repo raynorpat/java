@@ -1,9 +1,8 @@
 #ifndef sun_java_timeval_md_h___
 #define sun_java_timeval_md_h___
 
-#include "nspr_md.h"
-#include "prlong.h"
+#include "typedefs_md.h"
 
-typedef int64 timeval_t;
+typedef int64_t timeval_t;
 
 #endif /* sun_java_timeval_md_h___ */
