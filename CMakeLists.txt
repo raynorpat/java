@@ -19,7 +19,8 @@ add_compile_options(/W1 /wd4996 /GS-)
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DTRIMMED")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -DTRACING")
 
-include_directories(include include/_gen md-include runtime)
+set(plat win32)
+include_directories(include include/_gen md-include/${plat} runtime)
 set(sys_libs wsock32 winmm user32 advapi32)
 
 function(prefixed out dir)
@@ -36,7 +37,7 @@ prefixed(runtime_sources runtime agent arena class date debug globals io math
   utf util zip classinitialize classresolver common_exceptions threadruntime
   compiler check_class check_code classloader classruntime gifdecoder exception
   exceptions filesystem interpreter gc finalize monitor monitor_cache)
-prefixed(md_sources md dir_md gc_md io_md link_md math_md misc_md mon_md path_md
+prefixed(md_sources md/${plat} dir_md gc_md io_md link_md math_md misc_md mon_md path_md
   ionet_md stubs_md agentthread compiler_md process_md properties_md
   socket_md system_md thread_md)
 
@@ -50,10 +51,10 @@ target_link_libraries(java javai)
 # --- Standalone tools, each with its reduced runtime subset ---
 prefixed(tool_runtime runtime arena classloader classresolver classresolver_stubs
   globals runtime_stubs utf util zip)
-add_executable(javah javah/javah.c ${tool_runtime} md/path_md.c
-  md/stubs_md.c md/system_md.c)
+add_executable(javah javah/javah.c ${tool_runtime} md/${plat}/path_md.c
+  md/${plat}/stubs_md.c md/${plat}/system_md.c)
 add_executable(javap javap/javap.c javap/console.c ${tool_runtime} runtime/check_class.c
-  runtime/check_code.c runtime/decode.c md/path_md.c md/system_md.c)
+  runtime/check_code.c runtime/decode.c md/${plat}/path_md.c md/${plat}/system_md.c)
 foreach(t javah javap)
   target_link_libraries(${t} ${sys_libs})
 endforeach()
@@ -109,4 +110,4 @@ set_tests_properties(native PROPERTIES PASS_REGULAR_EXPRESSION "native add=42 gr
 install(TARGETS java javah javap javai RUNTIME DESTINATION bin ARCHIVE DESTINATION lib)
 install(FILES classsrc/classes.zip DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include FILES_MATCHING PATTERN "*.h")
-install(DIRECTORY md-include/ DESTINATION include/win32 FILES_MATCHING PATTERN "*.h")
+install(DIRECTORY md-include/${plat}/ DESTINATION include/${plat} FILES_MATCHING PATTERN "*.h")
