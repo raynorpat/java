@@ -26,7 +26,8 @@ and the five `demo/i18n` demos.
   `java-rmi.cgi`, `javakey`, `native2ascii`, `serialver`, `javaverify`, and the `JdbcOdbc` bridge.
 - **AWT on three platforms:**
   1. Windows: reconstruct `winawt.dll`.
-  2. Linux/Unix: write a new **X11/Motif** AWT (no Sun Unix AWT binary is available).
+  2. Linux/Unix: reconstruct and port **X11/Motif** AWT using the newly supplied
+     Solaris JDK 1.1.8 release/debug binaries, with explicit 1.1.5 compatibility checks.
   3. Rhapsody: reconstruct Apple's **AppKit** AWT (`libawt.A.dylib` + `com.apple.rhapsody.awt`),
      built and tested on a real Rhapsody DR2 install (the owner's DR2 VM image). This comes
      **after** the main reconstruction is complete and ready for build testing.
@@ -142,10 +143,14 @@ function by function"; `include/` gives the structure layouts.
   cthreads) under one `#ifdef`; our existing pthreads layer under another, which is what
   Linux builds use.
 - **Motif AWT:** needs both native code and Java peer classes (`sun.awt.motif.*`, toolkit
-  `sun.awt.motif.MToolkit`, the name 1.0.2's properties already use), since no Sun Motif
-  classes exist in the available material. Written in Java 1.1 and compiled by 1.1.5 `javac`;
-  shaped after the `sun.awt.windows` peers so the shared `java.awt` code drives both the same
-  way. Built against Motif (or LessTif-compatible Motif) and X11 on Linux.
+  `sun.awt.motif.MToolkit`, the name 1.0.2's properties already use). The owner has now
+  supplied Solaris JDK 1.1.8/16 with native release/debug AWT libraries and Motif classes.
+  Audit those peers against 1.1.5 before selecting a compatible peer-only archive or
+  reconstructing Java 1.1 peers compiled by 1.1.5 `javac`. Keep both original class
+  archives unchanged. Build against Motif and X11 on Linux. See the
+  [Solaris intake](../plans/2026-11-06-solaris118-inventory.md) for provenance and gates.
+  The owner chose X11 AWT first, followed by a separate full Solaris 1.1.8 reconstruction;
+  the current Phase 3 work and the 1.1.5 image's version target remain unchanged.
 - **Rhapsody AppKit AWT:** Java classes from Apple's `awt.jar` used as-is; the native
   `libawt` reconstructed. Rhapsody has no CMake, so it gets its own build files runnable with
   the DR2 developer tools (builder's call: a plain Makefile).
