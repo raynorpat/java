@@ -12,14 +12,6 @@
 #include "_stubs/java_util_Date.c"
 #include "_stubs/sun_awt_image_GifImageDecoder.c"
 
-#if !defined(XP_PC)
-/* 
-** Since the JPEG decoder requires the jpeg library, these functions
-** must be linked into the navigator...
-*/
-#include "_stubs/sun_awt_image_JPEGImageDecoder.c"
-#endif /* XP_PC */
-
 /* Contentious natives */
 #include "_stubs/java_lang_Class.c"
 #include "_stubs/java_lang_ClassLoader.c"
