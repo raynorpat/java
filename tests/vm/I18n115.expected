@@ -1,0 +1,19 @@
+en_US number=12,345.75
+parse=12345.75
+date=January 1, 1970
+fr_FR number=12[160]345,75
+parse=12345.75
+date=1 janvier 1970
+de_DE number=12.345,75
+parse=12345.75
+date=1. Januar 1970
+decimal=012.50
+Total: 7 files
+collation=0,-1
+word=0
+word=3
+word=4
+word=8
+sentence=0
+sentence=5
+sentence=9

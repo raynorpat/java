@@ -1,0 +1,6 @@
+protocol=systemresource
+resource=115
+resource=115
+missing=true
+invalid=java.net.MalformedURLException
+class=Can't read classfile as system resource

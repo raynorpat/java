@@ -12,6 +12,9 @@ extern JAVA_PUBLIC_API(int) java_main(int argc, char **argv);
 #ifndef TOOL_HEAP
 #define TOOL_HEAP "-ms8m"
 #endif
+#ifdef TOOL_APPLET
+#define TOOL_HOME
+#endif
 
 int main(int argc, char **argv)
 {
@@ -26,14 +29,20 @@ int main(int argc, char **argv)
 #ifdef TOOL_APPLET
     int debug = 0, arguments = 0;
     char debugger_class[] = "sun.tools.ttydebug.TTY";
+#endif
+#ifdef TOOL_HOME
     const char *configured_home = getenv("JAVA_HOME");
     struct stat info;
+#endif
+#ifdef TOOL_APPLET
     for (i = 1; i < argc; ++i)
         if (strncmp(argv[i], "-J", 2)) ++arguments;
     if (arguments == 0) {
         fprintf(stderr, "usage: appletviewer [-debug] [-J<runtime flag>] url|file ...\n");
         return 1;
     }
+#endif
+#ifdef TOOL_HOME
     if (configured_home != NULL) {
         if (*configured_home == 0 || stat(configured_home, &info) != 0 ||
             !(info.st_mode & S_IFDIR)) {
@@ -46,7 +55,7 @@ int main(int argc, char **argv)
     args = calloc(argc + 5, sizeof(char *));
     if (args == NULL) return 1;
 #ifndef TOOL_SIMPLE
-#ifdef TOOL_APPLET
+#ifdef TOOL_HOME
     if (!oldpath) oldpath = "";
 #else
     if (!oldpath) oldpath = ".";
@@ -68,7 +77,7 @@ int main(int argc, char **argv)
 #endif
     args[count++] = "java";
     if (*TOOL_HEAP) args[count++] = TOOL_HEAP;
-#ifdef TOOL_APPLET
+#ifdef TOOL_HOME
     home_property = malloc(strlen(configured_home ? configured_home : home) + 16);
     if (home_property == NULL) { free(args); return 1; }
     sprintf(home_property, "-Djava.home=%s", configured_home ? configured_home : home);
@@ -77,6 +86,9 @@ int main(int argc, char **argv)
 #ifndef TOOL_SIMPLE
     for (i = 1; i < argc; i++)
         if (!strncmp(argv[i], "-J", 2)) args[count++] = argv[i] + 2;
+#ifdef TOOL_REGISTRY
+        else if (!strncmp(argv[i], "-D", 2)) args[count++] = argv[i];
+#endif
 #endif
 #ifdef TOOL_APPLET
     for (i = 1; i < argc; ++i)
@@ -89,6 +101,9 @@ int main(int argc, char **argv)
         if (!strcmp(argv[i], "-debug")) continue;
 #endif
 #ifndef TOOL_SIMPLE
+#ifdef TOOL_REGISTRY
+        if (!strncmp(argv[i], "-D", 2)) continue;
+#endif
         if (strncmp(argv[i], "-J", 2)) args[count++] = argv[i];
 #else
         args[count++] = argv[i];

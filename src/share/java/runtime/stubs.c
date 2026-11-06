@@ -31,16 +31,11 @@
 #include "_stubs/fileextras115.c"
 #include "_stubs/vm115.c"
 #include "_stubs/java_io_FileOutputStream.c"
-#include "_stubs/java_net_DatagramSocket.c"
-#include "_stubs/java_net_InetAddress.c"
 
 #include "_stubs/java_io_File.c"
 #include "_stubs/java_io_FileDescriptor.c"
 #include "_stubs/java_io_FileInputStream.c"
 #include "_stubs/java_io_RandomAccessFile.c"
-#include "_stubs/java_net_PlainSocketImpl.c"
-#include "_stubs/java_net_SocketInputStream.c"
-#include "_stubs/java_net_SocketOutputStream.c"
 
 #ifdef BREAKPTS
 #include "_stubs/sun_tools_debug_Agent.c"

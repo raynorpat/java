@@ -1,0 +1,18 @@
+rgb=17x9,false,false,-3706739343752998060,rows=true
+gray=17x9,true,false,1503156458995484512,rows=true
+progressive=17x9,false,true,-3706739343752998060,rows=true
+short=17x9,false,false,-3706739343752998060,rows=true
+shortprogressive=17x9,false,true,-3706739343752998060,rows=true
+marker=17x9,false,false,-3706739343752998060,rows=true
+shortmarker=17x9,false,false,-3706739343752998060,rows=true
+truncatedmarker=sun.awt.image.ImageFormatException:JPEG datastream contains no image
+truncated=17x9,false,false,-3706739343752998060,rows=true
+invalid=sun.awt.image.ImageFormatException:Not a JPEG file: starts with 0x01 0x02
+empty=sun.awt.image.ImageFormatException:Not a JPEG file: starts with 0xff 0xd9
+headercancel=17x9,false,false,0,rows=false
+pixelcancel=17x9,false,false,820224444144947181,rows=true
+headererror=java.lang.RuntimeException:jpeg header failure
+pixelerror=java.lang.RuntimeException:jpeg pixel failure
+inputerror=java.io.IOException:jpeg input failure
+null=java.lang.NullPointerException:null
+nullbuffer=java.lang.NullPointerException

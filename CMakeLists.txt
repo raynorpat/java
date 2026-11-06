@@ -109,7 +109,10 @@ target_link_libraries(javai zlib115 ${sys_libs})
 
 add_executable(java src/share/java/javai/java_stub.c)
 target_link_libraries(java javai)
-foreach(tool javac javap jar appletviewer native2ascii)
+add_executable(java-rmi src/share/java/javai/rmi_cgi.c)
+set_target_properties(java-rmi PROPERTIES SUFFIX ".cgi")
+install(TARGETS java-rmi RUNTIME DESTINATION bin)
+foreach(tool javac javap jar appletviewer native2ascii serialver javadoc javakey rmic rmiregistry)
   add_executable(${tool} src/share/java/javai/tool_main.c src/${plat}/java/runtime/path_md.c
     src/share/java/runtime/zip.c ${file_hpi_sources})
   target_link_libraries(${tool} javai zlib115)
@@ -118,6 +121,11 @@ target_compile_definitions(javac PRIVATE TOOL_CLASS="sun.tools.javac.Main")
 target_compile_definitions(javap PRIVATE TOOL_CLASS="sun.tools.javap.JavaP" TOOL_SIMPLE TOOL_HEAP="")
 target_compile_definitions(jar PRIVATE TOOL_CLASS="sun.tools.jar.Main" TOOL_SIMPLE)
 target_compile_definitions(native2ascii PRIVATE TOOL_CLASS="sun.tools.native2ascii.Main" TOOL_SIMPLE)
+target_compile_definitions(serialver PRIVATE TOOL_CLASS="sun.tools.serialver.SerialVer" TOOL_HOME TOOL_HEAP="")
+target_compile_definitions(javadoc PRIVATE TOOL_CLASS="sun.tools.javadoc.Main" TOOL_SIMPLE TOOL_HEAP="")
+target_compile_definitions(javakey PRIVATE TOOL_CLASS="sun.security.provider.Main" TOOL_SIMPLE)
+target_compile_definitions(rmic PRIVATE TOOL_CLASS="sun.rmi.rmic.Main" TOOL_HOME TOOL_HEAP="")
+target_compile_definitions(rmiregistry PRIVATE TOOL_CLASS="sun.rmi.registry.RegistryImpl" TOOL_HOME TOOL_REGISTRY TOOL_HEAP="")
 target_compile_definitions(appletviewer PRIVATE TOOL_CLASS="sun.applet.AppletViewer" TOOL_APPLET TOOL_HEAP="")
 set(jre_sources src/share/java/jre/jre.c src/share/java/jre/jre_main.c src/${plat}/java/jre/jre_md.c)
 add_executable(jre ${jre_sources})
@@ -146,6 +154,23 @@ endforeach()
 
 # --- Smoke tests (ctest -C Release). Classes are prebuilt with JDK 1.1.5 javac (class file 45.3). ---
 enable_testing()
+include(cmake/zip115.cmake)
+include(cmake/sysresource115.cmake)
+include(cmake/mmedia115.cmake)
+include(cmake/math115.cmake)
+include(cmake/jpeg115.cmake)
+add_test(NAME tools-documentation115 COMMAND ${CMAKE_COMMAND}
+  "-DBIN=$<TARGET_FILE_DIR:javadoc>" "-DEXE=${CMAKE_EXECUTABLE_SUFFIX}"
+  "-DHOME115=${CMAKE_BINARY_DIR}"
+  "-DLIBDIR=$<TARGET_FILE_DIR:math>"
+  "-DROOT=${CMAKE_SOURCE_DIR}" "-DOUT=${CMAKE_BINARY_DIR}/documentation115/$<CONFIG>"
+  -P "${CMAKE_SOURCE_DIR}/tests/tools/documentation115.cmake")
+add_test(NAME tools-cgi115 COMMAND ${CMAKE_COMMAND}
+  "-DBIN=$<TARGET_FILE_DIR:java>" "-DTOOL=$<TARGET_FILE:java-rmi>"
+  -P "${CMAKE_SOURCE_DIR}/tests/tools/cgi115.cmake")
+add_test(NAME tools-console115 COMMAND ${CMAKE_COMMAND}
+  "-DBIN=$<TARGET_FILE_DIR:serialver>" "-DHOME115=${CMAKE_BINARY_DIR}"
+  "-DEXE=${CMAKE_EXECUTABLE_SUFFIX}" -P "${CMAKE_SOURCE_DIR}/tests/tools/console115.cmake")
 add_test(NAME tools-native2ascii115 COMMAND ${CMAKE_COMMAND}
   "-DTOOL=$<TARGET_FILE:native2ascii>" "-DROOT=${CMAKE_SOURCE_DIR}"
   "-DOUT=${CMAKE_BINARY_DIR}/native2ascii115/$<CONFIG>"
@@ -263,6 +288,7 @@ function(java_test)
 endfunction()
 # Reconstruction progress tests; failures remain visible, baseline uses -LE jdk115.
 java_test(NAME vm-hello115 CLASS Hello115)
+java_test(NAME vm-i18n115 CLASS I18n115)
 java_test(NAME vm-small-heap115 CLASS Hello115 VM_ARGS -ms16k)
 java_test(NAME vm-FinalizeQueue115 CLASS FinalizeQueue115)
 java_test(NAME vm-primitives CLASS PrimitiveClasses)
@@ -348,6 +374,10 @@ add_test(NAME zip115 COMMAND zip115-test "${CMAKE_SOURCE_DIR}/tests/vm/resources
 configure_file("${JDK115_DIR}/lib/classes.zip" "${CMAKE_BINARY_DIR}/classes.zip" COPYONLY)
 configure_file("${JDK115_DIR}/lib/classes.zip" "${CMAKE_BINARY_DIR}/lib/classes.zip" COPYONLY)
 configure_file("${JDK115_DIR}/lib/security/java.security" "${CMAKE_BINARY_DIR}/lib/security/java.security" COPYONLY)
+foreach(resource serialver.properties rmic.properties)
+  configure_file("${JDK115_DIR}/lib/${resource}" "${CMAKE_BINARY_DIR}/lib/${resource}" COPYONLY)
+  install(FILES "${JDK115_DIR}/lib/${resource}" DESTINATION lib)
+endforeach()
 set(test_cp "${CMAKE_SOURCE_DIR}/tests/smoke${sep}${CMAKE_BINARY_DIR}/classes.zip")
 add_test(NAME hello COMMAND java -classpath "${test_cp}" Hello)
 set_tests_properties(hello PROPERTIES PASS_REGULAR_EXPRESSION "VM: 2.0 4.0 0.*sum=9999900000")
@@ -404,7 +434,7 @@ add_test(NAME native COMMAND java -classpath "${native_cp}" NativeHello)
 set_tests_properties(native PROPERTIES PASS_REGULAR_EXPRESSION "native add=42 greet=hello java")
 
 # --- JDK image ---
-install(TARGETS java javac javah javap jar appletviewer native2ascii jre javai RUNTIME DESTINATION bin LIBRARY DESTINATION lib
+install(TARGETS java javac javah javap jar appletviewer native2ascii serialver javadoc javakey rmic rmiregistry jre javai RUNTIME DESTINATION bin LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
 if(WIN32)
   install(TARGETS javaw jrew RUNTIME DESTINATION bin)
@@ -434,3 +464,4 @@ add_executable(exitcallbacks115 tests/native/exitcallbacks115.c src/${plat}/java
 target_compile_definitions(exitcallbacks115 PRIVATE JAVA_INTERNAL_BUILD JNI115_ENABLED)
 add_test(NAME exitcallbacks115 COMMAND ${CMAKE_COMMAND}
   "-DPROBE=$<TARGET_FILE:exitcallbacks115>" -P "${CMAKE_SOURCE_DIR}/tests/native/exitcallbacks115.cmake")
+include(cmake/net115.cmake)
