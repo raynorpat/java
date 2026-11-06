@@ -1,0 +1,3 @@
+self=ClassPathForms
+library=java.util.Vector
+missing=java.lang.ClassNotFoundException

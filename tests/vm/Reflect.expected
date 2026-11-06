@@ -1,0 +1,10 @@
+private int ReflectTarget.hidden
+public java.lang.String ReflectTarget.label
+public int ReflectTarget.add(int)
+public ReflectTarget()
+public ReflectTarget(int)
+invoke=12
+private=java.lang.IllegalAccessException
+array=[I 3 42
+multi=[[Ljava.lang.String; 3
+primitive=int true

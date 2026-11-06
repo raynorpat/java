@@ -1,0 +1,4 @@
+method=java.io.IOException
+method=java.lang.ClassNotFoundException
+constructor=java.io.IOException
+target=java.lang.IllegalStateException

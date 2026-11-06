@@ -1,0 +1,13 @@
+void primitive=true super=null interface=false interfaces=0 loader=null same=true
+boolean primitive=true super=null interface=false interfaces=0 loader=null same=true
+byte primitive=true super=null interface=false interfaces=0 loader=null same=true
+char primitive=true super=null interface=false interfaces=0 loader=null same=true
+short primitive=true super=null interface=false interfaces=0 loader=null same=true
+int primitive=true super=null interface=false interfaces=0 loader=null same=true
+long primitive=true super=null interface=false interfaces=0 loader=null same=true
+float primitive=true super=null interface=false interfaces=0 loader=null same=true
+double primitive=true super=null interface=false interfaces=0 loader=null same=true
+object=false
+array=false
+forName=java.lang.ClassNotFoundException
+afterGC=true int

@@ -1,0 +1,8 @@
+length=2
+chars=233 20013
+upper=201
+UTF8=5 195 169 228 184 173
+UnicodeBig=6 254 255 0 233 78 45
+roundtrip=true
+stdout=5 195 169 228 184 173
+filename=true roundtrip=true

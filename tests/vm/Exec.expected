@@ -1,0 +1,4 @@
+stdout=hi
+eof=true
+exit=0
+stderr=-1

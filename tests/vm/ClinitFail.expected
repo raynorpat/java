@@ -1,0 +1,5 @@
+attempt=0 java.lang.ExceptionInInitializerError
+cause=java.lang.IllegalStateException
+value=0
+new=0 java.lang.ExceptionInInitializerError
+new=1 ClinitNewBroken
