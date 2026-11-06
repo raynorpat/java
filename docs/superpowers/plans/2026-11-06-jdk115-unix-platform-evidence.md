@@ -91,3 +91,70 @@ or executed in this checkpoint. Phase 2 pre/post-merge Windows Debug runs pass
 106/106; the new branch preserves the identical production tree. A fresh Linux
 Release baseline also passes 94 tests with the one expected audio-device skip
 and zero failures (out/phase3-linux-baseline-tests.log).
+
+## Mach condition-message primitives implemented
+
+The next inventory pass found usable external declarations in
+D:/RhapsodiOS/tmp/terminal-sdk/include/System/mach/cthreads.h and message.h.
+Their mutex (8 bytes), condition (16 bytes), queue and legacy msg_header_t
+(24 bytes) layouts agree with the original i386 accesses. The private cproc
+prefix is corroborated by D:/RhapsodiOS/src/CoreOS/Libc-1/threads.subproj/
+cthread_internals.h: next +0, incarnation +4, state +8, reply_port +12,
+wait_port +16. Only this accessed prefix is declared by the reconstruction.
+These external headers are not represented as an original DR2 SDK install.
+
+External public header SHA-256 values:
+
+- cthreads.h: 766dd71bc17d0d695d58a5fc8e752a0258c7c55207deeffe448103a595f515f5
+- message.h: 6532113686317f639d97c920833c0336a1774cc7f38d8830e443ea43ccd2986c
+
+src/unix/java/runtime/condition_md.c reconstructs condition_wait_timeout,
+condition_signal_timeout and condition_broadcast_timeout. SDK declarations
+also recover their names. The original helpers are authoritative: unlike the
+later Libc implementation, the VM returns 0 on message, -3 on timeout, -1 on
+other receive error, and supports unsigned -1 for infinite waits. No external
+Libc implementation or SDK files are copied into this repository.
+
+Recovered protocol:
+
+- Enqueue the current cproc, mark state2, release condition spinlock and mutex.
+- Receive a 24-byte message on wait_port. Timed mode uses RCV_TIMEOUT (256);
+  infinite mode uses option0/timeout0. The exact special retry value is -21,
+  not RCV_INTERRUPTED (-207).
+- A timeout (-203) checks state3 both before and after locking. A notifier
+  already owning the waiter requires another receive, not timeout return.
+- A genuine timeout rebuilds the queue without that waiter, retaining the
+  remaining FIFO order. Both success and timeout restore state0. Every return
+  reacquires the caller's mutex, including the blocking-lock fallback.
+- Notify removes one head, marks state3, unlocks and sends a simple message
+  with SEND_TIMEOUT/timeout0. SEND_TIMED_OUT (-103) is tolerated.
+- Broadcast recursively dequeues/marks every waiter before unlocking, then
+  sends in reverse order. This preserves the original node-lifetime protocol.
+
+Ruling: initialize the outgoing header's unused 24 bits to zero instead of
+leaving original stack contents there. They have no defined IPC meaning;
+zeroing them avoids exposing uninitialized bytes. Cost if wrong: an undocumented
+kernel dependence on reserved bits would differ; no inspected code uses them.
+
+The original fatal-receive path logs an error and reacquires the mutex without
+removing the waiter or resetting its state. That behavior is retained in this
+primitive; no assertion of successful recovery from a broken Mach receive port
+is made. Thread/port teardown must be addressed in the lifecycle slice.
+
+Verification: the new test first failed because condition_md.c was absent.
+It then passed with GCC -m32 -std=c89 -pedantic -Wall -Wextra using test-only
+Mach headers. It also passes at -O2 using the external SDK's real public
+headers and fake IPC functions; GNU89 is needed for asm in those external
+headers, while our source itself remains C89. This is header/protocol checking,
+not Mach linking or execution on DR2.
+
+The CTest mach115-condition target passes MSVC Release/Debug and Linux Release.
+Full Windows Debug: 107/107 pass. Full Linux Release: 95 pass, one expected
+audio-device skip, zero failures. Logs: out/phase3-condition-{win,linux}-tests.log.
+An independent review compared all four original helper bodies, layouts and
+test cases and reported no actionable findings.
+
+The VM continues to use pthreads on Linux. This file is currently built only
+by the protocol test; condvar init/destroy and VM state wrappers, full thread
+records and backend selection remain open. Tests cover deterministic race
+interleavings, not real Mach scheduling or concurrency.

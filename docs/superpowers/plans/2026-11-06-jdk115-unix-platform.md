@@ -81,3 +81,12 @@ Phase 3 started with primary-binary inspection, not a claim that Linux already
 passing closes the cthreads requirement. Initial recovered facts are committed
 in the evidence document; runtime implementation is still open. No production
 behavior changed in this initial inventory checkpoint.
+
+Task 2, first implementation slice: Mach condition-message primitives are
+implemented and independently reviewed. RED: protocol test could not link the
+missing source. GREEN: strict C89/i386 test-double run, optimized external-SDK
+header run, MSVC Release/Debug target checks, Windows Debug full107/107 and
+Linux Release full95 passed plus one expected device skip. Production pthread
+selection is unchanged. Task 2 remains open for complete records and VM
+condvar wrappers; see the evidence document for protocol details and the
+reserved-message-bits ruling.

@@ -465,3 +465,10 @@ target_compile_definitions(exitcallbacks115 PRIVATE JAVA_INTERNAL_BUILD JNI115_E
 add_test(NAME exitcallbacks115 COMMAND ${CMAKE_COMMAND}
   "-DPROBE=$<TARGET_FILE:exitcallbacks115>" -P "${CMAKE_SOURCE_DIR}/tests/native/exitcallbacks115.cmake")
 include(cmake/net115.cmake)
+
+# Exercise the reconstructed Mach protocol with deterministic test-only IPC.
+# This does not select Mach for the running VM or claim DR2 execution.
+add_executable(mach115-condition tests/native/mach115-condition.c
+  src/unix/java/runtime/condition_md.c)
+target_include_directories(mach115-condition BEFORE PRIVATE tests/native/mach115)
+add_test(NAME mach115-condition COMMAND mach115-condition)
