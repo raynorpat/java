@@ -117,9 +117,10 @@ function by function"; `include/` gives the structure layouts.
 - **Linux native libraries (owner accepted my recommendation):** `mmedia` plays real audio
   through a simple Linux backend (builder's call, e.g. OSS-compatible `/dev/dsp` or ALSA);
   `agent`/`jdb` works on Linux; `JdbcOdbc` is Windows-only.
-- **Rhapsody VM (my call, owner to confirm):** Rhapsody runs our reconstructed Sun VM with the
-  cthreads platform code, plus only the extra exports Apple's `libawt` and `awt.jar` need.
-  Apple's own VM changes and the `JavaVM.framework` layout are not reconstructed.
+- **Rhapsody VM (owner confirmed):** Rhapsody runs our reconstructed Sun VM with the cthreads
+  platform code, plus only the extra exports Apple's `libawt` and `awt.jar` need. Apple's own
+  VM changes and the `JavaVM.framework` layout are not reconstructed, at least at first.
+  Build and test happen in the owner's **QEMU virtual machine running Rhapsody DR2**.
 - **32-bit only.**
 - **CMake** (`3.0...3.10`) and CTest, as today, on Windows and Linux. Sun's makefiles are not
   available and are not recreated.
