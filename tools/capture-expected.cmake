@@ -9,9 +9,12 @@ endif()
 if(NOT DEFINED CLASS OR NOT EXISTS "${root}/tests/vm/${CLASS}.class")
   message(FATAL_ERROR "Pass -DCLASS=<compiled test class>")
 endif()
+if(NOT CMAKE_VERSION VERSION_LESS 3.8)
+  set(output_encoding ENCODING NONE)
+endif()
 execute_process(COMMAND "${JDK115_DIR}/bin/java.exe" ${VM_ARGS}
   -classpath "${root}/tests/vm;${JDK115_DIR}/lib/classes.zip" "${CLASS}" ${ARGS}
-  RESULT_VARIABLE status OUTPUT_VARIABLE actual ERROR_VARIABLE actual TIMEOUT 30)
+  RESULT_VARIABLE status OUTPUT_VARIABLE actual ERROR_VARIABLE actual TIMEOUT 30 ${output_encoding})
 if(NOT "${status}" STREQUAL "0")
   message(FATAL_ERROR "Sun VM failed (${status}): ${actual}")
 endif()
