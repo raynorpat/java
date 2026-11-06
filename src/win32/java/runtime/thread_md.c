@@ -211,6 +211,33 @@ sys_thread_t *sysThreadSelf(void)
     return tls == TLS_OUT_OF_INDEXES ? NULL : (sys_thread_t *) TlsGetValue(tls);
 }
 
+/* Invocation API: register a host-owned thread without starting a new one. */
+int sysThreadAttach(sys_thread_t **result)
+{
+    sys_thread_t *t = new_thread();
+    if (!t) return SYS_NORESOURCE;
+    if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(),
+                         &t->handle, 0, FALSE, DUPLICATE_SAME_ACCESS)) {
+        CloseHandle(t->interrupt_event); free(t); return SYS_NORESOURCE;
+    }
+    t->id = GetCurrentThreadId();
+    t->stack_base = stack_high();
+    t->priority = NormalPriority;
+    TlsSetValue(tls, t);
+    QUEUE_LOCK(); add_thread(t); QUEUE_UNLOCK();
+    *result = t;
+    return SYS_OK;
+}
+void sysThreadDetach(void)
+{
+    sys_thread_t *t = sysThreadSelf();
+    QUEUE_LOCK(); remove_thread(t); QUEUE_NOTIFY(); QUEUE_UNLOCK();
+    TlsSetValue(tls, NULL);
+    CloseHandle(t->handle);
+    CloseHandle(t->interrupt_event);
+    free(t);
+}
+
 void sysThreadYield(void)
 {
     SwitchToThread();

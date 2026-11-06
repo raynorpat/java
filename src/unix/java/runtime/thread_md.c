@@ -320,6 +320,28 @@ sys_thread_t *sysThreadSelf(void)
     return tls_ready ? (sys_thread_t *) pthread_getspecific(tls) : NULL;
 }
 
+/* Invocation API: register a host-owned thread without starting a new one. */
+int sysThreadAttach(sys_thread_t **result)
+{
+    sys_thread_t *t = new_thread();
+    if (!t) return SYS_NORESOURCE;
+    t->handle = pthread_self();
+    t->stack_base = stack_high();
+    t->priority = NormalPriority;
+    t->running = 1;
+    pthread_setspecific(tls, t);
+    QUEUE_LOCK(); add_thread(t); QUEUE_UNLOCK();
+    *result = t;
+    return SYS_OK;
+}
+void sysThreadDetach(void)
+{
+    sys_thread_t *t = sysThreadSelf();
+    QUEUE_LOCK(); remove_thread(t); QUEUE_NOTIFY(); QUEUE_UNLOCK();
+    pthread_setspecific(tls, NULL);
+    free(t);
+}
+
 void sysThreadYield(void)
 {
     sched_yield();

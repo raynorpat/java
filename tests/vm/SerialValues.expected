@@ -1,0 +1,8 @@
+small=true -117 9029 -23456
+numbers=-123456789 1311768467463790320 -1.25 3.125
+empty=true transient=0
+constructors=2 1 base=81
+ints=3 -7 123456
+longs=1311768467463790320 -1
+doubles=-9223372036854775808 2.5
+strings=one null two

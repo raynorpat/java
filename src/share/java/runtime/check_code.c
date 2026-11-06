@@ -2582,16 +2582,16 @@ CCerror (context_type *context, char *format, ...)
     #define BUF_LEN	1024
     char buf[BUF_LEN];
     int i = 0;
-    i += jio_snprintf(buf, BUF_LEN, "VERIFIER ERROR %s.%s%s: ", 
+    /* Reconstructed from Sun CCerror (Win32 0x1000a3cc): verbose only. */
+    if (!verbose)
+        longjmp(context->jump_buffer, 1);
+    i += jio_snprintf(buf, BUF_LEN, "VERIFIER ERROR %s.%s%s:\n", 
 		      fieldclass(&mb->fb)->name, mb->fb.name, mb->fb.signature);
     va_start(args, format);
 	i += jio_vsnprintf(buf + i, BUF_LEN - i, format, args);
     va_end(args);
     i += jio_snprintf(buf + i, BUF_LEN - i, "\n");
-#ifdef DEBUG
-    fprintf(stderr, buf);
-#endif /* DEBUG */
-    PrintToConsole(buf);
+    fputs(buf, stderr);
     longjmp(context->jump_buffer, 1);
 }
 

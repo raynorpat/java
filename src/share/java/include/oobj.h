@@ -117,6 +117,8 @@ struct methodblock {
     unsigned short args_size;	/* total size of all arguments */
     unsigned short maxstack;	/* maximum stack usage */
     unsigned short nlocals;	/* maximum number of locals */
+    unsigned short nexceptions; /* JDK 1.1 checked Exceptions attribute */
+    unsigned short *exceptions; /* constant pool indices, per Sun oobj.h */
     void *CompiledCode;		/* it's type is machine dependent */
 	void *CompiledCodeInfo; /* it's type is machine dependent */
     long CompiledCodeFlags;	/* machine dependent bits */
@@ -255,6 +257,12 @@ typedef struct ClassClass {
 
     unsigned short access;           /* how this class can be accesses */
     unsigned short flags;	     /* see the CCF_* macros */
+    /* deviation: separate primitive metadata until the 1.1 hashinfo union lands. */
+    unsigned char primitive_typecode;
+    char primitive_typesig;
+    unsigned char primitive_slotsize;
+    unsigned char primitive_elementsize;
+    struct HArrayOfObject *signers; /* Sun 1.1 ClassClass.signers, GC root. */
 } ClassClass;
 
 typedef ClassClass Classjava_lang_Class;
@@ -287,6 +295,11 @@ extern ClassClass *AllocClass(void);
 #define cbClassnameArray(cb)  ((cb)->classname_array)
 #define cbAccess(cb)       ((cb)->access)
 #define cbIsInterface(cb)  ((cbAccess(cb) & ACC_INTERFACE) != 0)
+#define cbIsPrimitive(cb) CCIs(cb, Primitive)
+#define cbTypeCode(cb) ((cb)->primitive_typecode)
+#define cbTypeSig(cb) ((cb)->primitive_typesig)
+#define cbSlotSize(cb) ((cb)->primitive_slotsize)
+#define cbElementSize(cb) ((cb)->primitive_elementsize)
 
 extern char *classname2string(char *str, char *dst, int size);
 
@@ -304,6 +317,8 @@ extern char *classname2string(char *str, char *dst, int size);
 #define CCF_Sticky	  0x200	/* Class must stay in memory */
 
 #define CCF_IsResolving	  0x400	/* Class is being resolved - cant be unloaded */
+/* deviation: 0x100 is still used by the old runtime's HasStatics flag. */
+#define CCF_IsPrimitive   0x800
 
 #define CCIs(cb,flag) (((cb)->flags & CCF_Is##flag) != 0)
 #define CCSet(cb,flag) ((cb)->flags |= CCF_Is##flag)

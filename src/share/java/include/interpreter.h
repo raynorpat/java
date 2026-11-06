@@ -48,6 +48,7 @@ extern ClassClass *classJavaLangString;	   /* class java/lang/Object */
 
 extern ClassClass *classJavaLangThrowable;
 extern ClassClass *classJavaLangException;
+extern ClassClass *classJavaLangError;
 extern ClassClass *classJavaLangRuntimeException;
 extern ClassClass *classJavaLangThreadDeath;
 
@@ -155,6 +156,8 @@ struct execenv {
 #ifdef DEBUG
     unsigned int      debugFlags;
 #endif
+    /* deviation: JNI state appended while the old ExecEnv layout remains. */
+    void *jni_state;
 };
 
 #ifdef DEBUG

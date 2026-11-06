@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 3.0...3.10)
+file(MAKE_DIRECTORY "${OUT}")
+file(GLOB sources RELATIVE "${ROOT}/tests/vm" "${ROOT}/tests/vm/*.java")
+execute_process(COMMAND "${JAVAC}" -nowarn -d "${OUT}" ${sources}
+  WORKING_DIRECTORY "${ROOT}/tests/vm"
+  RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE output TIMEOUT 120)
+if(NOT "${status}" STREQUAL "0" OR NOT "${output}" STREQUAL "")
+  message(FATAL_ERROR "Self-hosted javac failed (${status}): ${output}")
+endif()
+if(WIN32)
+  set(sep ";")
+else()
+  set(sep ":")
+endif()
+set(CP "${OUT}${sep}${JDK115_DIR}/lib/classes.zip${sep}${ROOT}/tests/vm/resources115.zip${sep}${ROOT}/tests/vm/old${sep}${ROOT}/tests/vm/bad")
+foreach(CLASS Hello115 PrimitiveClasses Props115 Unicode ClassPathForms Reflect
+    ReflectExceptions ReflectHierarchy ReflectValues Numeric115 Serial SerialValues
+    SerialHooks ClinitFail Interrupt Resources InnerAndOld BadVerify Exec)
+  set(ARGS)
+  set(VM_ARGS)
+  if(CLASS STREQUAL "InnerAndOld")
+    set(ARGS java.util.ObserverList)
+  elseif(CLASS STREQUAL "BadVerify")
+    set(VM_ARGS -verify)
+  endif()
+  set(EXPECTED "${ROOT}/tests/vm/${CLASS}.expected")
+  include("${ROOT}/tools/run-java-test.cmake")
+endforeach()

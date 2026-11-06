@@ -242,6 +242,11 @@ Locked_ResolveClassConstant(ClassClass *current_class,
 		  ee = EE();
 	      if (exceptionOccurred(ee)) 
 		  return FALSE;
+              /* Reconstructed: literal strings share the native intern table. */
+              constant_pool[index].p = java_lang_String_intern(
+                  (Hjava_lang_String *)constant_pool[index].p);
+              if (exceptionOccurred(ee))
+                  return FALSE;
 	      break;
 	  }
 	    

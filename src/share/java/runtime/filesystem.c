@@ -26,6 +26,7 @@
 #include "javaString.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <ctype.h>
 
 #include "java_io_File.h"
 #include "sys_api.h"
@@ -149,7 +150,14 @@ java_io_File_isAbsolute(Hjava_io_File *this)
 
     javaString2CString(thisptr->path, path, sizeof (path));
 
+#ifdef XP_PC
+    /* Sun 1.1.5 100162CC: rooted paths and drive-qualified rooted paths. */
+    return path[0] == '/' || path[0] == '\\' ||
+        (isalpha((unsigned char)path[0]) && path[1] == ':' &&
+         (path[2] == '\\' || path[2] == '/'));
+#else
     return sysIsAbsolute(path);
+#endif
 }
 
 int64_t

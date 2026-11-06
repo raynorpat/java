@@ -1,0 +1,13 @@
+int=7 boxed=7
+long=123 double=123.0
+double=1.5
+reference=text
+static=9876543210
+narrowing=java.lang.IllegalArgumentException
+final=java.lang.IllegalAccessException
+byte=-3 widened=-3
+arrayLong=42
+arrayDouble=2.5
+invokeWide=7.5
+assignable=true false
+instance=true false

@@ -156,6 +156,7 @@ JavaStack *CreateNewJavaStack(ExecEnv *ee, JavaStack *previous_stack)
  * otherwise call out_of_memory (for instance in the middle of startup).
  */
 void InitializeExecEnv(ExecEnv *ee, JHandle *thread) {
+    ee->jni_state = NULL;
     if (DefaultExecEnv == 0 && thread == 0) {
 	DefaultExecEnv = ee;
     }
@@ -191,6 +192,10 @@ static free_javastack_t *javastackFreeList = (free_javastack_t *) 0;
 
 void DeleteExecEnv(ExecEnv *ee, JHandle *thread) {
     JavaStack *this_stack;
+#ifdef JNI115_ENABLED
+    extern void jni_FreeEnv(ExecEnv *);
+    jni_FreeEnv(ee);
+#endif
 
     if (thread) { 
         unhand((Hjava_lang_Thread *)thread)->eetop = (long)0;
@@ -992,7 +997,7 @@ static sys_mon_t *_code_lock;
 /* WARNING: Similar code in jit/win32/jinterf.c must be modified if the 
    code that follows is repaired/changed.  See GetJavaExceptionHandler(). */
 
-static unsigned char *
+unsigned char *
 ProcedureFindThrowTag(ExecEnv *ee, JavaFrame *frame, 
 		      JHandle *object, unsigned char *pc)
 {

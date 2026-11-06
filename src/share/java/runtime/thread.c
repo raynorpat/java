@@ -256,6 +256,18 @@ java_lang_Thread_currentThread(Hjava_lang_Thread *p)
     return threadSelf();
 }
 
+/* Reconstructed from javai_g.dll 0x1004c6ed and 0x1004c721. */
+void java_lang_Thread_interrupt0(Hjava_lang_Thread *p)
+{
+    if (SYSTHREAD(p) != NULL)
+	sysThreadInterrupt(SYSTHREAD(p));
+}
+
+long java_lang_Thread_isInterrupted(Hjava_lang_Thread *p, long clear)
+{
+    return SYSTHREAD(p) == NULL ? 0 : sysThreadIsInterrupted(SYSTHREAD(p), clear);
+}
+
 long
 java_lang_Thread_countStackFrames(Hjava_lang_Thread *hp)
 {

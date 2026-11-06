@@ -1,20 +1,23 @@
 /*
- * @(#)zip.h	1.2 95/10/14 David Connelly
- *
- * Copyright (c) 1995 Sun Microsystems, Inc. All Rights Reserved.
- *
- * Permission to use, copy, modify, and distribute this software
- * and its documentation for NON-COMMERCIAL purposes and without
- * fee is hereby granted provided that this copyright notice
- * appears in all copies. Please refer to the file "copyright.html"
- * for further important copyright and licensing information.
- *
- * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF
- * THE SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
- * TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
- * PARTICULAR PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR
- * ANY DAMAGES SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR
- * DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
+ * @(#)zip.h	1.4 97/01/24
+ * 
+ * Copyright (c) 1995, 1996 Sun Microsystems, Inc. All Rights Reserved.
+ * 
+ * This software is the confidential and proprietary information of Sun
+ * Microsystems, Inc. ("Confidential Information").  You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Sun.
+ * 
+ * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+ * SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
+ * SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+ * THIS SOFTWARE OR ITS DERIVATIVES.
+ * 
+ * CopyrightVersion 1.1_beta
+ * 
  */
 
 /*
@@ -26,14 +29,15 @@
 
 #include <time.h>
 #include "bool.h"
-#include "typedefs.h"	/* uint32_t */
 
 /*
- * Central directory element
+ * Central directory entry
  */
 typedef struct {
     char *fn;		/* file name */
-    uint32_t len;		/* file size */
+    int len;		/* file size */
+    int size;		/* file compressed size */
+    int method;		/* Compression method */
     int mod;		/* file modification time */
     long off;		/* local file header offset */
 } direl_t;
@@ -45,9 +49,9 @@ typedef struct {
     char *fn;		/* zip file name */
     int fd;		/* zip file descriptor */
     direl_t *dir;	/* zip file directory */
-    uint32_t nel;		/* number of directory entries */
-    uint32_t cenoff;	/* Offset of central directory (CEN) */
-    uint32_t endoff;	/* Offset of end-of-central-directory record */
+    int nel;		/* number of directory entries */
+    long cenoff;	/* Offset of central directory (CEN) */
+    long endoff;	/* Offset of end-of-central-directory record */
 } zip_t;
 
 struct stat;
@@ -55,6 +59,6 @@ struct stat;
 zip_t *zip_open(const char *fn);
 void zip_close(zip_t *zip);
 bool_t zip_stat(zip_t *zip, const char *fn, struct stat *sbuf);
-bool_t zip_get(zip_t *zip, const char *fn, void *buf, int32_t len);
+bool_t zip_get(zip_t *zip, const char *fn, void *buf, int len);
 
 #endif /* !_ZIP_H_ */ 

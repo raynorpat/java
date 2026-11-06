@@ -237,6 +237,24 @@ bool_t
 invokeLazyNativeMethod(JHandle *o, struct methodblock *mb, int args_size, 
 		       ExecEnv *ee)
 {     
+#ifdef JNI115_ENABLED
+    extern bool_t dynoLinkJNI(struct methodblock *);
+    extern bool_t invokeJNINativeMethod(JHandle *, struct methodblock *, int, ExecEnv *);
+    extern bool_t invokeSynchronizedJNINativeMethod(JHandle *, struct methodblock *, int, ExecEnv *);
+    monitorEnter(obj_monitor(cbHandle(fieldclass(&mb->fb))));
+    if (!mb->code) {
+        if (dynoLink(mb))
+            mb->invoker = (mb->fb.access & ACC_SYNCHRONIZED) ?
+                invokeSynchronizedNativeMethod : invokeNativeMethod;
+        else if (dynoLinkJNI(mb))
+            mb->invoker = (mb->fb.access & ACC_SYNCHRONIZED) ?
+                invokeSynchronizedJNINativeMethod : invokeJNINativeMethod;
+    }
+    monitorExit(obj_monitor(cbHandle(fieldclass(&mb->fb))));
+    if (mb->code) return mb->invoker(o, mb, args_size, ee);
+    SignalError(ee, JAVAPKG "UnsatisfiedLinkError", fieldname(&mb->fb));
+    return FALSE;
+#else
     if ((mb->code != 0) || dynoLink(mb)) {
 	mb->invoker = (mb->fb.access & ACC_SYNCHRONIZED) 
 	             ?  invokeSynchronizedNativeMethod : invokeNativeMethod;
@@ -249,6 +267,7 @@ invokeLazyNativeMethod(JHandle *o, struct methodblock *mb, int args_size,
 	SignalError(ee, JAVAPKG "UnsatisfiedLinkError", buf);
 	return FALSE;
     }
+#endif
 }
 
 bool_t
@@ -302,6 +321,8 @@ newobject(ClassClass *cb, unsigned char *pc, struct execenv *ee)
     return ret;
 }
 
+/* Reconstructed from JDK 1.1.5 javai_g.dll, RunStaticInitializers at
+ * 0x10013e04; Rhapsody DR2 names the same routine and Error class global. */
 char*
 RunStaticInitializers(ClassClass *cb)
 {
@@ -309,17 +330,18 @@ RunStaticInitializers(ClassClass *cb)
     int size;
     char *s;
     struct methodblock *StaticInitializer = 0;
-    char* ret = NULL;
 
     mb = cbMethods(cb);
     for (size = 0; size < (int) cb->methods_count; size++, mb++) {
 	sysAssert(mb->fb.u.offset < cbMethodTableSize(cb));
 	s = fieldname(&mb->fb);
 	if (s[0] == '<' && strcmp(s, "<clinit>") == 0 
-	        && strcmp(fieldsig(&mb->fb), "()V") == 0)
+	        && strcmp(fieldsig(&mb->fb), "()V") == 0) {
 	    StaticInitializer = mb;
+	    break;
+	}
     }
-    if (StaticInitializer && !InhibitExecute) {
+    if (StaticInitializer && StaticInitializer->code && !InhibitExecute) {
 	struct execenv *ee = EE();
 #ifndef TRIMMED
 	if (verbose)
@@ -327,23 +349,27 @@ RunStaticInitializers(ClassClass *cb)
 		    classname(cb));
 #endif
 	do_execute_java_method(ee, cb, 0, 0, StaticInitializer, TRUE);
+	/* deviation: bytecode belongs to the class arena in the current loader;
+	 * retain its storage until class unloading instead of Sun's free here. */
+	StaticInitializer->code = NULL;
+	StaticInitializer->invoker = invokeAbstractMethod;
 	if (ee && exceptionOccurred(ee)) {
-	    /*
-	    ** XXX This sucks how Sun has done this. There's about 10
-	    ** levels of routines that just return exception name strings
-	    ** rather than call SignalError. Now way down here where we
-	    ** actually call java and could get back a real exception
-	    ** object, we have to yank out its name and return it, only
-	    ** to have it constructed again later. They used to just drop
-	    ** this error on the floor, so this hack is better than
-	    ** nothing.
-	    */
-	    JHandle* exc = ee->exception.exc;
-	    ClassClass* cl = obj_classblock(exc);
-	    ret = classname(cl); 
+	    JHandle *exc = ee->exception.exc;
+	    if (!is_instance_of(exc, classJavaLangError, ee)) {
+		HObject *wrapped;
+		exceptionClear(ee);
+		wrapped = execute_java_constructor(ee,
+		    JAVAPKG "ExceptionInInitializerError", NULL,
+		    "(Ljava/lang/Throwable;)", exc);
+		if (!exceptionOccurred(ee)) {
+		    exceptionThrow(ee, wrapped);
+		}
+	    }
 	}
     }
-    return ret;
+    /* deviation: retain the old resolver's string-return interface, but
+     * propagate initializer failures only through the pending exception. */
+    return NULL;
 }
 
 void

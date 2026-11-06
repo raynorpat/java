@@ -1,0 +1,4 @@
+external=115
+write=java.io.IOException write-hook
+read=java.io.IOException read-hook
+object=java.io.NotSerializableException

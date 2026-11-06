@@ -12,8 +12,13 @@ endif()
 if(NOT CMAKE_VERSION VERSION_LESS 3.8)
   set(output_encoding ENCODING NONE)
 endif()
+set(cp "${root}/tests/vm;${JDK115_DIR}/lib/classes.zip")
+foreach(entry ${EXTRA_CP})
+  set(cp "${cp};${entry}")
+endforeach()
 execute_process(COMMAND "${JDK115_DIR}/bin/java.exe" ${VM_ARGS}
-  -classpath "${root}/tests/vm;${JDK115_DIR}/lib/classes.zip" "${CLASS}" ${ARGS}
+  "-Djava.home=${JDK115_DIR}"
+  -classpath "${cp}" "${CLASS}" ${ARGS}
   RESULT_VARIABLE status OUTPUT_VARIABLE actual ERROR_VARIABLE actual TIMEOUT 30 ${output_encoding})
 if(NOT "${status}" STREQUAL "0")
   message(FATAL_ERROR "Sun VM failed (${status}): ${actual}")

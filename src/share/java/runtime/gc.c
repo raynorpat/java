@@ -1147,6 +1147,12 @@ scanThread(sys_thread_t *t, void *arg)
     return SYS_OK;
 }
 
+static void markInternedString(struct StrIDhash *table, void *unused, void *object)
+{
+    SetLimits();
+    if (ValidHandle(object)) MarkPtr((JHandle *)object, HardMark);
+}
+
 static void
 scanThreads(void)
 {
@@ -1156,6 +1162,13 @@ scanThreads(void)
     self = (JHandle *) sysThreadGetBackPtr(sysThreadSelf());
     err = sysThreadEnumerateOver(scanThread, (void *) self);
     /* REMIND - should do something with the return value. */
+}
+
+/* deviation: expose the current collector's marking/pinning to JNI refcells. */
+static void markJNIRoot(void *object)
+{
+    SetLimits();
+    if (ValidHorO(object)) MarkPtr(object, HardMark);
 }
 
 
@@ -1219,6 +1232,9 @@ scanClasses(void)
 	}
 	if (ValidHandle(cbLoader(cb))) {
 	    MarkPtr((JHandle *) cbLoader(cb), HardMark);
+	}
+	if (ValidHandle(cb->signers)) {
+	    MarkPtr((JHandle *) cb->signers, HardMark);
 	}
     }
 }
@@ -1745,6 +1761,17 @@ gc0_locked(int async_call, unsigned int free_space_goal)
 
     MARK(GCTHREAD);
     scanThreads();
+    /* Reconstructed: Sun scanStringTable marks interned strings strongly. */
+    {
+        extern struct StrIDhash *stringHash;
+        Str2IDApply(stringHash, markInternedString, NULL);
+    }
+#ifdef JNI115_ENABLED
+    {
+        extern void jni_EnumerateRoots(void (*)(void *));
+        jni_EnumerateRoots(markJNIRoot);
+    }
+#endif
     if (async_call && INTERRUPTS_PENDING()) {
 	goto unlock;
     }

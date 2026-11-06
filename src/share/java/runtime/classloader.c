@@ -605,6 +605,28 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
 	  		     SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
 			     return FALSE;
 			}
+	    } else if (strcmp(name, "Exceptions") == 0) {
+                int32_t length = get4bytes(context);
+                unsigned int k, index;
+                mb->nexceptions = get2bytesU16(context);
+                if (length != 2 + 2 * mb->nexceptions)
+                    ERROR("Wrong size for Exceptions attribute");
+                if (mb->nexceptions) {
+                    mb->exceptions = ArenaAlloc(&cb->classStorageArena->pool,
+                        mb->nexceptions * sizeof(unsigned short));
+                    if (mb->exceptions == NULL) {
+                        SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
+                        return FALSE;
+                    }
+                }
+                for (k = 0; k < mb->nexceptions; k++) {
+                    index = get2bytesU16(context);
+                    if (index == 0 || index >= cb->constantpool_count ||
+                        (CONSTANT_POOL_TYPE_TABLE_GET_TYPE(
+                            cb->constantpool[0].p, index)) != CONSTANT_Class)
+                        ERROR("Bad Exceptions constant pool index");
+                    mb->exceptions[k] = (unsigned short)index;
+                }
 	    } else {
 		int32_t length = get4bytes(context);
 		getNbytes(context, length, NULL);

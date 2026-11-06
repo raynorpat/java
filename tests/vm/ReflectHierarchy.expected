@@ -1,0 +1,21 @@
+leaf fields
+public int ReflectHierarchy$Leaf.own
+public int ReflectHierarchy$Parent.inherited
+public static final int ReflectHierarchy$Left.LEFT
+public static final int ReflectHierarchy$Right.RIGHT
+public static final int ReflectHierarchy$Root.ROOT
+leaf methods
+public java.lang.String ReflectHierarchy$Leaf.speak()
+public static int ReflectHierarchy$Parent.staticMethod()
+public void ReflectHierarchy$Leaf.left()
+public void ReflectHierarchy$Leaf.right()
+left fields
+public static final int ReflectHierarchy$Left.LEFT
+public static final int ReflectHierarchy$Root.ROOT
+left methods
+public abstract java.lang.String ReflectHierarchy$Root.speak()
+public abstract void ReflectHierarchy$Left.left()
+virtual=leaf
+lookup=ReflectHierarchy$Leaf
+interfaceField=1
+interfaceMethod=ReflectHierarchy$Root

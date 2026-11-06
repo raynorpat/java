@@ -21,18 +21,14 @@
 #include "java_lang_SecurityManager.h"
 #include "java_lang_ClassLoader.h"
 
-HArrayOfObject *
-java_lang_SecurityManager_getClassContext(Hjava_lang_SecurityManager *this) 
+/* Reconstructed shared stack walker: javai_g.dll 0x10040113. */
+static HArrayOfObject *
+getClassContext(void)
 {
     struct javaframe *frame, frame_buf;
     HArrayOfObject *ctx;
     HObject **ctxdata;
     int n = 0;
-
-    if (!java_lang_SecurityManager_checkInitialized(this)) {
-        /* exceptionOccurred */
-        return 0;
-    }
 
     /* count the classes on the execution stack */
     for (frame = EE()->current_frame ; frame != 0 ; ) {
@@ -66,6 +62,21 @@ java_lang_SecurityManager_getClassContext(Hjava_lang_SecurityManager *this)
     }
 
     return ctx;
+}
+
+HArrayOfObject *
+java_lang_SecurityManager_getClassContext(Hjava_lang_SecurityManager *this)
+{
+    if (!java_lang_SecurityManager_checkInitialized(this))
+        return 0;
+    return getClassContext();
+}
+
+/* Reconstructed from javai_g.dll 0x1004027c: no SecurityManager check. */
+HArrayOfObject *
+java_util_ResourceBundle_getClassContext(void *unused)
+{
+    return getClassContext();
 }
 
 Hjava_lang_ClassLoader *

@@ -50,8 +50,9 @@ Transitional mappings and remaining verification needs:
   the VM stack. Wrapper value fields are found by name instead of hard-coded
   offsets. InvocationTargetException.target likewise uses its resolved offset.
 - Public interface closure is recovered from implements constant-pool entries
-  rather than the missing Sun 1.1 imethodtable. Interface enumeration ordering
-  across complicated diamonds needs a dedicated Sun comparison.
+  rather than the missing Sun 1.1 imethodtable. ReflectHierarchy verifies a
+  diamond's unique fields and inherited methods, class override deduplication,
+  and virtual dispatch. Sorted output intentionally does not establish ordering.
 - Single public member lookup currently reuses the enumeration result rather
   than Sun's optimized lookup helpers. Hidden-field selection/order and complex
   inherited interface cases need dedicated oracle coverage.
@@ -67,3 +68,11 @@ Existing Reflect oracle covers declared enumeration, construction, invoke,
 private-field rejection, primitive/multidimensional arrays. ReflectExceptions
 was compiled by Sun javac and captured by the Sun oracle; it covers checked
 exception metadata for methods and constructors plus wrapped target exceptions.
+
+ReflectValues additionally covers boxed and typed field widening, narrowing and
+final-field rejection, static wide fields, primitive array conversions, mixed
+wide invocation arguments, and Class assignability/instance checks. Both new
+fixtures match the Sun capture exactly after CRLF normalization on the Release
+Windows VM. Class.isInstance (1000BA7A) and isAssignableFrom (1000BADB, helper
+1003D6CA) follow Sun's primitive and array checks, including strict equal array
+depth/base-type comparison rather than substituting modern Java behavior.

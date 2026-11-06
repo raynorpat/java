@@ -21,8 +21,11 @@ void ll2str(int64_t a, char *s, char *limit)
     *s = 0;
 }
 
+void (*sysFinalizersOnExit)(int);
+
 EXPORTED void sysExit(int rv)
 {
+    if (sysFinalizersOnExit) sysFinalizersOnExit(rv);
     exit(rv);
 }
 

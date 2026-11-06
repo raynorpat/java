@@ -18,8 +18,8 @@
  */
 
 /*
- * Routines for reading "zip" file format. Currently, there is no support
- * for compressed or encrypted zip file members.
+ * Routines for reading "zip" file format. Stored and DEFLATE members are
+ * supported; encrypted members are not. See zip115-evidence.md.
  */
 
 #include <stdio.h>
@@ -33,6 +33,7 @@
 #include "io_md.h"
 #include "bool.h"
 #include "zip.h"
+#include "zlib.h"
 
 #ifndef max
 #define max(a, b) ((a) > (b) ? (a) : (b))
@@ -79,6 +80,7 @@
  * Macros for getting central directory header (CEN) fields
  */
 #define CENTIM(b) LG(b, 12)	    /* file modification time (DOS format) */
+#define CENHOW(b) SH(b, 10)           /* compression method */
 #define CENSIZ(b) LG(b, 20)	    /* compressed size */
 #define CENLEN(b) LG(b, 24)	    /* uncompressed size */
 #define CENNAM(b) SH(b, 28)	    /* length of filename */
@@ -324,6 +326,8 @@ initReader(zip_t *zip)
 	dp->off = CENOFF(cp);
 	/* Get uncompressed file size */
 	dp->len = CENLEN(cp);
+	dp->size = CENSIZ(cp);
+	dp->method = CENHOW(cp);
 	/* Check offset and size */
 	if (dp->off + CENSIZ(cp) > zip->cenoff) {
 	    ziperr(zip, "Invalid CEN header");
@@ -424,8 +428,45 @@ zip_stat(zip_t *zip, const char *fn, struct stat *sbuf)
  * Read contents of zip file member into buffer 'buf'. If the size of the
  * data should exceed 'len' then nothing is read and FALSE is returned.
  */
+/* Sun zip_g.dll inflateFully uses raw zlib with 512-byte input blocks and
+ * checks both input and output totals. Use per-call state instead of the
+ * binary's shared cached stream; link the original zlib 1.0.4 source directly.
+ */
+static bool_t
+inflate_member(zip_t *zip, uint32_t size, void *buf, uint32_t len)
+{
+    z_stream stream;
+    unsigned char input[512];
+    uint32_t remaining;
+    unsigned int count;
+    int result;
+    bool_t valid;
+    memset(&stream, 0, sizeof(stream));
+    if (inflateInit2(&stream, -15) != Z_OK) return FALSE;
+    stream.next_out = (Bytef *)buf;
+    stream.avail_out = len;
+    remaining = size;
+    do {
+        if (stream.avail_in == 0 && remaining != 0) {
+            count = remaining < sizeof(input) ? remaining : sizeof(input);
+            if (!readFully(zip->fd, (char *)input, count)) {
+                inflateEnd(&stream);
+                return FALSE;
+            }
+            stream.next_in = input;
+            stream.avail_in = count;
+            remaining -= count;
+        }
+        result = inflate(&stream, Z_PARTIAL_FLUSH);
+    } while (result == Z_OK);
+    valid = result == Z_STREAM_END && stream.total_in == size &&
+        stream.total_out == len;
+    inflateEnd(&stream);
+    return valid;
+}
+
 bool_t
-zip_get(zip_t *zip, const char *fn, void *buf, int32_t len)
+zip_get(zip_t *zip, const char *fn, void *buf, int len)
 {
     char locbuf[LOCHDRSIZ];
     long off;
@@ -453,11 +494,6 @@ zip_get(zip_t *zip, const char *fn, void *buf, int32_t len)
 	ziperr(zip, "Invalid LOC header signature");
 	return FALSE;
     }
-    /* Make sure file is not compressed */
-    if (LOCHOW(locbuf) != 0) {
-	ziperr(zip, "Member is compressed");
-	return FALSE;
-    }
     /* Make sure file is not encrypted */
     if ((LOCFLG(locbuf) & 1) == 1) {
 	ziperr(zip, "Member is encrypted");
@@ -465,7 +501,10 @@ zip_get(zip_t *zip, const char *fn, void *buf, int32_t len)
     }
     /* Get offset of file data */
     off = dp->off + LOCHDRSIZ + LOCNAM(locbuf) + LOCEXT(locbuf);
-    if (off + dp->len > zip->cenoff) {
+    /* deviation: reject inconsistent stored sizes and overflowed bounds. */
+    if (off < 0 || off > zip->cenoff || dp->size < 0 ||
+        dp->size > zip->cenoff - off ||
+        (dp->method == 0 && dp->size != dp->len)) {
 	ziperr(zip, "Invalid LOC header");
 	return FALSE;
     }
@@ -473,7 +512,13 @@ zip_get(zip_t *zip, const char *fn, void *buf, int32_t len)
     if (lseek(zip->fd, off, SEEK_SET) == -1) {
 	return FALSE;
     }
-    /* Read file data */
+    if (dp->method == 8)
+        return inflate_member(zip, dp->size, buf, dp->len);
+    if (dp->method != 0) {
+        ziperr(zip, "Unsupported compression method");
+        return FALSE;
+    }
+    /* Read stored file data */
     if (!readFully(zip->fd, buf, dp->len)) {
 	ziperr(zip, "Fatal error while reading LOC data");
 	return FALSE;

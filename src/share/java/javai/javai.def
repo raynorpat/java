@@ -26,3 +26,33 @@ EXPORTS
         monitorWait
         threadSelf
         GetThreadClassBlock
+        DeleteExecEnv
+        FindStickySystemClass
+        ImplementsInterface
+        InitializeExecEnv
+        MakeClassSticky
+        MakeString
+        ObjAlloc
+        ProcedureFindThrowTag
+        Thread_classblock DATA
+        classname2string
+        do_execute_java_method_vararg
+        execute_java_static_method
+        get_binclasses
+        get_classClass
+        get_classObject
+        get_nbinclasses
+        getclassvariable
+        javaString2unicode
+        javaStringPrint
+        java_lang_Thread_suspend0
+        jio_snprintf
+        makeslottable
+        monitorInit
+        newobject
+        pc2lineno
+        pc2string
+        sizearray
+        sleep
+        sysCloseFD
+        threadCreate

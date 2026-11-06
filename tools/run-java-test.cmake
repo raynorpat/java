@@ -10,8 +10,13 @@ endif()
 if(NOT CMAKE_VERSION VERSION_LESS 3.8)
   set(output_encoding ENCODING NONE)
 endif()
-execute_process(COMMAND "${JAVA}" ${VM_ARGS} -classpath "${CP}" "${CLASS}" ${ARGS}
-  RESULT_VARIABLE status OUTPUT_VARIABLE actual ERROR_VARIABLE actual TIMEOUT 30 ${output_encoding})
+if(USE_DEFAULT_CP)
+  execute_process(COMMAND "${JAVA}" ${VM_ARGS} "${CLASS}" ${ARGS}
+    RESULT_VARIABLE status OUTPUT_VARIABLE actual ERROR_VARIABLE actual TIMEOUT 30 ${output_encoding})
+else()
+  execute_process(COMMAND "${JAVA}" ${VM_ARGS} -classpath "${CP}" "${CLASS}" ${ARGS}
+    RESULT_VARIABLE status OUTPUT_VARIABLE actual ERROR_VARIABLE actual TIMEOUT 30 ${output_encoding})
+endif()
 if(NOT "${status}" STREQUAL "0")
   message(FATAL_ERROR "Java failed (${status}): ${actual}")
 endif()

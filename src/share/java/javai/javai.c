@@ -34,6 +34,7 @@
 #include "oobj.h"
 #include "interpreter.h"
 #include "exceptions.h"
+#include "java_lang_Throwable.h"
 #include "javaString.h"
 #include "log.h"
 #include "installpath.h"
@@ -108,7 +109,7 @@ static int nprops = 0;
 static int max_props = 0;
 
 /* add a user property */
-static void add_user_prop(char *def) 
+void add_user_prop(char *def) 
 {
     char *p, *str;
 
@@ -116,7 +117,7 @@ static void add_user_prop(char *def)
     for (p = def ; *p && *p != '=' ; p++);
 
     /* grow the array (if needed) */
-    if (nprops + 2 > max_props) {
+    if (nprops + 3 > max_props) {
 	if (user_props == 0) {
 	    user_props = (char **)malloc(16 * sizeof(char *));
 	    max_props = 16;
@@ -142,6 +143,7 @@ static void add_user_prop(char *def)
     str = (char *)malloc(strlen(p) + 1);
     strcpy(str, p);
     user_props[nprops++] = str;
+    user_props[nprops] = NULL;
 }
 
 /*
@@ -244,6 +246,64 @@ extern void     pascal  _FPTerm(LPVOID);
 
 #define INITBUFSIZE 1024
 #define INITNARGS 32
+
+/* Shared launcher/invocation startup; Java main execution remains separate. */
+int java_initialize_runtime(ExecEnv *ee, int MinHeapSize, int MaxHeapSize)
+{
+    Hjava_lang_Thread *self;
+    char *errmsg;
+    InitializeExecEnv(ee, 0);  /* Call before InitializeMem() */
+    InitializeMem();		/* Could throw exception on open() */
+#ifdef USE_MALLOC
+    MinHeapSize = MaxHeapSize;
+#endif /* USE_MALLOC */
+    InitializeAlloc(MaxHeapSize, MinHeapSize);
+    InitializeInterpreter();	/* Call before InitializeClassThread() */
+
+    self = InitializeClassThread(ee, &errmsg);
+    if (self == 0) {
+	fprintf(stderr, "Unable to initialize threads: %s\n", errmsg);
+	sysExit(1);
+    }
+    setThreadName(self,MakeString("main",4));
+
+    /* Reconstructed 1.1.5 boot step (javai_g.dll 0x10002841).
+     * deviation: keep the old class-library baseline runnable during migration;
+     * its System class has no initializeSystemClass method. */
+    {
+	ClassClass *system = FindClass(ee, JAVAPKG "System", TRUE);
+	int index;
+	if (system == NULL)
+	    return 1;
+	for (index = 0; index < system->methods_count; index++) {
+	    struct methodblock *method = &cbMethods(system)[index];
+	    if (strcmp(fieldname(&method->fb), "initializeSystemClass") == 0 &&
+		strcmp(fieldsig(&method->fb), "()V") == 0) {
+		/* The old name-based helper enforces Java access checks; the VM
+		 * invokes this private boot method directly, as for <clinit>. */
+		do_execute_java_method(ee, system, 0, 0, method, TRUE);
+		if (exceptionOccurred(ee)) {
+		    /* deviation: report boot failure even before System.err exists. */
+		    if (ee->exception.exc != NULL) {
+			char detail[256];
+			Hjava_lang_Throwable *error = (Hjava_lang_Throwable *)ee->exception.exc;
+			detail[0] = 0;
+			if (unhand(error)->detailMessage != NULL)
+			    javaString2CString(unhand(error)->detailMessage, detail, sizeof(detail));
+			fprintf(stderr, "System initialization failed: %s\n",
+				classname(obj_classblock(ee->exception.exc)));
+			fprintf(stderr, "%s\n", detail);
+		    }
+		    exceptionDescribe(ee);
+		    return 1;
+		}
+		break;
+	    }
+	}
+    }
+
+    return 0;
+}
 
 /*
 ** Start an execution environment based on the arguments
@@ -366,7 +426,7 @@ static int start_exec_env(int argc, char** argv)
 		usage();
 		return 0;
             } else if (strcmp(*argv, "-version") == 0) {
-                fprintf(stderr, "%s version \"1.0.2\"\n", progname);
+                fprintf(stderr, "%s version \"1.1.5\"\n", progname);
                 return 0;
 	    } else {
 		fprintf(stderr, "%s: illegal argument\n", *argv);
@@ -381,20 +441,7 @@ static int start_exec_env(int argc, char** argv)
     *dargv = 0;
 
 	/* the rest of the args belong to the java program */
-    InitializeExecEnv(&ee, 0);  /* Call before InitializeMem() */
-    InitializeMem();		/* Could throw exception on open() */
-#ifdef USE_MALLOC
-    MinHeapSize = MaxHeapSize;
-#endif /* USE_MALLOC */
-    InitializeAlloc(MaxHeapSize, MinHeapSize);
-    InitializeInterpreter();	/* Call before InitializeClassThread() */
-
-    self = InitializeClassThread(&ee, &errmsg);
-    if (self == 0) {
-	fprintf(stderr, "Unable to initialize threads: %s\n", errmsg);
-	sysExit(1);
-    }
-    setThreadName(self,MakeString("main",4));
+    if (java_initialize_runtime(&ee, MinHeapSize, MaxHeapSize)) return 1;
 
     if (sourcefile == 0) {
 	usage();
@@ -501,6 +548,10 @@ static int start_exec_env(int argc, char** argv)
      * on GC, so has to be left intact.  This should be revisited.
      */
     WaitToDie();
+    {
+        extern void (*sysFinalizersOnExit)(int);
+        if (sysFinalizersOnExit) sysFinalizersOnExit(0);
+    }
 
 #if defined(XP_PC) /* jag, hack hack :) */
     if( WSACleanup() ) {
@@ -625,11 +676,8 @@ Fail_Cleanup:
 }
 
 
-JAVA_PUBLIC_API(int)
-start_java(int argc, char **argv)
+int java_initialize_platform(void)
 {
-	int ret = 0;
-
 #if defined(XP_PC) /* jag, hack hack :) */
     WSADATA wsaData;
     WORD wVersionRequested = MAKEWORD(1,1);
@@ -656,6 +704,16 @@ start_java(int argc, char **argv)
     /* Initialize the async io */
     InitializeAsyncIO();
 #endif 
+
+    return 0;
+}
+
+JAVA_PUBLIC_API(int)
+start_java(int argc, char **argv)
+{
+	int ret = 0;
+
+    if (java_initialize_platform()) return 1;
 
 #ifdef DEBUG
 /*    on_exit(PrintStats, 0); */

@@ -46,6 +46,7 @@ ClassClass *classJavaLangClass;
 ClassClass *classJavaLangString;
 ClassClass *classJavaLangThrowable;
 ClassClass *classJavaLangException;
+ClassClass *classJavaLangError;
 ClassClass *classJavaLangRuntimeException;
 ClassClass *classJavaLangThreadDeath;
 
@@ -366,6 +367,7 @@ Locked_InitializeClass(ClassClass * cb, char **detail)
 		STORE_GLOBAL_STICKY_CLASS(classJavaLangThreadDeath,      ThreadDeath);
 		STORE_GLOBAL_STICKY_CLASS(classJavaLangThrowable,        Throwable);
 		STORE_GLOBAL_STICKY_CLASS(classJavaLangException,        Exception);
+		STORE_GLOBAL_STICKY_CLASS(classJavaLangError,            Error);
 		STORE_GLOBAL_STICKY_CLASS(classJavaLangRuntimeException, RuntimeException);
 		STORE_GLOBAL_STICKY_CLASS(interfaceJavaLangCloneable,    Cloneable);
 
@@ -486,7 +488,7 @@ Locked_ResolveClass(ClassClass * cb, char **detail)
 	definition of this routine if different depending on if we
 	are compiling the interpreter or not.
     */
-    if ((ret = RuntimeInitClass(0, cb)) != 0) {
+    if (!cbIsPrimitive(cb) && (ret = RuntimeInitClass(0, cb)) != 0) {
 	*detail = cb->name;
 	CCClear(cb, Resolved);
 	CCSet(cb, Error);
@@ -558,7 +560,7 @@ IsLoadedAnywhere(char *name)
     pcb = binclasses;
     for (j = nbinclasses; --j >= 0; pcb++) {
 	cb = *pcb;
-        if (!cb) 
+        if (!cb || cbIsPrimitive(cb))
           continue;
         existing_name = classname(cb);
         if (first_char_of_name != existing_name[0])
@@ -590,7 +592,7 @@ FindPreviouslyLoadedClass(char *name, HObject *loader) {
     pcb = binclasses;
     for (j = nbinclasses; --j >= 0; pcb++) {
 	cb = *pcb;
-        if (!cb) continue;
+        if (!cb || cbIsPrimitive(cb)) continue;
 	if ((cb->loader == loader) && (strcmp(name, classname(cb)) == 0))
           return cb;
     }

@@ -53,7 +53,9 @@ java_lang_Class_forName(HClass *this, HString *classname)
 	}
     }
     if ((cb = FindClass(EE(), clname, TRUE)) == 0) {
-	SignalError(0, JAVAPKG "ClassNotFoundException", clname);
+        /* Reconstructed: Sun forName preserves pending linkage errors. */
+        if (!exceptionOccurred(EE()))
+            SignalError(0, JAVAPKG "ClassNotFoundException", clname);
 	return 0;
     }
     h = cbHandle(cb);
@@ -83,7 +85,7 @@ java_lang_Class_getSuperclass(HClass *this)
 	SignalError(0, JAVAPKG "NullPointerException", 0);
 	return 0;
     }
-    return cbSuperclass(cb);
+    return cbIsPrimitive(cb) || cbIsInterface(cb) ? NULL : cbSuperclass(cb);
 }
 
 HArrayOfObject *

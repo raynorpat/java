@@ -53,6 +53,11 @@ void sysInitFD(Classjava_io_FileDescriptor *fd, int fdnum)
 	return;
     }
     fd->fd = fdnum+1;
+#ifdef XP_PC
+    /* deviation: this port keeps CRT descriptors instead of Sun's HANDLEs.
+     * Binary mode preserves Java's bytes without a second CRLF translation. */
+    _setmode(fdnum, O_BINARY);
+#endif
 }
 
 int sysOpenFD(Classjava_io_FileDescriptor *fd, const char *name,

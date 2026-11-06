@@ -29,6 +29,8 @@
 #include "log.h"
 #include "typecodes.h"		/* For T_NORMAL_OBJECT */
 #include "sys_api.h"
+#include "interpreter.h"
+#include "exceptions.h"
 
 sys_mon_t *_hasfinalq_lock;	/* Lock for the HasFinalizerQ queue */
 sys_mon_t *_finalmeq_lock;	/* Lock for the FinalizeMeQ queue */
@@ -39,6 +41,8 @@ finalizer_t *BeingFinalized;	/* The object currently being finalized; */
 				/* this has to be marked in GC so it's */
 				/* not thrown away if the finalizer */
 				/* thread is interrupted! */
+static TID finalizer_owner;
+static int finalizers_on_exit;
 
 static void
 execute_finalizer(finalizer_t *final)
@@ -54,10 +58,10 @@ execute_finalizer(finalizer_t *final)
 	sysAssert(mb);
 
 	do_execute_java_method(0 /*ee*/, handle, 0, 0, mb, FALSE);
-	BeingFinalized = 0;	/* Feel free to GC that object now! */
-	sysFree(final);
-	heap_memory_changes++;
     } /* else, another thread got to this one before we could */
+    /* Sun 10016BDF discards exceptions raised by finalize(). */
+    exceptionClear(EE());
+    heap_memory_changes++;
 }
 
 /*
@@ -79,20 +83,24 @@ runFinalization(void)
     finalizer_t *final;
 
     FINALMEQ_LOCK();
-    while (FinalizeMeQ) {
-	/*
-	 * If someone else is finalizing, bail out.  We can do better
-	 * than this, but for now it's at least safe and preserves order.
-	 */
-        if (BeingFinalized) {
-	    goto unlock;
-	}
+    /* Sun 10016A10: same-owner recursion returns; other owners wait. */
+    if (finalizer_owner == threadSelf()) goto unlock;
+    for (;;) {
+        while (BeingFinalized) {
+            if (FINALMEQ_WAIT() == SYS_INTRPT) goto unlock;
+        }
+        if (!FinalizeMeQ) break;
 	final = BeingFinalized = FinalizeMeQ;
 	FinalizeMeQ = final->next;
+	finalizer_owner = threadSelf();
 	FINALMEQ_UNLOCK();
-	execute_finalizer(final);	/* Zeros BeingFinalized */
+	execute_finalizer(final);
 	FINALMEQ_LOCK();
+	finalizer_owner = NULL;
+	BeingFinalized = NULL;
+	sysFree(final);
     }
+    sysMonitorNotifyAll(_finalmeq_lock);
 unlock:
     FINALMEQ_UNLOCK();
 }
@@ -110,7 +118,6 @@ static void
 finalizer_loop(TID tid)
 {
     ExecEnv ee;
-    finalizer_t *final;
 
     InitializeExecEnv(&ee, (JHandle *) tid);
     if (ee.initial_stack == 0) {
@@ -126,25 +133,45 @@ finalizer_loop(TID tid)
 
 	Log(2, "Finalization thread is running\n");
 
-	/*
-	 * Drop and reacquire the FINALQ lock after every object so that
-	 * a more important thread won't have to wait for it until we've
- 	 * finalized all the outstanding objects before it gets to run.
-	 */
-	while (FinalizeMeQ) {
-	    /* Someone may be synchronously finalizing */
-	    if (BeingFinalized) {
-		/* Stay locked! */
-		break;
-	    }
-	    final = BeingFinalized = FinalizeMeQ;
-	    FinalizeMeQ = final->next;
-	    FINALMEQ_UNLOCK();	/* Open door for someone more important */
-	    execute_finalizer(final);	/* Zeros BeingFinalized */
-	    FINALMEQ_LOCK();
-	}
+        FINALMEQ_UNLOCK();
+        runFinalization();
+        FINALMEQ_LOCK();
     }
     /* FINALMEQ_UNLOCK(); */
+}
+
+/* Sun 10016CCB; map its intrusive object chains to our finalizer_t nodes. */
+static void finalize_on_exit(int status)
+{
+    finalizer_t *final, *next;
+    extern void gc(int, unsigned int);
+    if (!finalizers_on_exit || status != 0) return;
+    gc(0, 0);
+    runFinalization();
+    HASFINALQ_LOCK();
+    while (HasFinalizerQ) {
+        FINALMEQ_LOCK();
+        final = HasFinalizerQ;
+        HasFinalizerQ = NULL;
+        while (final) {
+            next = final->next;
+            final->next = FinalizeMeQ;
+            FinalizeMeQ = final;
+            final = next;
+        }
+        FINALMEQ_UNLOCK();
+        HASFINALQ_UNLOCK();
+        runFinalization();
+        HASFINALQ_LOCK();
+    }
+    HASFINALQ_UNLOCK();
+}
+
+void java_lang_Runtime_runFinalizersOnExit0(void *unused, long enabled)
+{
+    extern void (*sysFinalizersOnExit)(int);
+    finalizers_on_exit = enabled != 0;
+    sysFinalizersOnExit = finalize_on_exit;
 }
 
 /*

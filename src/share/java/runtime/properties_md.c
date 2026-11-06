@@ -47,8 +47,9 @@ java_lang_System_initProperties(struct Hjava_lang_System *this,
     char buf[512];
 
     /* java properties */
-    PUTPROP(props, "java.version", "1.0.2");
+    PUTPROP(props, "java.version", "1.1.5");
     PUTPROP(props, "java.vendor", "Sun Microsystems Inc.");
+    PUTPROP(props, "file.encoding.pkg", "sun.io");
     PUTPROP(props, "java.vendor.url", "http://www.sun.com/");
     PUTPROP(props, "java.home", sysJavaHome());
     sprintf(buf, "%d.%d", JAVA_VERSION, JAVA_MINOR_VERSION);
