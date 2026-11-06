@@ -55,7 +55,7 @@ function(prefixed out dir)
 endfunction()
 
 # --- VM runtime DLL (javai.dll). javai.c loads it by name to resolve native stubs. ---
-prefixed(runtime_sources runtime agent class date debug globals io math
+prefixed(runtime_sources runtime agent arena class date debug globals io math
   object opnames profiler runtime security string stubs system thread threads
   utf util zip classinitialize classresolver common_exceptions threadruntime
   compiler check_class check_code classloader classruntime gifdecoder exception
@@ -73,7 +73,7 @@ add_executable(java java/java_stub.c)
 target_link_libraries(java javai)
 
 # --- Standalone tools, each with its reduced runtime subset ---
-prefixed(tool_runtime runtime classloader classresolver classresolver_stubs
+prefixed(tool_runtime runtime arena classloader classresolver classresolver_stubs
   globals runtime_stubs utf util zip)
 add_executable(javah javah/javah.c ${tool_runtime} md/path_md.c
   md/stubs_md.c md/system_md.c)

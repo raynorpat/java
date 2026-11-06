@@ -34,7 +34,7 @@ static void usage(char *progname);
 
 #include <path_md.h>
 #include "prglobal.h"
-#include "prarena.h"
+#include "arena.h"
 
 #define RELEASE "1.0"
 
@@ -177,7 +177,7 @@ ClassClass *AllocClass(void)
     ClassClass *cb = (ClassClass*) calloc(sizeof(ClassClass), 1);
     if (cb != NULL) {
 	cb->classStorageArena = (ClassArena*) calloc(sizeof(ClassArena), 1);
-	PR_InitArenaPool(&(cb->classStorageArena->pool), "class pool", 2 * 1024, 4);
+	ArenaInit(&(cb->classStorageArena->pool), 2 * 1024);
     }
     return cb;
 }

@@ -32,7 +32,7 @@
 #include "bool.h"
 #include "oobj_md.h"
 #include "signature.h"
-#include "prarena.h"
+#include "arena.h"
 
 #define JAVA_CLASSFILE_MAGIC	          0xCafeBabe
 
@@ -195,7 +195,7 @@ HandleTo(ArrayOfString);
 
 typedef struct ClassArena {
     /* Memory pool where all memory associated with a class is allocated from */
-    PRArenaPool pool;
+    ArenaPool pool;
 
     /* Copy of the ClassClass methods info so that we can use it
        for releasing JIT memory */

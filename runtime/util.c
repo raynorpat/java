@@ -132,7 +132,7 @@ Str2ID(StrIDhash **idhroot, register char *s, void ***param, int CopyNeeded)
      * about having the IDs change when the hashtable grows.
      */
     StrIDhash *h;
-    PRArenaPool *stringArena;
+    ArenaPool *stringArena;
     char *s2;
     long i;
     uint32_t raw_hash, hash;
@@ -149,7 +149,7 @@ Str2ID(StrIDhash **idhroot, register char *s, void ***param, int CopyNeeded)
 	    return 0;
 	}
 	*idhroot = h;
-	PR_InitArenaPool(&(h->stringArena), "string pool", kHashTableArenaIncrementSize, 1);
+	ArenaInit(&(h->stringArena), kHashTableArenaIncrementSize);
 	h->baseid = 1;  /* guarantee that no ID is 0 */
     }
 	stringArena = &(h->stringArena);
@@ -182,7 +182,7 @@ Str2ID(StrIDhash **idhroot, register char *s, void ***param, int CopyNeeded)
 	i = hash;
     }
     if (CopyNeeded) {
-	PR_ARENA_ALLOCATE(h->hash[i], stringArena, strlen(s) + 1);
+	h->hash[i] = ArenaAlloc(stringArena, strlen(s) + 1);
 	strcpy(h->hash[i], s);
 	h->is_malloced[i >> 5] |= (1 << (i & 31));
     } else  {
@@ -208,7 +208,7 @@ Str2IDFree(StrIDhash **hash_ptr)
 {
     StrIDhash *hash, *next;
     hash = *hash_ptr;
-	PR_FreeArenaPool(&(hash->stringArena));
+	ArenaFreeAll(&(hash->stringArena));
     while (hash) {
 	next = hash->next;
 	if (hash->param)

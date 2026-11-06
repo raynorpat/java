@@ -4,14 +4,14 @@
 #define STR2ID_HTSIZE 107		/* must be prime */
 #define kHashTableArenaIncrementSize	4 * 1024
 
-#include "prarena.h"
+#include "arena.h"
 
 typedef struct StrIDhash {
     struct StrIDhash *next;
     short used, baseid;
     char *hash[STR2ID_HTSIZE];
     unsigned is_malloced[(STR2ID_HTSIZE + 31) >> 5];
-    PRArenaPool	stringArena;
+    ArenaPool	stringArena;
     void **param;
 } StrIDhash;
 

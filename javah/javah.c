@@ -39,7 +39,7 @@
 #include "interpreter.h"
 #include "signature.h"
 #include "io_md.h"	/* sysOpen() */
-#include "prarena.h"
+#include "arena.h"
 
 #ifndef RELEASE
 #  define RELEASE "Unknown version"
@@ -1077,7 +1077,7 @@ ClassClass *AllocClass(void)
     cb = (ClassClass*) calloc(sizeof(ClassClass), 1);
     if (cb != NULL) {
 	cb->classStorageArena = (ClassArena*) calloc(sizeof(ClassArena), 1);
-	PR_InitArenaPool(&(cb->classStorageArena->pool), "class pool", 2 * 1024, 4);
+	ArenaInit(&(cb->classStorageArena->pool), 2 * 1024);
     }
 
     return cb;

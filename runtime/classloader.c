@@ -518,7 +518,7 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
 	uint32_t j;
 	uint32_t sizeOfAllocation = i * sizeof(short);
 	
-	PR_ARENA_ALLOCATE(cb->implements, &(cb->classStorageArena->pool), sizeOfAllocation);
+	cb->implements = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
 	if (cb->implements == NULL) {
 	    SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
   	    return FALSE;
@@ -539,7 +539,7 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
     if (fields_count > 0) { 
  	uint32_t sizeOfAllocation = cb->fields_count * sizeof(struct fieldblock);
  	
- 	PR_ARENA_ALLOCATE(cb->fields, &(cb->classStorageArena->pool), sizeOfAllocation);
+ 	cb->fields = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
 	if (cb->fields == NULL) {
 	    SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
   	    return FALSE;
@@ -581,7 +581,7 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
     if ((cb->methods_count = get2bytesU16(context)) > 0) {
  	uint32_t sizeOfAllocation = cb->methods_count * sizeof(struct methodblock);
  	
- 	PR_ARENA_ALLOCATE(cb->methods, &(cb->classStorageArena->pool), sizeOfAllocation);
+ 	cb->methods = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
 	if (cb->methods == NULL) {
 	    SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
  	    return FALSE;
@@ -652,7 +652,7 @@ static bool_t InitializeStaticVar(struct fieldblock *fb, CICcontext *context) {
 		if (type_table[index] != 
 		    (CONSTANT_Double | CONSTANT_POOL_ENTRY_RESOLVED))
 		    ERROR("Bad index into constant pool");
-		PR_ARENA_ALLOCATE(twoword_static_address(fb), &(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
+		twoword_static_address(fb) = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
 		if (twoword_static_address(fb) == NULL)
 			return FALSE;
 		SET_DOUBLE(t1, twoword_static_address(fb),
@@ -663,7 +663,7 @@ static bool_t InitializeStaticVar(struct fieldblock *fb, CICcontext *context) {
 		if (type_table[index] != 
 		    (CONSTANT_Long | CONSTANT_POOL_ENTRY_RESOLVED))
 		    ERROR("Bad index into constant pool");
-		PR_ARENA_ALLOCATE(twoword_static_address(fb), &(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
+		twoword_static_address(fb) = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
 		if (twoword_static_address(fb) == NULL)
 			return FALSE;
 		SET_INT64(t1, twoword_static_address(fb),
@@ -740,14 +740,14 @@ static bool_t InitializeStaticVar(struct fieldblock *fb, CICcontext *context) {
 		break;
 
 	    case SIGNATURE_LONG: 
-		PR_ARENA_ALLOCATE(twoword_static_address(fb), &(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
+		twoword_static_address(fb) = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
 		if (twoword_static_address(fb) == NULL)
 			return FALSE;
 		SET_INT64(t1, twoword_static_address(fb), ll_zero_const);
 		break;
 
 	    case SIGNATURE_DOUBLE: 
-		PR_ARENA_ALLOCATE(twoword_static_address(fb), &(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
+		twoword_static_address(fb) = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(2 * sizeof(int32_t)));
 		if (twoword_static_address(fb) == NULL)
 			return FALSE;
 		SET_DOUBLE(t1, twoword_static_address(fb), 0.0);
@@ -758,7 +758,6 @@ static bool_t InitializeStaticVar(struct fieldblock *fb, CICcontext *context) {
 		break;
 	}
     }
-    PR_CompactArenaPool(&(context->cb->classStorageArena->pool));
     return TRUE;
 }
 
@@ -785,14 +784,14 @@ static bool_t LoadConstantPool(CICcontext *context)
     }
     
     sizeOfAllocation = nconstants * sizeof(cp_item_type);
-    PR_ARENA_ALLOCATE(constant_pool, &(context->cb->classStorageArena->pool), sizeOfAllocation);
+    constant_pool = ArenaAlloc(&(context->cb->classStorageArena->pool), sizeOfAllocation);
     if (constant_pool == NULL)
     	return FALSE;
     else
         memset(constant_pool, 0, sizeOfAllocation);
     	
     sizeOfAllocation = nconstants * sizeof(char);
-    PR_ARENA_ALLOCATE(type_table, &(context->cb->classStorageArena->pool), sizeOfAllocation);
+    type_table = ArenaAlloc(&(context->cb->classStorageArena->pool), sizeOfAllocation);
     if (type_table == NULL)
     	return FALSE;
      else
@@ -837,7 +836,7 @@ static bool_t LoadConstantPool(CICcontext *context)
 	}
     }
 
-    PR_ARENA_ALLOCATE(malloced_space, &(context->cb->classStorageArena->pool), (size_t)malloc_size);
+    malloced_space = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)malloc_size);
     if (malloced_space == NULL)
     	return FALSE;
     
@@ -920,7 +919,7 @@ static bool_t ReadInCode(CICcontext *context, struct methodblock *mb)
 	code_length = mb->code_length = get4bytes(context);
     }
 
-    PR_ARENA_ALLOCATE(mb->code, &(context->cb->classStorageArena->pool), code_length);
+    mb->code = ArenaAlloc(&(context->cb->classStorageArena->pool), code_length);
     if (mb->code == NULL)
         return FALSE;
 
@@ -929,7 +928,7 @@ static bool_t ReadInCode(CICcontext *context, struct methodblock *mb)
 	uint32_t exception_table_size = mb->exception_table_length 
 	                                  * sizeof(struct CatchFrame);
 
-	PR_ARENA_ALLOCATE(mb->exception_table, &(context->cb->classStorageArena->pool), (size_t)exception_table_size);
+	mb->exception_table = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)exception_table_size);
 	if (mb->exception_table == NULL)
 		return FALSE;
 
@@ -967,7 +966,7 @@ static bool_t ReadLineTable(CICcontext *context, struct methodblock *mb)
     int32_t i;
     if ((mb->line_number_table_length = get2bytes(context)) > 0) {
 	struct lineno *ln = NULL;
-	PR_ARENA_ALLOCATE(ln, &(context->cb->classStorageArena->pool), (size_t)(mb->line_number_table_length * sizeof(struct lineno)));
+	ln = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(mb->line_number_table_length * sizeof(struct lineno)));
 	if (ln == NULL)
 		return FALSE;
 	mb->line_number_table = ln;
@@ -988,7 +987,7 @@ static bool_t ReadLocalVars(CICcontext *context, struct methodblock *mb)
     int32_t i;
     if ((mb->localvar_table_length = get2bytes(context)) > 0) {
 	struct localvar *lv = NULL;
-	PR_ARENA_ALLOCATE(lv, &(context->cb->classStorageArena->pool), (size_t)(mb->localvar_table_length * sizeof(struct localvar)));
+	lv = ArenaAlloc(&(context->cb->classStorageArena->pool), (size_t)(mb->localvar_table_length * sizeof(struct localvar)));
 	if (lv == NULL)
 		return FALSE;
 	mb->localvar_table = lv;
@@ -1060,14 +1059,14 @@ createFakeArrayClass(char *name)
     uint32_t sizeOfAllocation;
     
     sizeOfAllocation = CONSTANT_POOL_ARRAY_LENGTH * sizeof(cp_item_type);
-	PR_ARENA_ALLOCATE(constant_pool, &(cb->classStorageArena->pool), sizeOfAllocation);
+	constant_pool = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
 	if (constant_pool == NULL)
 		return NULL;
 	else
 		memset(constant_pool, 0, sizeOfAllocation);
 		
     sizeOfAllocation = CONSTANT_POOL_ARRAY_LENGTH * sizeof(char);
-	PR_ARENA_ALLOCATE(type_table, &(cb->classStorageArena->pool), sizeOfAllocation);
+	type_table = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
 	if (type_table == NULL)
 		return NULL;
 	else
@@ -1104,7 +1103,7 @@ createFakeArrayClass(char *name)
     cb->access = ACC_FINAL | ACC_ABSTRACT | ACC_PUBLIC;
 
     sizeOfAllocation = strlen(name) + 1;
-	PR_ARENA_ALLOCATE(cb->name, &(cb->classStorageArena->pool), sizeOfAllocation);
+	cb->name = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
 	if (cb->name == NULL)
 		return NULL;
 	else
@@ -1126,7 +1125,7 @@ createFakeArrayClass(char *name)
 	      CONSTANT_POOL_ARRAY_CLASSNAME_INDEX;
 	      
     sizeOfAllocation = strlen(buffer) + 1;
-	PR_ARENA_ALLOCATE(constant_pool[CONSTANT_POOL_ARRAY_CLASSNAME_INDEX].cp, &(cb->classStorageArena->pool), sizeOfAllocation);
+	constant_pool[CONSTANT_POOL_ARRAY_CLASSNAME_INDEX].cp = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
 	if (constant_pool[CONSTANT_POOL_ARRAY_CLASSNAME_INDEX].cp == NULL)
 		return NULL;
 	else
@@ -1144,7 +1143,6 @@ createFakeArrayClass(char *name)
 	/* free buffer, if we malloc'ed it */
 	sysFree(buffer);
     } 
-    PR_CompactArenaPool(&(cb->classStorageArena->pool));
     return cb;
 }
 

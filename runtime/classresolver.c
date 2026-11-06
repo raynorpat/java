@@ -104,7 +104,7 @@ makeslottable(ClassClass * clb)
     }
 
     sizeOfAllocation = nslots * sizeof(struct fieldblock *);
-    PR_ARENA_ALLOCATE(cbSlotTable(clb), &(clb->classStorageArena->pool), sizeOfAllocation);
+    cbSlotTable(clb) = ArenaAlloc(&(clb->classStorageArena->pool), sizeOfAllocation);
 		    
     if (cbSlotTable(clb) == 0) {
 	return NULL;
@@ -272,7 +272,7 @@ ResolveMethods(ClassClass *cb)
     sizeOfAllocation = sizeof(struct methodtable)
 		       + (mslot - 1)* sizeof(struct methodblock *)
 		       + FLAG_MASK;
-    PR_ARENA_ALLOCATE(ptr, &(cb->classStorageArena->pool), sizeOfAllocation);
+    ptr = ArenaAlloc(&(cb->classStorageArena->pool), sizeOfAllocation);
 		    
     if (ptr == NULL) {
 	CCSet(cb, Resolved);

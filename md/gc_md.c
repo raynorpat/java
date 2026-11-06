@@ -8,7 +8,7 @@
 #include "prmon.h"
 #include "prprf.h"
 #include "prthread.h"
-#include "prarena.h"
+#include "arena.h"
 #include "prgc.h"
 #include "utf.h"
 #include "prlink.h"
@@ -355,7 +355,7 @@ void FreeClassArenas(void) {
 	    }
 
 	    /* Now free it */
-	    PR_FinishArenaPool(&arena->pool);
+	    ArenaFreeAll(&arena->pool);
 	    free(arena);
 	}
     }
@@ -386,7 +386,7 @@ ClassClass *AllocClass(void)
 	if (!arena) {
 	    return 0;
 	}
-	PR_InitArenaPool(&arena->pool, "class pool", 1 * 512, sizeof(void*));
+	ArenaInit(&arena->pool, 1 * 512);
 	cb->classStorageArena = arena;
     }
     return cb;
