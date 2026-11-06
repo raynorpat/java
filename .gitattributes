@@ -1,0 +1,7 @@
+# Preserve the imported upstream dependency bytes and their provenance hashes.
+src/share/java/math/bn-1.1/* -text
+third_party/jpeg-6/* -text
+third_party/zlib-1.0.4/crc32.c -text
+third_party/zlib-1.0.4/deflate.c -text
+third_party/zlib-1.0.4/deflate.h -text
+third_party/zlib-1.0.4/trees.c -text
