@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)classresolver.c	1.54 96/01/11  
  *
@@ -548,11 +549,13 @@ Locked_ResolveClass(ClassClass * cb, char **detail)
     if (cb == classJavaLangClass) {
 	int32_t         j;
 	ClassClass **pcb;
+	BINCLASS_LOCK();
 	for (j = nbinclasses, pcb = binclasses; --j >= 0; pcb++) {
             ClassClass *cc = *pcb;
             if (!cc) continue;
 	    cbHandle(cc)->methods = cbMethodTable(cb);
 	}
+        BINCLASS_UNLOCK();
     }
     return 0;
 }
@@ -572,12 +575,14 @@ PrintLoadedClasses()
 {
     int32_t         j;
     ClassClass **pcb, *cb;
+    BINCLASS_LOCK();
     pcb = binclasses;
     for (j = nbinclasses; --j >= 0; pcb++) {
 	cb = *pcb;
         if (!cb) continue;
         printf("%ld %s 0x%p loader=0x%p\n", j, cbName(cb), cb, cbLoader(cb));
     }
+    BINCLASS_UNLOCK();
 }
 #endif
 
@@ -604,6 +609,7 @@ IsLoadedAnywhere(char *name)
 
     sysAssert(class_lock_depth > 0);
 
+    BINCLASS_LOCK();
     pcb = binclasses;
     for (j = nbinclasses; --j >= 0; pcb++) {
 	cb = *pcb;
@@ -614,8 +620,10 @@ IsLoadedAnywhere(char *name)
           continue;
 	if (strcmp(name, existing_name))
           continue;
+        BINCLASS_UNLOCK();
         return TRUE;
     }
+    BINCLASS_UNLOCK();
     return FALSE;
 }
 
@@ -636,27 +644,30 @@ FindPreviouslyLoadedClass(char *name, HObject *loader) {
 
     sysAssert(!_class_lock || class_lock_depth > 0);
 
+    BINCLASS_LOCK();
     pcb = binclasses;
     for (j = nbinclasses; --j >= 0; pcb++) {
 	cb = *pcb;
         if (!cb || cbIsPrimitive(cb)) continue;
 	if ((cbLoader(cb) == loader) && (strcmp(name, cbName(cb)) == 0))
+        {
+          BINCLASS_UNLOCK();
           return cb;
+        }
     }
+    BINCLASS_UNLOCK();
     return NULL;
 }
 
 
 static ClassClass *
-FindLoadedClass(char *name, bool_t resolve, HObject *loader)
+PrepareLoadedClass(ClassClass *cb, bool_t resolve)
 {
-    ClassClass *cb;
     char *err, *detail;
 
     sysAssert(class_lock_depth > 0);
 
 /*     printf("FindLoadedClass %s %p\n", name, loader); */
-    cb = FindPreviouslyLoadedClass(name, loader);
     if (!cb) return 0;
 
     if (!CCIs(cb, Initialized)) {
@@ -682,6 +693,12 @@ FindLoadedClass(char *name, bool_t resolve, HObject *loader)
       }
     }
     return cb;
+}
+
+static ClassClass *
+FindLoadedClass(char *name, bool_t resolve, HObject *loader)
+{
+    return PrepareLoadedClass(FindPreviouslyLoadedClass(name, loader), resolve);
 }
 
 /* Find the class with the given name.  
@@ -738,6 +755,7 @@ static ClassClass *
 Locked_FindClassFromClass(struct execenv *ee, char *name, bool_t resolve, ClassClass *from)
 {
     ClassClass *cb = 0;
+    extern ClassClass *DoImport(char *, char *);
 
     sysAssert(class_lock_depth > 0);
 
@@ -762,8 +780,8 @@ Locked_FindClassFromClass(struct execenv *ee, char *name, bool_t resolve, ClassC
     if (cb == 0) {
 		cb = FindLoadedClass(name, resolve, 0);
 		if (cb == 0 && !IsLoadedAnywhere(name)) {
-		    DoImport(name, 0);
-		    cb = FindLoadedClass(name, resolve, 0);
+		    cb = DoImport(name, 0);
+		    cb = PrepareLoadedClass(cb, resolve);
 		}
     }
     return cb;

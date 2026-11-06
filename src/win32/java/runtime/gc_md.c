@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * Win32 support for the garbage collector in runtime/gc.c: heap memory,
  * the gc_locked() hook, and class structure allocation.

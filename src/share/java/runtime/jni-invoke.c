@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* Invocation API reconstructed from javai_g.dll 10026fcd--100278ed. */
 #include <stdlib.h>
 #include <string.h>

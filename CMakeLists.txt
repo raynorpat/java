@@ -28,6 +28,7 @@ if(WIN32)
     message(FATAL_ERROR "On Windows only MSVC is supported")
   endif()
   set(plat win32)
+  set(file_hpi_sources src/win32/java/runtime/file_md.c)
   set(sep ";")
   add_definitions(-DXP_PC -DXP_WIN -DXP_WIN32 -DWIN32 -D_WINDOWS -D_X86_
     -D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_WARNINGS)
@@ -66,8 +67,8 @@ endfunction()
 
 # --- VM runtime DLL (javai.dll), holding the built-in native stubs ---
 prefixed(runtime_sources src/share/java/runtime agent arena class date debug globals io math
-  primitive system115 resource115 reflect numeric115 serialization core115 corepath115 string115 stringhelpers115 exports115 hpi115
-  jni jni-call jni-invoke fileextras115 breakpoints115
+  primitive system115 resource115 reflect numeric115 conversions115 serialization core115 corepath115 string115 stringhelpers115 exports115 hpi115
+  jni jni-call jni-invoke fileextras115 breakpoints115 jcov115
   object opnames profiler runtime security string stubs system thread threads
   utf util zip classinitialize classresolver classhash115 common_exceptions threadruntime
   compiler check_class check_code classloader classruntime gifdecoder exception
@@ -85,7 +86,7 @@ if(WIN32)
   file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/generated/javai-$<CONFIG>.def"
     CONTENT "${javai_export_text}$<$<CONFIG:Debug>:    _set_debugger_hooks@12\n>")
   set(javai_exports "${CMAKE_BINARY_DIR}/generated/javai-$<CONFIG>.def")
-  list(APPEND md_plat src/win32/java/runtime/condvar_md.c)
+  list(APPEND md_plat src/win32/java/runtime/condvar_md.c ${file_hpi_sources})
 else()
   list(APPEND md_plat src/unix/java/runtime/net_md.c)
 endif()
@@ -110,7 +111,7 @@ add_executable(java src/share/java/javai/java_stub.c)
 target_link_libraries(java javai)
 foreach(tool javac javap jar appletviewer)
   add_executable(${tool} src/share/java/javai/tool_main.c src/${plat}/java/runtime/path_md.c
-    src/share/java/runtime/zip.c)
+    src/share/java/runtime/zip.c ${file_hpi_sources})
   target_link_libraries(${tool} javai zlib115)
 endforeach()
 target_compile_definitions(javac PRIVATE TOOL_CLASS="sun.tools.javac.Main")
@@ -133,10 +134,10 @@ foreach(tool ${jre_targets})
 endforeach()
 
 # --- Standalone tools, each with its reduced runtime subset ---
-prefixed(tool_runtime src/share/java/runtime arena classloader classresolver classhash115 classresolver_stubs
+prefixed(tool_runtime src/share/java/runtime arena classloader classresolver classhash115 classresolver_stubs conversions115
   globals runtime_stubs utf util zip)
 add_executable(javah src/share/java/javah/javah.c ${tool_runtime} src/${plat}/java/runtime/path_md.c
-  src/share/java/runtime/stubs_md.c src/${plat}/java/runtime/system_md.c)
+  src/share/java/runtime/stubs_md.c src/${plat}/java/runtime/system_md.c ${file_hpi_sources})
 target_compile_definitions(javah PRIVATE JAVA_INTERNAL_BUILD)
 foreach(t javah)
   target_link_libraries(${t} zlib115 ${sys_libs})
@@ -164,8 +165,13 @@ add_test(NAME interrupt-state COMMAND interrupt-state)
 add_executable(alloc-cache115 tests/native/alloc-cache115.c $<TARGET_OBJECTS:javai_core>)
 target_compile_definitions(alloc-cache115 PRIVATE JAVA_INTERNAL_BUILD)
 target_link_libraries(alloc-cache115 zlib115 ${sys_libs})
-add_test(NAME alloc-cache115 COMMAND alloc-cache115 "${JDK115_DIR}/lib/classes.zip")
+add_test(NAME alloc-cache115 COMMAND alloc-cache115 "${CMAKE_SOURCE_DIR}/tests/vm${sep}${JDK115_DIR}/lib/classes.zip")
 set_tests_properties(alloc-cache115 PROPERTIES TIMEOUT 30)
+add_test(NAME class-name115 COMMAND ${CMAKE_COMMAND}
+  "-DJAVA=$<TARGET_FILE:java>" "-DROOT=${PROJECT_SOURCE_DIR}"
+  "-DJDK115_DIR=${JDK115_DIR}"
+  "-DWORK=${PROJECT_BINARY_DIR}/misnamed-gate-$<CONFIG>"
+  -P "${PROJECT_SOURCE_DIR}/tools/check-class-name115.cmake")
 add_executable(managed-class115 tests/native/managed-class115.c $<TARGET_OBJECTS:javai_core>)
 target_compile_definitions(managed-class115 PRIVATE JAVA_INTERNAL_BUILD)
 target_link_libraries(managed-class115 zlib115 ${sys_libs})
@@ -177,7 +183,7 @@ foreach(classgc_enabled 0 1)
 endforeach()
 
 add_executable(hpi115-test tests/native/hpi115.c src/share/java/runtime/hpi115.c
-  src/${plat}/java/runtime/dir_md.c)
+  src/${plat}/java/runtime/dir_md.c ${file_hpi_sources})
 target_compile_definitions(hpi115-test PRIVATE JAVA_INTERNAL_BUILD)
 target_link_libraries(hpi115-test ${sys_libs})
 if(MSVC)
@@ -186,6 +192,15 @@ else()
   target_compile_options(hpi115-test PRIVATE -UNDEBUG)
 endif()
 add_test(NAME hpi115-test COMMAND hpi115-test)
+if(WIN32)
+  add_executable(file-hpi115 tests/native/file-hpi115.c ${file_hpi_sources})
+  target_compile_definitions(file-hpi115 PRIVATE JAVA_INTERNAL_BUILD)
+  add_test(NAME file-hpi115 COMMAND ${CMAKE_COMMAND}
+    "-DEXE=$<TARGET_FILE:file-hpi115>"
+    "-DEXPECTED=${CMAKE_SOURCE_DIR}/tests/native/file-hpi115.expected"
+    -P ${CMAKE_SOURCE_DIR}/tests/native/file-hpi115.cmake)
+endif()
+
 
 add_executable(string-helpers115 tests/native/string-helpers115.c $<TARGET_OBJECTS:javai_core>)
 target_compile_definitions(string-helpers115 PRIVATE JAVA_INTERNAL_BUILD)
@@ -243,8 +258,16 @@ function(java_test)
 endfunction()
 # Reconstruction progress tests; failures remain visible, baseline uses -LE jdk115.
 java_test(NAME vm-hello115 CLASS Hello115)
+java_test(NAME vm-small-heap115 CLASS Hello115 VM_ARGS -ms16k)
+java_test(NAME vm-FinalizeQueue115 CLASS FinalizeQueue115)
 java_test(NAME vm-primitives CLASS PrimitiveClasses)
 java_test(NAME vm-Circularity115 CLASS Circularity115)
+add_test(NAME vm-JCov115 COMMAND ${CMAKE_COMMAND}
+  "-DJAVA=$<TARGET_FILE:java>" "-DCP=${CMAKE_SOURCE_DIR}/tests/vm${sep}${JDK115_DIR}/lib/classes.zip"
+  "-DJAVAC=$<TARGET_FILE:javac>" "-DSEP=${sep}"
+  "-DROOT=${CMAKE_SOURCE_DIR}" "-DOUT=${CMAKE_BINARY_DIR}/jcov115/$<CONFIG>"
+  "-DENABLED=$<CONFIG:Debug>" -P "${CMAKE_SOURCE_DIR}/tests/vm/jcov115.cmake")
+java_test(NAME vm-NumericConversions115 CLASS NumericConversions115)
 java_test(NAME vm-CommandLineProps115 CLASS CommandLineProps115 VM_ARGS
   -Dp0=zero -Dp1=one -Dp2=two -Dp3=three -Dp4=four -Dp5=five -Dp6=six -Dp7=seven -Dp8=)
 foreach(fixture Props115 Unicode ClassPathForms Reflect ReflectExceptions Numeric115 Serial ClinitFail Interrupt Exec)
@@ -256,6 +279,9 @@ java_test(NAME vm-SerialValues CLASS SerialValues)
 java_test(NAME vm-SerialHooks CLASS SerialHooks)
 java_test(NAME vm-Core115 CLASS Core115)
 java_test(NAME vm-Launcher115 CLASS Launcher115 ARGS one -two "three four")
+java_test(NAME vm-MonitorCapacityOption115 CLASS Launcher115 EXPECTED Launcher115
+  VM_ARGS -nm256 ARGS one -two "three four")
+java_test(NAME vm-MonitorCache115 CLASS MonitorCache115)
 java_test(NAME vm-VMReserve115 CLASS VMReserve115 VM_ARGS -ms1m -mx4m -mr256k -my256k)
 java_test(NAME vm-Intern115 CLASS Intern115)
 java_test(NAME vm-FileExtras115 CLASS FileExtras115)
@@ -311,7 +337,7 @@ java_test(NAME vm-Resources CLASS Resources EXTRA_CP "${CMAKE_SOURCE_DIR}/tests/
 get_property(selfhost_cases GLOBAL PROPERTY selfhost_cases)
 file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/selfhost-cases-$<CONFIG>.cmake"
   CONTENT "${selfhost_cases}")
-add_executable(zip115-test tests/native/zip115-test.c src/share/java/runtime/zip.c)
+add_executable(zip115-test tests/native/zip115-test.c src/share/java/runtime/zip.c ${file_hpi_sources})
 target_link_libraries(zip115-test zlib115 ${sys_libs})
 add_test(NAME zip115 COMMAND zip115-test "${CMAKE_SOURCE_DIR}/tests/vm/resources115.zip")
 configure_file("${JDK115_DIR}/lib/classes.zip" "${CMAKE_BINARY_DIR}/classes.zip" COPYONLY)
@@ -383,3 +409,23 @@ install(FILES "${JDK115_DIR}/lib/security/java.security" DESTINATION lib/securit
 install(DIRECTORY src/share/java/include/ DESTINATION include FILES_MATCHING PATTERN "*.h")
 install(DIRECTORY src/${plat}/java/include/ DESTINATION include/${plat}
   FILES_MATCHING PATTERN "*.h")
+
+# Link internal monitor-cache probes without widening the production DLL ABI.
+add_executable(monitor-cache115 tests/native/monitor-cache115.c $<TARGET_OBJECTS:javai_core>)
+target_compile_definitions(monitor-cache115 PRIVATE JAVA_INTERNAL_BUILD)
+target_link_libraries(monitor-cache115 zlib115 ${sys_libs})
+add_test(NAME monitor-cache115 COMMAND monitor-cache115 "${JDK115_DIR}/lib/classes.zip")
+set_tests_properties(monitor-cache115 PROPERTIES TIMEOUT 60)
+
+# Exercise the coverage writer's three input formats without exporting private APIs.
+add_executable(jcov115-probe tests/native/jcov115-probe.c src/share/java/runtime/jcov115.c)
+target_compile_definitions(jcov115-probe PRIVATE JAVA_INTERNAL_BUILD JCOV)
+add_test(NAME jcov115-writer COMMAND ${CMAKE_COMMAND}
+  "-DPROBE=$<TARGET_FILE:jcov115-probe>" "-DROOT=${CMAKE_SOURCE_DIR}"
+  "-DOUT=${CMAKE_BINARY_DIR}/jcov115-native/$<CONFIG>"
+  -P "${CMAKE_SOURCE_DIR}/tests/native/jcov115-probe.cmake")
+
+add_executable(exitcallbacks115 tests/native/exitcallbacks115.c src/${plat}/java/runtime/system_md.c)
+target_compile_definitions(exitcallbacks115 PRIVATE JAVA_INTERNAL_BUILD JNI115_ENABLED)
+add_test(NAME exitcallbacks115 COMMAND ${CMAKE_COMMAND}
+  "-DPROBE=$<TARGET_FILE:exitcallbacks115>" -P "${CMAKE_SOURCE_DIR}/tests/native/exitcallbacks115.cmake")

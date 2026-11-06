@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * POSIX threads for the HPI (sys_api.h).
  *
@@ -401,7 +402,7 @@ void sysThreadVMSuspendMe(void) {}
  * have no portable priority levels. Map onto nice values per platform if
  * Java priorities ever need to matter.
  */
-int sysThreadSetPriority(sys_thread_t *t, int32_t n)
+int sysThreadSetPriority(sys_thread_t *t, int n)
 {
     if (n < MinimumPriority || n > MaximumPriority)
 	return SYS_ERR;
@@ -409,7 +410,7 @@ int sysThreadSetPriority(sys_thread_t *t, int32_t n)
     return SYS_OK;
 }
 
-int sysThreadGetPriority(sys_thread_t *t, int32_t *pri)
+int sysThreadGetPriority(sys_thread_t *t, int *pri)
 {
     *pri = t->priority;
     return SYS_OK;

@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 #include "classhash115.h"
 /* 
  * @(#)javah.c	1.51 95/10/16 James Gosling
@@ -43,6 +44,8 @@
 #include "sys_api.h"
 #include "arena.h"
 #include "utf.h"
+
+extern ClassClass *DoImport(char *, char *);
 
 #ifndef RELEASE
 #  define RELEASE "Unknown version"

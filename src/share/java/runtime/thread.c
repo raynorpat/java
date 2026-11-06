@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)thread.c	1.46 96/02/13
  *
@@ -217,12 +218,12 @@ java_lang_Thread_setPriority0(register Hjava_lang_Thread *p, long prio) {
 long
 java_lang_Thread_getPriority(Hjava_lang_Thread *p)
 {
-    long prio;
+    int prio;
     struct Classjava_lang_Thread *tid;
     tid = (struct Classjava_lang_Thread *) unhand(p);
     if (tid->PrivateInfo) {
 	/* When it's been set, rely on the thread's actual priority */
-        threadGetPriority(p, (int32_t*)&prio);
+        threadGetPriority(p, &prio);
     } else {
 	prio = tid->priority;
     }

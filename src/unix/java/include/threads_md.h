@@ -24,6 +24,8 @@ struct sys_thread {
     volatile int stop_pending;	/* Thread.stop() posted an exception */
     int interrupted;             /* JDK 1.1 interruption shadow, guarded by post_lock */
     struct sys_mon *volatile waiting_on;	/* monitor it waits on, if any */
+    unsigned int cacheKey;
+    void *monitorCache[8];
     struct sys_thread *next;	/* thread list, guarded by _queue_lock */
 };
 

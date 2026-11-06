@@ -43,10 +43,12 @@ typedef unsigned long uintVP_t; /* unsigned that is same size as a void pointer 
 #define ll_xor(a, b)    ((a) ^ (b))
 #define ll_rem(a,b)             ((a) % (b))
 
-#define float2ll(f)             ((int64_t) (f))
+int32_t float2l(float);
+int32_t double2l(double);
+int64_t float2ll(float);
+int64_t double2ll(double);
 #define ll2float(a)             ((float) (a))
 #define ll2double(a)    ((double) (a))
-#define double2ll(f)    ((int64_t) (f))
 
 /* comparison operators */
 #define ll_ltz(ll)              ((ll)<0)

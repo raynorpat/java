@@ -18,6 +18,10 @@ extern void gc(int, unsigned int);
 static JavaVM *test_vm;
 static volatile int attach_done;
 static int attach_failed;
+static jint JNICALL native_add(JNIEnv *env, jclass cls, jint a, jint b)
+{
+    return a + b;
+}
 static void attach_loop(void)
 {
     int i;
@@ -53,6 +57,9 @@ int main(int argc, char **argv)
     JHandle *first, *tail, *boundary;
     jbyteArray objects[80];
     jbyte bytes[100];
+    jclass native_class;
+    jmethodID native_method;
+    JNINativeMethod native = { "add", "(II)I", (void *)native_add };
     long size;
     int i, j;
 #ifdef XP_PC
@@ -127,6 +134,11 @@ int main(int argc, char **argv)
             CHECK(bytes[j] == (jbyte)(i + 1));
     }
     CHECK(!cache->cache_busy && !cache->cache_tail && !cache->cache_handles);
+    native_class = (*env)->FindClass(env, "JniHello");
+    CHECK(native_class);
+    CHECK((*env)->RegisterNatives(env, native_class, &native, 1) == 0);
+    native_method = (*env)->GetStaticMethodID(env, native_class, "add", "(II)I");
+    CHECK(native_method);
     test_vm = vm;
 #ifdef XP_PC
     thread = CreateThread(NULL, 0, attach_entry, NULL, 0, NULL);
@@ -139,6 +151,9 @@ int main(int argc, char **argv)
         jbyteArray array = (*env)->NewByteArray(env, 32);
         CHECK(array);
         (*env)->DeleteLocalRef(env, array);
+        /* Native invocation must not walk a concurrently freed EE list. */
+        CHECK((*env)->CallStaticIntMethod(env, native_class, native_method, 19, 23) == 42);
+        CHECK(!(*env)->ExceptionOccurred(env));
     } while (!attach_done);
 #ifdef XP_PC
     WaitForSingleObject(thread, INFINITE);

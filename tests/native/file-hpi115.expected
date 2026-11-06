@@ -1,0 +1,12 @@
+path=
+path=\
+path=\
+path=C:\a\b
+path=C:\
+path=a\b\c
+path=\server\share
+path=C:relative
+path=\abc
+long-open=-1,38
+long-access=-1,38
+readonly-delete=0

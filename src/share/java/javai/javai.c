@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)javai.c	1.75 95/08/11
  *
@@ -42,6 +43,9 @@
 #include "jio.h"
 #include "jni.h"
 #include "classhash115.h"
+#ifdef JCOV
+#include "jcov.h"
+#endif
 
 #ifndef NATIVE
 #include "iomgr.h"
@@ -354,7 +358,9 @@ java_main(int argc, char **argv)
     const char *main_error = "void main(String argv[]) is not defined";
     char *class_name, *p, *default_path;
     const char *user_path = getenv("CLASSPATH");
-    int i, result = 0, profiling = 0;
+    int i, result = 0, profiling = 0, extra_monitors = 0;
+    extern int monCount;
+    extern void expandMonCache(int);
     long size;
     extern int tracegc;
     extern char *prof_file;
@@ -399,6 +405,14 @@ java_main(int argc, char **argv)
         else if (!strncmp(p, "-prof:", 6) && p[6]) {
             prof_file = p + 6; profiling = 1; init.enableClassGC = 0;
         }
+        else if (!strcmp(p, "-prof=jcov") ||
+                 (!strncmp(p, "-prof=jcov:", 11) && p[11])) {
+#ifdef JCOV
+            cov_file = p[10] == ':' ? p + 11 : "java.jcov";
+            init.enableClassGC = 0;
+            sysAtexit(java_cov_dump);
+#endif
+        }
         else if (!strncmp(p, "-ss", 3)) {
             if ((size = atomi(p + 3)) >= 1000) init.nativeStackSize = size;
         } else if (!strncmp(p, "-oss", 4)) {
@@ -407,6 +421,9 @@ java_main(int argc, char **argv)
             if ((size = atomi(p + 3)) >= 1000) init.minHeapSize = size;
         } else if (!strncmp(p, "-mx", 3)) {
             if ((size = atomi(p + 3)) >= 1000) init.maxHeapSize = size;
+        } else if (!strncmp(p, "-nm", 3)) {
+            if ((size = atomi(p + 3)) >= 0)
+                extra_monitors = size > monCount ? size - monCount : 0;
         } else if (!strncmp(p, "-mr", 3)) {
             if ((size = atomi(p + 3)) > 0) barriersize_red = size;
         } else if (!strncmp(p, "-my", 3)) {
@@ -450,6 +467,7 @@ java_main(int argc, char **argv)
         sysExit(1); return 1;
     }
     cbFlags(cb) |= CCF_IsSticky;
+    if (extra_monitors > 0) expandMonCache(extra_monitors);
     FindClass(ee, JAVAPKG "Compiler", TRUE);
     for (owner = cb; owner && !main_method;
          owner = cbSuperclass(owner) ? cbSuperclass(owner) : NULL) {

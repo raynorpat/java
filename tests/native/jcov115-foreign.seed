@@ -1,0 +1,7 @@
+JCOV-DATA-FILE-VERSION: 1.0
+TEST 1: original
+CLASS: UnloadedClass
+SRCFILE: UnloadedClass.java
+TIMESTAMP: 3
+#flag	line	position	count	testcount	scale
+1	5	9		1	1		#8

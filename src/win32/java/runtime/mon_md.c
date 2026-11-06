@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* Win32 monitor reconstruction from JDK 1.1.5 javai_g.dll.
  * See tests/native/monitor-evidence.md for addresses and interim deviations.
  */

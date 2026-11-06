@@ -31,18 +31,19 @@
  * structures.  Handles rather than objects are used to avoid relocating
  * the contents of the queues on GC.
  */
-/* deviation: collector still owns allocated two-word finalizer nodes. */
-typedef struct finalizer_t {
-    struct finalizer_t *next;	/* The next finalizer structure */
-    JHandle *handle;		/* The handle of the object */
+typedef struct {
+    JHandle *next;              /* The next finalizer object */
 } finalizer_t;
 
-extern finalizer_t *HasFinalizerQ;
-extern finalizer_t *FinalizeMeQ;
-extern finalizer_t *BeingFinalized;
-
+extern JHandle *HasFinalizerQ;
+extern JHandle *FinalizeMeQ;
+extern JHandle *FinalizeMeQLast;
+extern JHandle *BeingFinalized;
 
 extern bool_t finalize_on_exit;
+
+#define FINALIZER_T(h) \
+        ((finalizer_t *)((char *)h->obj + cbInstanceSize(obj_classblock(h))))
 
 /*
  * Locks for the finalization queues

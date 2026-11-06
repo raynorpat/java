@@ -3,8 +3,22 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include "sys_api.h"
 #include "monitor_md.h"
+
+#ifdef DEBUG
+/* This isolated HPI probe has no VM thread registry to dump. */
+void DumpThreads(void) {}
+void panic(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    abort();
+}
+#endif
 
 #define CHECK(x) do { if (!(x)) { fprintf(stderr, "%s:%d: %s\n", \
     __FILE__, __LINE__, #x); exit(1); } } while (0)

@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 #ifdef BREAKPTS
 /*
  * @(#)agent.c	1.44 96/02/16 Arthur van Huff, Thomas Ball

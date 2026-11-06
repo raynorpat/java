@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* JDK 1.1.5 resource reconstruction. See resource115-evidence.md.
  * Uses this port's existing classpath, ZIP and Java object APIs.
  */

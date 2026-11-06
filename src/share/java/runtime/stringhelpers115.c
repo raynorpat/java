@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* JDK 1.1.5 string helpers recovered from javai_g.dll1004AEE0--1004B45F.
  * See tests/native/string-helpers115-evidence.md. */
 #include <stdlib.h>

@@ -1,0 +1,9 @@
+JCOV-DATA-FILE-VERSION: 1.0
+TEST 1: one
+TEST 2: two
+CLASS: JCovSynthetic115
+SRCFILE: JCovSynthetic115.java
+TIMESTAMP: 1
+#flag	line	position	count	testcount	scale
+1	1	4		3	1		#8
+3	2	8		4	1		#4

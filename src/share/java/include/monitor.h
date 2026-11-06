@@ -48,14 +48,10 @@
  * of the sys_mon_t aren't properly aligned.  Otherwise the flags field
  * would be shorter than a long.
  */
-/* deviation: retain legacy cache bookkeeping until reclamation migrates. */
-#define MON_IN_USE 0x1
 typedef struct monitor_t {
-    unsigned int	key;		/* monitor hash key */
+    unsigned int	key;		/* Monitor hash key */
     struct monitor_t   *next;
-    short		flags;		/* flags used by the cache */
-    short		uninit_count;	/* monitors created, not entered */
-    char		mid[1];
+    char		mid[1];		/* The sys_mon_t */
 } monitor_t, *MID;
 
 /* A macro for accessing the sys_mon_t from the monitor_t */
@@ -155,8 +151,5 @@ extern sys_mon_t *_globalref_lock;
 #define GLOBALREF_LOCK()	    sysMonitorEnter(_globalref_lock)
 #define GLOBALREF_LOCKED()	    sysMonitorEntered(_globalref_lock)
 #define GLOBALREF_UNLOCK()	    sysMonitorExit(_globalref_lock)
-
-/* deviation: retained asynchronous collector polling hook. */
-#define INTERRUPTS_PENDING() sysInterruptsPending()
 
 #endif	/* !_MONITOR_H_ */

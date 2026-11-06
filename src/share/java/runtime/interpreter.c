@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 #include "classhash115.h"
 /*
  * @(#)interpreter.c	1.174 96/03/30
@@ -44,6 +45,7 @@
 #include "opcodes.h"
 #include "oobj.h"
 #include "interpreter.h"
+#include "jcov115.h"
 #include "signature.h"
 #include "code.h"
 #include "tree.h"
@@ -1096,10 +1098,17 @@ static char longstringbuf[30];
 #define DECACHE_OPTOP()   (frame->optop = REAL_OPTOP())
 #define CACHE_OPTOP()     (optop = frame->optop - OPTOP_OFFSET)
 
-#define SIZE_AND_STACK(size, stack) pc += size; optop += stack; continue
-#define SIZE_AND_STACK_BUT(size, stack) pc += size; optop += stack;
+#ifdef JCOV
+#define COV_NEXT() (coverage_counted = 0)
+#define COV_IF(taken) coverage_if((taken), frame, pc)
+#else
+#define COV_NEXT() ((void)0)
+#define COV_IF(taken) ((void)0)
+#endif
+#define SIZE_AND_STACK(size, stack) pc += size; optop += stack; COV_NEXT(); continue
+#define SIZE_AND_STACK_BUT(size, stack) pc += size; optop += stack; COV_NEXT();
 #define JUMP_AND_STACK(offset, stack) \
-          if (1) { pc += offset; optop += stack; \
+          if (1) { pc += offset; optop += stack; COV_NEXT(); \
                    if (offset > 0) continue; \
 	           goto check_for_exception; } else
 /*
@@ -1171,6 +1180,9 @@ static char longstringbuf[30];
    unsigned int            offset;
    int                     delta;
    int                     breakpoint_notified;
+#ifdef JCOV
+   int                     coverage_counted = 0;
+#endif
 
     Java8 tdub, tdub2;
 
@@ -1240,6 +1252,12 @@ static char longstringbuf[30];
 	}
 #endif
 
+#ifdef JCOV
+        if (!coverage_counted) {
+            coverage_instruction(frame, pc);
+            coverage_counted = 1;
+        }
+#endif
 	opcode = *pc;
 again:
 #ifdef STATISTICS
@@ -1388,7 +1406,7 @@ again:
 	    SIZE_AND_STACK(1, 1);
 	      
 	case opc_f2i:		/* Convert top of stack float to int */
-	    S_INT(-1) = (int32_t) S_FLOAT(-1);
+	    S_INT(-1) = float2l(S_FLOAT(-1));
 	    TRACE(("\tf2i => %ld\n", S_INT(-1)));
 	    SIZE_AND_STACK(1, 0);
 
@@ -1420,7 +1438,7 @@ again:
 	    SIZE_AND_STACK(1, 0);
 
 	case opc_d2i:
-	    S_INT(-2) = (int32_t) S_DOUBLE(-2);
+	    S_INT(-2) = double2l(S_DOUBLE(-2));
 	    TRACE(("\td2i => %ld\n", S_INT(-2)));
 	    SIZE_AND_STACK(1, -1);
 	      
@@ -1596,13 +1614,19 @@ again:
 	case opc_i##name:                                          	\
 	    if (test && S_INT(-1) == 0)                              	\
                ERROR("ArithmeticException", "/ by zero");               \
-	    S_INT(-2) = S_INT(-2) op S_INT(-1);                       	\
+	    S_INT(-2) = (test && S_INT(-2) == (int32_t)0x80000000U && \
+                         S_INT(-1) == -1) ? S_INT(-2) op 1 :             \
+                         S_INT(-2) op S_INT(-1);                       	\
 	    TRACE(("\t%s => %ld\n", opnames[opcode], S_INT(-2)));      	\
 	    SIZE_AND_STACK(1, -1);                                    	\
 	case opc_l##name:                                             	\
 	    if (test && ll_eqz(S_LONG(-2)))                             \
                ERROR("ArithmeticException", "/ by zero");               \
-	    SET_S_LONG(-4, ll_##name(S_LONG(-4), S_LONG2(-2)));          \
+	    SET_S_LONG(-4, (test && ll_eq(S_LONG(-4),                    \
+                      (int64_t)((uint64_t)1 << 63)) &&                   \
+                      ll_eq(S_LONG2(-2), int2ll(-1)))                    \
+                      ? ll_##name(S_LONG(-4), ll_one_const)              \
+                      : ll_##name(S_LONG(-4), S_LONG2(-2)));          \
 	    TRACE(("\t%s => %s\n", opnames[opcode], S_LONGSTRING(-4))); \
 	    SIZE_AND_STACK(1, -2);
 
@@ -1729,6 +1753,7 @@ again:
 	case opc_if_icmp##name: {					  \
             int skip = (S_INT(-2) comparison S_INT(-1))                   \
 	           ? pc2signedshort(pc) : 3;                              \
+            COV_IF(S_INT(-2) comparison S_INT(-1));                   \
             TRACE(("\t%s goto %8lX (%staken)\n",                           \
 		   opnames[opcode],                                       \
 		   (uint32_t)(pc + pc2signedshort(pc)),                               \
@@ -1737,6 +1762,7 @@ again:
         }								  \
 	case opc_if##name: {					     	  \
             int skip = (S_INT(-1) comparison 0) ? pc2signedshort(pc) : 3; \
+            COV_IF(S_INT(-1) comparison 0);                           \
             TRACE(("\t%s goto %8lX (%staken) [.+(%d)]\n",                           \
 		   opnames[opcode],                                       \
 		   (uint32_t)(pc + pc2signedshort(pc)),                               \
@@ -1749,6 +1775,7 @@ again:
 	case opc_if_acmp##name: {					  \
             int skip = (S_POINTER(-2) comparison S_POINTER(-1))           \
 	           ? pc2signedshort(pc) : 3;                              \
+            COV_IF(S_POINTER(-2) comparison S_POINTER(-1));           \
             TRACE(("\t%s goto %8lX (%staken)\n",                           \
 		   opnames[opcode],                                       \
 		   (uint32_t)(pc + pc2signedshort(pc)),                               \
@@ -1757,6 +1784,7 @@ again:
         }								  \
 	case opc_if##nullname: {				     	  \
             int skip = (S_POINTER(-1) comparison NULL) ? pc2signedshort(pc) : 3; \
+            COV_IF(S_POINTER(-1) comparison NULL);                    \
             TRACE(("\t%s goto %8lX (%staken)\n",                           \
 		   opnames[opcode],                                       \
 		   (uint32_t) (pc + pc2signedshort(pc)),                               \
@@ -1857,6 +1885,9 @@ again:
 	    int32_t high = ntohl(lpc[2]);
 	    int32_t skip;
 	    key -= low;
+#ifdef JCOV
+            coverage_switch(frame, pc, key, low, high);
+#endif
 	    skip = ((key > high - low) || (key < 0))
 		        ? ntohl(lpc[0]) 
 		        : ntohl(lpc[key + 3]);
@@ -1871,14 +1902,23 @@ again:
 	    int32_t key = S_INT(-1);
 	    int32_t skip = ntohl(lpc[0]); /* default skip amount */
 	    int32_t npairs = ntohl(lpc[1]);
+#ifdef JCOV
+            int nodef = 1;
+#endif
 	    TRACE(("\tlookupswitch %ld\n", key));
 	    while (--npairs >= 0) {
 		lpc += 2;
 		if (key == (int32_t) ntohl(lpc[0])) {
 		    skip = ntohl(lpc[1]);
+#ifdef JCOV
+                    nodef = 0;
+#endif
 		    break;
 		}
 	    }
+#ifdef JCOV
+            coverage_lookupswitch(frame, pc, npairs, nodef);
+#endif
 	    JUMP_AND_STACK(skip, -1);
 	}
 
@@ -3053,6 +3093,7 @@ again:
 		  fflush(stdout);
 	      }
 #endif /* TRACING */
+              COV_NEXT();
 	      continue;		/* continue with the outer loop */
 	  }
       }
@@ -3093,6 +3134,7 @@ again:
 	    vars = frame->vars;
 	    constant_pool = frame->constant_pool;
 /*	    CACHE_OPTOP(); */
+            COV_NEXT();
 	    continue;
 	}
 #if GENERATING68K

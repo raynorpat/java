@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* File.canonPath: javai_g.dll 10015FE0, Win32 helper 100394BA. */
 #include <stdlib.h>
 #include <string.h>

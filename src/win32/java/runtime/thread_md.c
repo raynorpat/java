@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * Win32 native threads for the HPI (sys_api.h).
  *
@@ -269,7 +270,7 @@ int sysThreadVMSuspend(sys_thread_t *thread, sys_thread_t *self) { return 0; }
 int sysThreadVMUnsuspend(sys_thread_t *thread) { return 0; }
 void sysThreadVMSuspendMe(void) {}
 
-int sysThreadSetPriority(sys_thread_t *t, int32_t n)
+int sysThreadSetPriority(sys_thread_t *t, int n)
 {
     /* Java 1..10, 5 is normal */
     static const int win32[] = {
@@ -287,7 +288,7 @@ int sysThreadSetPriority(sys_thread_t *t, int32_t n)
     return SYS_OK;
 }
 
-int sysThreadGetPriority(sys_thread_t *t, int32_t *pri)
+int sysThreadGetPriority(sys_thread_t *t, int *pri)
 {
     *pri = t->priority;
     return SYS_OK;

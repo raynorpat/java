@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* Reconstructed from JDK 1.1.5 javai_g.dll, NameAndTypeToHash 10012685. */
 #include "tree.h"
 #include "interpreter.h"

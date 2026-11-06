@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 #include "classhash115.h"
 /*
  * @(#)compiler.c	1.8 96/04/26

@@ -1,0 +1,11 @@
+execute_process(COMMAND "${EXE}" RESULT_VARIABLE status
+  OUTPUT_VARIABLE actual ERROR_VARIABLE errors TIMEOUT 20)
+if(NOT "${status}" STREQUAL "0")
+  message(FATAL_ERROR "File HPI probe failed (${status}): ${errors}")
+endif()
+file(READ "${EXPECTED}" expected)
+string(REPLACE "\r\n" "\n" actual "${actual}")
+string(REPLACE "\r\n" "\n" expected "${expected}")
+if(NOT actual STREQUAL expected)
+  message(FATAL_ERROR "File HPI mismatch:\n${actual}\nExpected:\n${expected}")
+endif()

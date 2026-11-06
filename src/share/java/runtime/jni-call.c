@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* Reconstructed from javai_g.dll sysInvokeNative, 0x10053218.
  * Both supported targets use the 32-bit x86 stack argument ABI. */
 #include "jni_impl.h"

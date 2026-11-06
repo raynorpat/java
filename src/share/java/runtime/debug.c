@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)debug.c	1.19 95/10/16
  *
@@ -59,7 +60,7 @@ threadName(void* tid)
 void
 threadDumpInfo(TID tid, bool_t verbose)
 {
-    int32_t priority;
+    int priority;
     fprintf(stderr, "    %s", Object2CString((JHandle *) THREAD(tid)->name));
     if (verbose == TRUE) {
 	fprintf(stderr, " (TID:0x%x", tid);

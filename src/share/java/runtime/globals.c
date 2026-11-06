@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)globals.c	1.14 95/11/15 John Seamons
  *
@@ -27,9 +28,11 @@
 #include "oobj.h"
 #include "tree.h"
 #include "interpreter.h"
+#include "monitor.h"
 
 int   SkipSourceChecks = 0;
 char *progname;
+sys_mon_t *_binclass_lock;
 ClassClass **binclasses = NULL;
 long nbinclasses, sizebinclasses;
 bool_t verbose = 0;

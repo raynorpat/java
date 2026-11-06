@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)classresolver_stubs.c	1.10 96/01/10  
  *
@@ -74,6 +75,10 @@ EE() {
 }
 
 char *CompiledCodeAttribute = 0;
+#ifdef JCOV
+/* The standalone header generator does not enable execution coverage. */
+char *cov_file = 0;
+#endif
 
 /* Standalone header generation neither loads a JIT nor owns compiled code. */
 void CompilerFreeClass(ClassClass *cb)

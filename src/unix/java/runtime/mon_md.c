@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * Reentrant monitors (sys_api.h) on POSIX mutexes and condition
  * variables. Object.wait() waiters queue FIFO, each with its own flag, so a

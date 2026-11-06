@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)gc.c	1.94 95/12/06
  *
@@ -47,6 +48,7 @@
 #include "finalize.h"
 
 #include "sys_api.h"
+#include "gc.h"
 
 #include "java_lang_Thread.h"
 
@@ -79,22 +81,8 @@ extern void threadSuspendMe(void);
  * Lock against heap modification.
  */
 sys_mon_t *_heap_lock;
-#define HEAP_LOCK_INIT()    monitorRegister(_heap_lock, "Heap lock")
-#define HEAP_LOCK()	    sysMonitorEnter(_heap_lock)
-#define HEAP_UNLOCK()	    sysMonitorExit(_heap_lock)
-#define HEAP_LOCKED()	    sysMonitorEntered(_heap_lock)
 
 extern sys_mon_t *_hasfinalq_lock;
-
-/*
- * Define this if you want the mark phase to detect pointers into the
- * interior of objects.
- */
-/* #define CHECK_INTERIOR_POINTERS */
-
-#define OBJECTGRAIN     8
-#define HANDLEGRAIN     8
-#define BITSPERCHAR     8
 
 /* 
  * Heap layout, pointers and pointer aliases set by SetLimits():
@@ -125,22 +113,6 @@ static JHandle *free_handles;
 /* The extent of the mapped memory */
 static unsigned char *heapbase, *heaptop;
 
-#define ValidObject(p)	((((int)(p)) & (OBJECTGRAIN-1)) == 0 && 	\
-			 (unsigned char *)(p) >= opmin && 		\
-			 (unsigned char *)(p) <  opmax)
-#define ValidHandle(p)	(((int) (p) & (sizeof(JHandle)-1)) == 0 && 	\
-		         (unsigned char *)(p) >= hpmin && 		\
-		         (unsigned char *)(p) <= hpmax)
-/* ValidHorO() assumes OBJECTGRAIN=sizeof(JHandle)... */
-#define ValidHorO(p)	(((int) (p) & (OBJECTGRAIN-1)) == 0 && 		\
-		         (unsigned char *)(p) >= hpmin && 		\
-		         (unsigned char *)(p) <= opmax)
-#define SetLimits() 							\
-	register unsigned char *const opmin = opool, 			\
-			       *const opmax = opoollimit, 		\
-			       *const hpmin = hpool, 			\
-			       *const hpmax = hpoollimit-sizeof(JHandle)
-
 static unsigned int *markbits;
 #define BITSPERMARK (BITSPERCHAR * sizeof(*markbits))	/* 32 */
 static long FreeObjectCtr;
@@ -152,64 +124,6 @@ static long markmax;
 static long FreeMemoryLowWaterMark;
 
 unsigned char *gc0(int, unsigned int);
-
-/*
- * Memory block header (bottom three bits are flags):
- *
- * -------------------------------------------------------------
- * | <--- length --->| unused | <- obj swapped -> | <- free -> |
- * -------------------------------------------------------------
- * 31                3        2                   1            0
- */
-typedef long hdr;
-
-#define obj_geth(p) (*((hdr *)(p)))
-#define obj_seth(p, h) (*((hdr *)(p)) = (h))
-#define h_len(h) ((h) & ~(OBJECTGRAIN-1))
-#define h_free(h) ((h) & 1)
-#define h_bumplen(h, l) ((h) += (l))
-
-#define obj_len(p) (obj_geth(p)&~(OBJECTGRAIN-1))
-#define obj_setlf(p, l, f) (obj_geth(p) = (l)|(f))
-#define obj_bumplen(p, l) (obj_geth(p) += (l))
-#define obj_free(p) (obj_geth(p)&1)
-#define obj_setfree(p) (obj_geth(p) |= 1)
-#define obj_clearfree(p) (obj_geth(p) &= ~1)
-
-#define HardMark 3
-#define SoftMark 1
-
-/* Mark bit access assumes contiguity of handles and objects */
-#define MARKINDEX(p)    (((unsigned char *)(p) - hpmin) >> 7)
-#define BITOFFSET(p)    ((((unsigned char *)(p) - hpmin) >> 2) & 0x1e)
-
-#define _MarkPtr(p, v)  (markbits[MARKINDEX(p)] |= (v) << BITOFFSET(p))
-#define _ClearMarkPtr(p, v) (markbits[MARKINDEX(p)] &= ~((v) << BITOFFSET(p)))
-#define _IsMarked(p)    ((markbits[MARKINDEX(p)] >> BITOFFSET(p)) &3)
-#define MarkPtr(p, v) _MarkPtr(((unsigned int) (p) & ~(OBJECTGRAIN - 1)), v)
-#define ClearMarkPtr(p, v) _ClearMarkPtr(((unsigned int)(p)&~(OBJECTGRAIN-1)),v)
-#define IsMarked(p) _IsMarked((unsigned int) (p) & ~(OBJECTGRAIN - 1))
-
-#define SOFTREFBAGSIZE 200  /* max number of soft refs to kill in one cycle */
-
-/*
- * Types of overflows: we might respond to an overflow of a particular
- * error differently, e.g. expanding only the overflowing area.
- */
-#define OVERFLOW_NONE	 0
-#define OVERFLOW_OBJECTS 1
-#define OVERFLOW_HANDLES 2
-
-/*
- * Possible actions to take on overflows.  manageAllocFailure()
- * decides between these.
- */
-#define OVERFLOW_ACT_FAIL	0
-#define OVERFLOW_ACT_GC		1
-#define OVERFLOW_ACT_FINALIZE	2
-#define OVERFLOW_ACT_REFS	3
-#define OVERFLOW_ACT_EXPAND	4
-#define OVERFLOW_ACT_DESPERATE  5
 
 /*
  * Rough counter of heap modification events: a lack of known permu-
@@ -494,8 +408,8 @@ allocClassClass(void)
 /*
  * Calculate the size in bytes of an array of type t and length l.
  */
-int32_t
-sizearray(int32_t t, int32_t l)
+int
+sizearray(int t, int l)
 {
     int size = 0;
 
@@ -566,7 +480,7 @@ ObjAlloc(ClassClass *cb, long n0)
     }
 #endif /* DEBUG */
 
-    n0 = cbInstanceSize(cb);
+    n0 = cbInstanceSize(cb) + (cbFinalizer(cb) ? sizeof(finalizer_t) : 0);
     handle = realObjAlloc(cbMethodTable(cb), n0);
 
     /* 
@@ -575,13 +489,9 @@ ObjAlloc(ClassClass *cb, long n0)
      * that handle can be nil if we are out of memory!
      */
     if (handle && obj_flags(handle) == T_NORMAL_OBJECT && cbFinalizer(cb)) {
-	finalizer_t *final;
-
-        final = (finalizer_t *) sysMalloc(sizeof(finalizer_t));
-        final->handle = handle;
-	HASFINALQ_LOCK();
-        final->next = HasFinalizerQ;
-        HasFinalizerQ = final;
+        HASFINALQ_LOCK();
+        FINALIZER_T(handle)->next = HasFinalizerQ;
+        HasFinalizerQ = handle;
 	HASFINALQ_UNLOCK();
     }
 
@@ -1481,7 +1391,7 @@ scanClasses(void)
         MarkPtr(cb, HardMark);
 }
 
-/* Called with the world stopped. No class-lock acquisition under heap lock. */
+/* Called with the world stopped and the separate BinClass lock held. */
 static void
 queueDeadClasses(void)
 {
@@ -1638,44 +1548,38 @@ scanHandles(void)
  */
 static void
 prepareFinalization(void)
-{    
-    if (HasFinalizerQ) {
-        SetLimits();
-        JHandle *hp;
-        finalizer_t *prev = (finalizer_t *) &HasFinalizerQ;
-        finalizer_t *final;
+{
+    SetLimits();
+    JHandle *hp, *first = NULL, *last = NULL;
+    JHandle **prev = &HasFinalizerQ;
+    JHandle **insert = FinalizeMeQLast
+        ? &FINALIZER_T(FinalizeMeQLast)->next : &FinalizeMeQLast;
 
-        /* Pass over HasFinalizerQ: */
-        while (final = prev->next) {
-	    hp = final->handle;
-	    if (hp->obj && !IsMarked(hp) && ValidObject(hp->obj)) {
-		/* Important: Put in FinalizeMeQ in reverse order */
-		prev->next = final->next;
-		final->next = FinalizeMeQ;
-		FinalizeMeQ = final;
-	    } else { 	/* still in use, so leave alone */
-		prev = final;
-	    }
-	}
+    /* Reverse this newly dead batch behind the existing pending queue. */
+    while ((hp = *prev) != NULL) {
+        if (hp->obj && !IsMarked(hp) && ValidObject(hp->obj)) {
+            *prev = FINALIZER_T(hp)->next;
+            if (!first) first = hp;
+            last = hp;
+            FINALIZER_T(hp)->next = *insert;
+            *insert = hp;
+        } else {
+            prev = &FINALIZER_T(hp)->next;
+        }
+    }
+    if (first) {
+        FinalizeMeQLast = first;
+        if (!FinalizeMeQ) FinalizeMeQ = last;
+    }
 
-	/* Trace the FinalizeMeQ: */
-	final = FinalizeMeQ;
-	while (final) {
-	    hp = final->handle;
-	    /* Mark the handle itself */
-	    MarkPtr((JHandle *) hp, HardMark);
-	    /* Recursively mark all objects referencable via the handle */
-	    markChildren(hp, (JHandle *) hpmax);
-	    final = final->next;
-	}
-
-	/* Trace the BeingFinalized object (see comments in finalize.c): */
-	final = BeingFinalized;
-	if (final) {
-	    hp = final->handle;
-	    MarkPtr((JHandle *) hp, HardMark);
-	    markChildren(hp, (JHandle *) hpmax);
-	}
+    /* These roots exist independently of whether the live queue is empty. */
+    for (hp = FinalizeMeQ; hp; hp = FINALIZER_T(hp)->next) {
+        MarkPtr(hp, HardMark);
+        markChildren(hp, (JHandle *) hpmax);
+    }
+    if (BeingFinalized) {
+        MarkPtr(BeingFinalized, HardMark);
+        markChildren(BeingFinalized, (JHandle *) hpmax);
     }
     if (mark_rescan)
         scanHandles();
@@ -2134,6 +2038,8 @@ gc0(int async_call, unsigned int free_space_goal)
     HASFINALQ_LOCK();
     FINALMEQ_LOCK();
     QUEUE_LOCK();
+    /* Primary 1002c2ff: finish registry readers before stopping their threads. */
+    BINCLASS_LOCK();
 
     if (sysThreadSingle() == SYS_OK) {
 	last_free = gc_locked(async_call, free_space_goal);
@@ -2148,6 +2054,7 @@ gc0(int async_call, unsigned int free_space_goal)
 
     heap_memory_changes = 0;
 
+    BINCLASS_UNLOCK();
     QUEUE_UNLOCK();
     FINALMEQ_UNLOCK();
     HASFINALQ_UNLOCK();
@@ -2192,6 +2099,7 @@ asyncGC()
     HASFINALQ_LOCK();
     FINALMEQ_LOCK();
     QUEUE_LOCK();
+    BINCLASS_LOCK();
 
     if (sysThreadSingle() != SYS_OK) {
 	goto unlock;
@@ -2237,6 +2145,7 @@ unlock:
 	FINALMEQ_NOTIFY();
     }
 
+    BINCLASS_UNLOCK();
     QUEUE_UNLOCK();
     FINALMEQ_UNLOCK();
     HASFINALQ_UNLOCK();
@@ -2382,6 +2291,9 @@ InitializeAlloc(long max_request, long min_request)
     _heap_lock = (sys_mon_t *) sysMalloc(sysMonitorSizeof());
     memset((char *) _heap_lock, 0, sysMonitorSizeof());
     HEAP_LOCK_INIT();
+    _binclass_lock = (sys_mon_t *)sysMalloc(sysMonitorSizeof());
+    memset(_binclass_lock, 0, sysMonitorSizeof());
+    BINCLASS_LOCK_INIT();
     alloc_state = 1;
     reclaim_generation = 0;
     allocating_reserve = 1;
@@ -2411,7 +2323,7 @@ monitorDumpHelper(monitor_t *mid, void *name)
     unsigned int key = mid->key;
     SetLimits();
 
-    if (mid && (mid->flags & MON_IN_USE) != 0) {
+    if (mid && mid->key != 0) {
 	if (name == 0) {
 	    if (ValidHandle(key)) {
 		name = Object2CString((JHandle *) key);

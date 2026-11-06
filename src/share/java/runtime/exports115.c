@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* Sun 1.1.5 runtime ABI helpers; see exports115-evidence.md. */
 #include "tree.h"
 #include "interpreter.h"

@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * Hooks the VM expects from its host program. In javai.dll the class
  * loader cannot reach the ones in java.exe, so the DLL supplies its own.

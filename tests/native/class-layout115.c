@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include "oobj.h"
 #include "interpreter.h"
+#include "finalize.h"
 #define JOIN_(a,b) a##b
 #define JOIN(a,b) JOIN_(a,b)
 #define CHECK(e) typedef char JOIN(abi_check_,__LINE__)[(e) ? 1 : -1]
@@ -16,6 +17,8 @@
 static ClassClass *class_identity(Hjava_lang_Class *value);
 static Hjava_lang_Class *class_identity(ClassClass *value) { return value; }
 
+SIZE(finalizer_t, 4);
+OFFSET(finalizer_t, next, 0);
 SIZE(ClassClass, 8);
 SIZE(Hjava_lang_Class, 8);
 #ifdef JCOV

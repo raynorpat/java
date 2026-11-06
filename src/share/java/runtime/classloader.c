@@ -36,6 +36,7 @@
 #include "oobj.h"
 #include "path.h"
 #include "interpreter.h"
+#include "monitor.h"
 #include "tree.h"
 #include "bool.h"
 #include "signature.h"
@@ -53,21 +54,20 @@ int verbose_class_loading;
 extern char *CompiledCodeAttribute;
 extern ClassClass *allocClassClass(void);
 
-int LoadFile(char *fn, char *dir, char *SourceHint);
-int DoImport(char *name, char *SourceHint);
+ClassClass *LoadFile(char *fn, char *dir, char *SourceHint, char *expectedName);
+ClassClass *DoImport(char *name, char *SourceHint);
 char *stat_source(ClassClass *cb, struct stat *s, char *pathbuf, int maxlen);
 
 /* XXX: Should move declaration to interpreter.h... and include that header file */
 extern ClassClass * FindPreviouslyLoadedClass(char *name, struct Hjava_lang_ClassLoader *loader);
 
 
-/* deviation: the existing class lock also protects the registry until the
- * separate Sun registry monitor is adopted. */
+/* Primary 1000d670/1000d797 serialize registry mutations with GC. */
 void AddBinClass(ClassClass *cb)
 {
     long i = -1, capacity;
     ClassClass **classes;
-    lock_classes();
+    BINCLASS_LOCK();
     if (cbLoader(cb) == NULL) {
         for (i = nbinclasses - 1; i >= 0; --i)
             if (binclasses[i] && !strcmp(cbName(binclasses[i]), cbName(cb)))
@@ -78,7 +78,7 @@ void AddBinClass(ClassClass *cb)
             capacity = binclasses ? nbinclasses * 2 : 50;
             classes = sysRealloc(binclasses, capacity * sizeof(*classes));
             if (!classes) {
-                unlock_classes();
+                BINCLASS_UNLOCK();
                 SignalError(EE(), JAVAPKG "OutOfMemoryError", NULL);
                 return;
             }
@@ -88,20 +88,20 @@ void AddBinClass(ClassClass *cb)
         i = nbinclasses++;
     }
     binclasses[i] = cb;
-    unlock_classes();
+    BINCLASS_UNLOCK();
 }
 
 void DelBinClass(ClassClass *cb)
 {
     long i;
-    lock_classes();
+    BINCLASS_LOCK();
     for (i = nbinclasses - 1; i >= 0; --i) {
         if (binclasses[i] == cb) {
             binclasses[i] = binclasses[--nbinclasses];
             break;
         }
     }
-    unlock_classes();
+    BINCLASS_UNLOCK();
 }
 
 /* LoadFile is shared by the compiler and the interpreter.  It does
@@ -134,8 +134,10 @@ void DelBinClass(ClassClass *cb)
    Returns 1 when it succeeds, 0 when it fails. */
 
 extern int OpenCode(char *, char *, char *, struct stat*);
-int
-LoadFile(char *fn, char *dir, char *SourceHint)
+/* Primary 1000d9a8/1000dc66/1000d836 pass the managed handle back to
+ * the resolver; a boolean success would leave a collectible registry-only gap. */
+ClassClass *
+LoadFile(char *fn, char *dir, char *SourceHint, char *expectedName)
 {
     struct stat st;
     ClassClass *cb = 0;
@@ -152,7 +154,7 @@ again:
 	return 0;
 
       case -1:
-	return 1;       /* already compiled (or compiling) source */
+	return NULL;    /* no class handle supplied by the legacy source hook */
     }
 
     /* Snarf the file into memory. */
@@ -165,7 +167,7 @@ again:
     codefd = -1;
     cb = allocClassClass();
     if (!cb || !createInternalClass(external_class, external_class + st.st_size,
-                                    cb, NULL, NULL, &detail)) {
+                                    cb, NULL, expectedName, &detail)) {
 	sysFree(external_class);
 	goto failed;
     }
@@ -216,15 +218,15 @@ again:
 	fprintf(stderr, "Loaded %s\n", fn);
     }
 #endif
-    return 1;
+    return cb;
 failed:
     if (codefd >= 0)
 	sysClose(codefd);
     return 0;
 }
 
-int
-LoadFileZip(char *fn, zip_t *zip)
+ClassClass *
+LoadFileZip(char *fn, zip_t *zip, char *expectedName)
 {
     struct stat st;
     ClassClass *cb;
@@ -245,7 +247,7 @@ LoadFileZip(char *fn, zip_t *zip)
 		sysFree(clazz);
 		return 0;
     }
-    if (!createInternalClass(clazz, clazz + st.st_size, cb, NULL, NULL, &detail)) {
+    if (!createInternalClass(clazz, clazz + st.st_size, cb, NULL, expectedName, &detail)) {
 		sysFree(clazz);
 		/* sysFree(cb); */
 		return 0;
@@ -258,13 +260,14 @@ LoadFileZip(char *fn, zip_t *zip)
 	fprintf(stderr, "ZipLoaded %s #%ld\n", fn, nbinclasses-1);
     }
 #endif
-    return 1;
+    return cb;
 }
 
-int 
+ClassClass *
 DoImport(char *name, char *SourceHint)
 {
     cpe_t **cpp;
+    ClassClass *cb;
 
     if (name[0] == SIGNATURE_ARRAY) {
         /* Compatibility entry for old local-load callers; the resolver
@@ -297,7 +300,7 @@ DoImport(char *name, char *SourceHint)
             break;
         default: return 0;
         }
-        return createFakeArrayClass(name, base_type, depth, inner, NULL) != NULL;
+        return createFakeArrayClass(name, base_type, depth, inner, NULL);
     }
     if (name[0] == DIR_SEPARATOR) {
 	return 0;
@@ -310,15 +313,15 @@ DoImport(char *name, char *SourceHint)
 			 LOCAL_DIR_SEPARATOR, name) == -1) {
 		return 0;
 	    }
-	    if (LoadFile(sysNativePath(path), cpe->u.dir, SourceHint)) {
-		return 1;
+	    if ((cb = LoadFile(sysNativePath(path), cpe->u.dir, SourceHint, name)) != NULL) {
+		return cb;
 	    }
 	} else if (cpe->type == CPE_ZIP) {
 	    if (jio_snprintf(path, sizeof(path), "%s." JAVAOBJEXT, name) == -1) {
 		return 0;
 	    }
-	    if (LoadFileZip(path, cpe->u.zip)) {
-		return 1;
+	    if ((cb = LoadFileZip(path, cpe->u.zip, name)) != NULL) {
+		return cb;
 	    }
 	}
     }
@@ -429,6 +432,9 @@ static bool_t LoadConstantPool(CICcontext *);
 static bool_t ReadInCode(CICcontext *, struct methodblock *);
 static bool_t ReadLineTable(CICcontext *, struct methodblock *mb);
 static bool_t ReadLocalVars(CICcontext *, struct methodblock *mb);
+#ifdef JCOV
+static void ReadCoverageTable(CICcontext *, struct methodblock *);
+#endif
 static bool_t InitializeStaticVar(struct fieldblock *fb, CICcontext *context);
 
 
@@ -1027,6 +1033,10 @@ static bool_t ReadInCode(CICcontext *context, struct methodblock *mb)
 	if (strcmp(name, "LineNumberTable") == 0) {
 	    if (!ReadLineTable(context, mb))
 	    	return FALSE;
+#ifdef JCOV
+        } else if (!strcmp(name, "CoverageTable") && cov_file) {
+            ReadCoverageTable(context, mb);
+#endif
 	} else if (strcmp(name, "LocalVariableTable") == 0) {
 	    if (!ReadLocalVars(context, mb))
 	    	return FALSE;
@@ -1040,6 +1050,40 @@ static bool_t ReadInCode(CICcontext *context, struct methodblock *mb)
 	return TRUE;
 }
 
+
+#ifdef JCOV
+/* Primary 1000F9C9: counters/index survive reclamation of clinit bytecode. */
+static void ReadCoverageTable(CICcontext *context, struct methodblock *mb)
+{
+    unsigned long length = get4bytes(context), i;
+    unsigned char *end;
+    unsigned long *index;
+    int was_clinit = context->in_clinit;
+    if (length > (unsigned long)(context->end_ptr - context->ptr))
+        ERROR("Truncated class file");
+    end = context->ptr + length;
+    context->in_clinit = 0;
+    mb->coverage_table_length = get2bytes(context);
+    if (mb->coverage_table_length) {
+        mb->coverage_table = CICalloc(context,
+            mb->coverage_table_length * sizeof(struct covtable) +
+            mb->code_length * sizeof(unsigned long));
+        index = (unsigned long *)(mb->coverage_table + mb->coverage_table_length);
+        for (i = 0; i < mb->coverage_table_length; ++i) {
+            struct covtable *entry = mb->coverage_table + i;
+            entry->pc = get2bytes(context);
+            /* deviation: reject malformed PCs before writing outside the index. */
+            if (entry->pc >= mb->code_length) ERROR("Bad coverage PC");
+            index[entry->pc] = i + 1;
+            entry->type = get2bytes(context);
+            entry->where = get4bytes(context);
+            entry->count = 0;
+        }
+    }
+    if (context->ptr != end) mb->coverage_table = NULL;
+    context->in_clinit = was_clinit;
+}
+#endif
 
 static bool_t ReadLineTable(CICcontext *context, struct methodblock *mb)
 {

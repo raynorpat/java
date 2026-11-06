@@ -693,12 +693,15 @@ static jclass JNICALL jni_DefineClass(JNIEnv *env, const char *name, jobject loa
     if (!cb) { SignalError(JEE(env), JAVAPKG "OutOfMemoryError", NULL); return NULL; }
     cbLoader(cb) = (struct Hjava_lang_ClassLoader *)object;
     lock_classes();
+    BINCLASS_LOCK();
     if (name) for (i = 0; i < nbinclasses; i++) {
         if (cbLoader(binclasses[i]) == object && !strcmp(name, cbName(binclasses[i]))) {
+            BINCLASS_UNLOCK();
             unlock_classes();
             SignalError(JEE(env), JAVAPKG "ClassFormatError", "duplicate name"); return NULL;
         }
     }
+    BINCLASS_UNLOCK();
     ok = createInternalClass((unsigned char *)bytes, (unsigned char *)bytes + length, cb,
                              (struct Hjava_lang_ClassLoader *)object, (char *)name, &detail);
     if (!ok) {
@@ -714,17 +717,18 @@ static jclass JNICALL jni_DefineClass(JNIEnv *env, const char *name, jobject loa
 bool_t invokeJNINativeMethod(JHandle *object, struct methodblock *mb, int size, ExecEnv *ee)
 {
     JNIEnv *env = jni_Env(ee);
-    JNIState *state;
+    JNIRefTable *locals;
     JavaFrame *frame = ee->current_frame;
     stack_item *args = frame->optop, *slot, *result;
     const char *sig;
     jobject clazz = NULL;
     int savedBase, savedTop;
     if (!env) { SignalError(ee, JAVAPKG "OutOfMemoryError", NULL); return FALSE; }
-    for (state = environments; state->ee != JEE(env); state = state->next) {}
+    /* The local table belongs to this EE; other attached EEs may detach. */
+    locals = JNIEnvGetLocalRefs(env);
     HEAP_LOCK();
-    savedBase = JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->base; savedTop = JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->top;
-    JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->base = JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->top;
+    savedBase = locals->base; savedTop = locals->top;
+    locals->base = locals->top;
     HEAP_UNLOCK();
     slot = args;
     if (mb->fb.access & ACC_STATIC) clazz = localRef(env, (JHandle *)cbHandle(fieldclass(&mb->fb)));
@@ -745,7 +749,7 @@ bool_t invokeJNINativeMethod(JHandle *object, struct methodblock *mb, int size, 
         }
     }
     HEAP_LOCK();
-    JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->base = savedBase; JNIEnvGetLocalRefs(EE2JNIEnv(state->ee))->top = savedTop;
+    locals->base = savedBase; locals->top = savedTop;
     HEAP_UNLOCK();
     frame->optop = result;
     return !exceptionOccurred(ee);

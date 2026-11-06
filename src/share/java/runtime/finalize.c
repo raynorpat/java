@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)finalize.c	1.23 95/11/29  
  *
@@ -35,24 +36,24 @@
 sys_mon_t *_hasfinalq_lock;	/* Lock for the HasFinalizerQ queue */
 sys_mon_t *_finalmeq_lock;	/* Lock for the FinalizeMeQ queue */
 
-finalizer_t *HasFinalizerQ;	/* Live objects w/finalization method */
-finalizer_t *FinalizeMeQ;	/* Reclaimed objects needing finalization */
-finalizer_t *BeingFinalized;	/* The object currently being finalized; */
+JHandle *HasFinalizerQ;	/* Live objects w/finalization method */
+JHandle *FinalizeMeQ;	/* Reclaimed objects needing finalization */
+JHandle *BeingFinalized;	/* The object currently being finalized; */
 				/* this has to be marked in GC so it's */
 				/* not thrown away if the finalizer */
 				/* thread is interrupted! */
+JHandle *FinalizeMeQLast;
 static TID finalizer_owner;
 bool_t finalize_on_exit;
 
 static void
-execute_finalizer(finalizer_t *final)
+execute_finalizer(JHandle *handle)
 {
-    JHandle *handle = final->handle;
     struct methodblock *mb;
     extern int heap_memory_changes;
 
     if (handle->obj != 0) {
-	sysAssert(BeingFinalized == final);
+	sysAssert(BeingFinalized == handle);
 	sysAssert(obj_flags(handle) == T_NORMAL_OBJECT);
 	mb = cbFinalizer(obj_classblock(handle));
 	sysAssert(mb);
@@ -80,7 +81,7 @@ execute_finalizer(finalizer_t *final)
 void
 runFinalization(void)
 {
-    finalizer_t *final;
+    JHandle *final;
 
     FINALMEQ_LOCK();
     /* Sun 10016A10: same-owner recursion returns; other owners wait. */
@@ -91,14 +92,14 @@ runFinalization(void)
         }
         if (!FinalizeMeQ) break;
 	final = BeingFinalized = FinalizeMeQ;
-	FinalizeMeQ = final->next;
+	FinalizeMeQ = FINALIZER_T(final)->next;
+        if (!FinalizeMeQ) FinalizeMeQLast = NULL;
 	finalizer_owner = threadSelf();
 	FINALMEQ_UNLOCK();
 	execute_finalizer(final);
 	FINALMEQ_LOCK();
 	finalizer_owner = NULL;
 	BeingFinalized = NULL;
-	sysFree(final);
     }
     sysMonitorNotifyAll(_finalmeq_lock);
 unlock:
@@ -140,10 +141,11 @@ finalizer_loop(TID tid)
     /* FINALMEQ_UNLOCK(); */
 }
 
-/* Sun 10016CCB; map its intrusive object chains to our finalizer_t nodes. */
+/* Sun 10016CCB: append each reversed live batch to the pending queue. */
 void finalizeOnExit(void)
 {
-    finalizer_t *final, *next;
+    JHandle *final, *next, *first, *last;
+    JHandle **insert;
     extern void gc(int, unsigned int);
     gc(0, 0);
     runFinalization();
@@ -152,12 +154,19 @@ void finalizeOnExit(void)
         FINALMEQ_LOCK();
         final = HasFinalizerQ;
         HasFinalizerQ = NULL;
+        first = final;
+        last = NULL;
+        insert = FinalizeMeQLast
+            ? &FINALIZER_T(FinalizeMeQLast)->next : &FinalizeMeQLast;
         while (final) {
-            next = final->next;
-            final->next = FinalizeMeQ;
-            FinalizeMeQ = final;
+            next = FINALIZER_T(final)->next;
+            FINALIZER_T(final)->next = *insert;
+            *insert = final;
+            last = final;
             final = next;
         }
+        FinalizeMeQLast = first;
+        if (!FinalizeMeQ) FinalizeMeQ = last;
         FINALMEQ_UNLOCK();
         HASFINALQ_UNLOCK();
         runFinalization();
@@ -244,17 +253,17 @@ InitializeFinalizerThread()
 void
 DumpHasFinalizerQ()
 {
-    finalizer_t *finalizer;
+    JHandle *finalizer;
     char *name;
 
     HASFINALQ_LOCK();
     fprintf(stderr, "\nLiving objects with finalization methods:\n");
     finalizer = HasFinalizerQ;
     while (finalizer) {
-	name = Object2CString(finalizer->handle);
+	name = Object2CString(finalizer);
 	fprintf(stderr, "    Has finalizer: %s (handle 0x%lx)\n",
-	        name, finalizer->handle);
-	finalizer = finalizer->next;
+	        name, finalizer);
+	finalizer = FINALIZER_T(finalizer)->next;
     }
     HASFINALQ_UNLOCK();
 }
@@ -262,17 +271,17 @@ DumpHasFinalizerQ()
 void
 DumpFinalizeMeQ()
 {
-    finalizer_t *finalizer;
+    JHandle *finalizer;
     char *name;
 
     FINALMEQ_LOCK();
     fprintf(stderr, "\nDead objects pending finalization:\n");
     finalizer = FinalizeMeQ;
     while (finalizer) {
-	name = Object2CString(finalizer->handle);
+	name = Object2CString(finalizer);
 	fprintf(stderr, "    To be finalized: %s (handle 0x%lx)\n",
-		name, finalizer->handle);
-	finalizer = finalizer->next;
+		name, finalizer);
+	finalizer = FINALIZER_T(finalizer)->next;
     }
     FINALMEQ_UNLOCK();
 }

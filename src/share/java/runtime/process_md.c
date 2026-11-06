@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* Process support reconstructed from JDK 1.1.5 javai_g.dll.
  * Linux maps the shipped Win32Process Java class to POSIX spawn/wait APIs.
  * See tests/native/process115-evidence.md for evidence and port deviations.

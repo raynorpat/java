@@ -2,6 +2,9 @@
 
 The VM requires a 32-bit compiler. Reference distributions stay in ignored
 `vendor/`; only our Java fixtures and their captured output are tracked.
+Python 3 is required for the deliberately patched circularity and coverage test
+fixtures. Normal builds and test compilation use the reconstructed javac; Sun
+executables are needed only to recapture reference results.
 
 ## Stage reference material (Windows)
 
@@ -18,13 +21,15 @@ It must contain `lib/classes.zip`.
 ```powershell
 cmake -S . -B out -G "Visual Studio 18 2026" -A Win32
 cmake --build out --config Release
-ctest --test-dir out -C Release -LE jdk115 --output-on-failure
-ctest --test-dir out -C Release -L jdk115 --output-on-failure
+ctest --test-dir out -C Release --output-on-failure
+cmake --build out --config Debug
+ctest --test-dir out -C Debug --output-on-failure
 ```
 
-The `jdk115` tests currently fail: they measure reconstruction progress and are
-not inverted with `WILL_FAIL`. The other 12 tests retain the 1.0.2 class library.
-Repeat with `--config Debug` and `-C Debug` for debug verification.
+Run each configuration's build and tests together: the legacy native fixture DLL
+is shared between configurations. The complete suite uses the 1.1.5 class library;
+no progress tests are excluded or inverted. Windows export checks require exactly
+286 Release names and 287 Debug names, matching the reference DLLs.
 
 ## Linux
 
@@ -34,9 +39,16 @@ Install CMake, make, GCC and the distribution's 32-bit development libraries
 ```sh
 CC='gcc -m32' cmake -S . -B out/linux115 -DCMAKE_BUILD_TYPE=Release
 cmake --build out/linux115
-ctest --test-dir out/linux115 -LE jdk115 --output-on-failure
-ctest --test-dir out/linux115 -L jdk115 --output-on-failure
+ctest --test-dir out/linux115 --output-on-failure
 ```
+
+Use a separate `out/linux115-debug` tree with `-DCMAKE_BUILD_TYPE=Debug` for
+Debug verification.
+
+The Phase 1 C89 gate additionally sets `-DCMAKE_C_EXTENSIONS=OFF` and appends
+`-pedantic` to `CMAKE_C_FLAGS`. GCC calls the resulting language mode `c90`,
+equivalent to `c89`. Original 64-bit types and native function-pointer adapters
+still produce pedantic warnings; compilation does not require C99 syntax.
 
 Missing `crti.o` or `-lgcc` at link time means the 32-bit development libraries
 are missing.
@@ -69,3 +81,14 @@ stdout/stderr. The runner compares that output exactly and requires exit zero.
 `java_test` accepts `VM_ARGS` before the harness classpath and class name, and
 `ARGS` after the class name. Platform-dependent fixtures need separate expected
 outputs before they can be used on both systems.
+
+## Reconstruction gates
+
+The suite includes original structure layouts, JNI and invocation, native-thread
+attachment, class unloading, allocation caches, monitor reclamation, finalizer
+ordering, arithmetic boundaries, resources, serialization, reflection and process
+behavior. `javac-selfhost` recompiles the Java fixtures and reruns their captured
+oracles. `vm-JCov115` checks Debug coverage generation and merging; Release accepts
+and ignores the coverage option, as Sun did. Native writer tests cover compiler
+seeds and test bitmaps. The audit ledger and binary-evidence documents are under
+`docs/superpowers/plans/`.

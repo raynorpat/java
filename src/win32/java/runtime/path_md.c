@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)path_md.c	1.18 95/10/18
  *
@@ -48,19 +49,6 @@ sysJavaHome(void)
 	if ((p = strrchr(home, '\\')) != NULL) *p = 0;	/* bin */
     }
     return home;
-}
-
-char *
-sysNativePath(char *path)
-{
-    char *pp;
-
-    for (pp = path; *pp != '\0'; pp++) {
-        if (*pp == '/') {
-            *pp = '\\';
-        }
-    }
-    return path;
 }
 
 #endif /* XP_PC */
@@ -127,7 +115,6 @@ sysGetClassPath(void)
 			if (*path == '\0') {
 				path = ".";
 			}
-			sysNativePath(path);
 			if (sysStat(path, &statBuf) == 0 && S_ISREG(statBuf.st_mode)) {		/* it's a file */
 				int len = strlen(path);
 				if ((len > 4) && (strcasecmp(path+len-4, ".zip") == 0)) { /* Is it a zip file? */

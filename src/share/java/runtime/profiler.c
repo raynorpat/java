@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)profiler.c	1.17 95/11/29  
  *
@@ -59,7 +60,7 @@ void javamon(int i)
 }
 
 void
-java_mon(struct methodblock *caller, struct methodblock *callee, int32_t time)
+java_mon(struct methodblock *caller, struct methodblock *callee, int time)
 {
     javamon_entry *tab, *p;
     /* Transitional mapping: serialize table reset with GC's existing lock. */

@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* XXX should put this into libjava and into javai.c instead */
 #include "_stubs/java_lang_Compiler.c"
 #include "_stubs/java_lang_Double.c"

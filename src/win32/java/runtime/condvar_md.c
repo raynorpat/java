@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* Reconstructed from JDK 1.1.5 javai_g.dll, VA 10014da0-100150af.
  * This is reconstructed source, not recovered original Sun source.
  * See tests/native/condvar-evidence.md for binary evidence and constraints.

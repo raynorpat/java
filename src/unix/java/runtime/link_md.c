@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * Native method linking on Unix: libraries loaded with System.load or
  * System.loadLibrary, plus the program and libjavai (which holds the

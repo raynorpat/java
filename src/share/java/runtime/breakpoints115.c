@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* javai_g.dll10002980--10002E0A; caller holds debugger locks for mutation. */
 #include <stdlib.h>
 #include <string.h>
@@ -11,7 +12,7 @@
 typedef struct { unsigned char *pc; unsigned char opcode; } Breakpoint;
 static Breakpoint *breakpoints;
 static int breakpoint_count;
-int single_stepping;
+bool_t single_stepping;
 static HandleSingleStepHook step_hook;
 static HandleBreakpointHook breakpoint_hook;
 static HandleExceptionHook exception_hook;

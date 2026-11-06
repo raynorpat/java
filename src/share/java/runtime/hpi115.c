@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* JDK 1.1 host API additions.  See tests/native/hpi115-evidence.md. */
 #include "sys_api.h"
 #include <sys/stat.h>
@@ -71,6 +72,7 @@ int sysIsMP(void)
 #endif
 }
 
+#ifndef sysMemoryFlush
 void sysMemoryFlush(void)
 {
 #ifdef XP_PC
@@ -81,9 +83,13 @@ void sysMemoryFlush(void)
 #endif
 }
 
+#endif
+#ifndef sysStoreBarrier
 void sysStoreBarrier(void)
 {
 #ifndef XP_PC
     __atomic_thread_fence(__ATOMIC_RELEASE);
 #endif
 }
+
+#endif

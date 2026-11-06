@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)classruntime.c	1.59 96/04/17  
  *
@@ -56,10 +57,8 @@ extern FILE *stdout;
 void
 VerifyClasses()
 {
-    static int32_t lastn;
     int32_t         i;
-    sysAssert(nbinclasses >= lastn);
-    lastn = nbinclasses;
+    BINCLASS_LOCK();
     sysAssert(nbinclasses <= sizebinclasses);
     sysAssert(binclasses != 0 || nbinclasses == 0);
     for (i = 0; i < nbinclasses; i++) {
@@ -71,6 +70,7 @@ VerifyClasses()
 	sysAssert(cbInstanceSize(clb) && cbInstanceSize(clb) < 4000);
 	sysAssert(cbName(clb)[0]);
     }
+    BINCLASS_UNLOCK();
 }
 #endif
 
@@ -539,6 +539,7 @@ static struct methodblock *pc2method(unsigned char *pc) {
     ClassClass *cb;
     int32_t i, j;
 
+    BINCLASS_LOCK();
     for (i = nbinclasses; --i >= 0; ) {
 	cb = binclasses[i];
         if (!cb) continue;
@@ -550,16 +551,21 @@ static struct methodblock *pc2method(unsigned char *pc) {
                 */
 		long code_start;
 		if (mb->fb.access & ACC_MACHINE_COMPILED) {
-		    if (PCinCompiledCode(pc, mb)) 
+		    if (PCinCompiledCode(pc, mb)) {
+                        BINCLASS_UNLOCK();
 			return mb;
+                    }
 		} else { 
 		    code_start = (long)mb->code;
-		if ((long)pc >= code_start && (long)pc < code_start + mb->code_length) 
+		if ((long)pc >= code_start && (long)pc < code_start + mb->code_length) {
+                    BINCLASS_UNLOCK();
 		    return mb;
+                }
 	    }
 	}
     }
     }
+    BINCLASS_UNLOCK();
     return 0;
 }
 

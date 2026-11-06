@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /*
  * @(#)monitor.c	1.29 95/12/03
  *
@@ -52,37 +53,19 @@ monitorEnter(unsigned int key)
 
     sysAssert(mid != MID_NULL);
     sysMonitorEnter(&sysmon(mid));
-    CACHE_LOCK();
-    mid->uninit_count--;
-    CACHE_UNLOCK();
+    if (sysThreadSelf()) sysCurrentCacheKey(sysThreadSelf()) = 0;
 }
 
-JAVA_PUBLIC_API(void)
+void
 monitorExit(unsigned int key)
 {
-    monitor_t *mid;
-    int ret;
-
-    CACHE_LOCK();
-    mid = lookupMonitor(key);
-    if (mid == MID_NULL || (ret = sysMonitorExit(&sysmon(mid))) == SYS_ERR) {
-	SignalError((struct execenv *) THREAD(threadSelf())->eetop,
-		    JAVAPKG "IllegalMonitorStateException",
-		    "current thread not owner");
-	goto unlock;
+    monitor_t *mid = lookupMonitor(key);
+    if (mid == MID_NULL || sysMonitorExit(&sysmon(mid)) != SYS_OK) {
+        SignalError(EE(), JAVAPKG "IllegalMonitorStateException",
+                    "current thread not owner");
+        return;
     }
-
-    /*
-     * Used to not want to monitorDestroy() in sysMonitorExit(), as we 
-     * couldn't tell which monitors were in the cache.  We can now, so
-     * we don't really need to pass back SYS_DESTROY.
-     */
-    if (ret == SYS_DESTROY) {
-	monitorDestroy(mid, key);
-    }
-
-unlock:
-    CACHE_UNLOCK();
+    if (sysThreadSelf()) sysCurrentCacheKey(sysThreadSelf()) = 0;
 }
 
 /*-
@@ -100,6 +83,7 @@ monitorNotify(unsigned int key)
 		    "current thread not owner");
 	return;
     }
+    if (sysThreadSelf()) sysCurrentCacheKey(sysThreadSelf()) = 0;
 }
 
 /*-
@@ -117,6 +101,7 @@ monitorNotifyAll(unsigned int key)
 		    "current thread not owner");
 	return;
     }
+    if (sysThreadSelf()) sysCurrentCacheKey(sysThreadSelf()) = 0;
 }
 
 void
@@ -134,6 +119,8 @@ monitorWait(unsigned int key, int millis)
 	}
     }
 
+    if (sysThreadSelf()) sysCurrentCacheKey(sysThreadSelf()) = 0;
+    if (exceptionOccurred(EE())) return;
     if (ret == SYS_INTRPT) {
 	SignalError((struct execenv *) THREAD(threadSelf())->eetop,
 		    JAVAPKG "InterruptedException", NULL);
@@ -280,10 +267,8 @@ monitorCleanupHelper(monitor_t *mid, void *T)
     sys_thread_t *tid = (sys_thread_t *) T;
 
     sysAssert(CACHE_LOCKED());
-    if (sysMonitorCleanup(&sysmon(mid), tid) == SYS_DESTROY) {
-	/* See comment on monitorExit() */
-	monitorDestroy(mid, mid->key);
-    }
+    /* Retained thread-exit cleanup; cache reclamation decides reuse. */
+    (void)sysMonitorCleanup(&sysmon(mid), tid);
 }
 
 /*-

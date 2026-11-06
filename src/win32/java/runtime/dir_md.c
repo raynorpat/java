@@ -1,3 +1,4 @@
+/* Reconstructed from JDK 1.1.5 javai.dll (Win32) and Rhapsody DR2 libjava.A.dylib. */
 /* Win32 directory ABI recovered from javai_g.dll 100155b0..10015908. */
 #include <windows.h>
 #include <direct.h>
@@ -5,6 +6,7 @@
 #include <string.h>
 #include <errno.h>
 #include "sys_api.h"
+#include "path_md.h"
 
 DIR *opendir(const char *path)
 {
@@ -63,9 +65,13 @@ void rewinddir(DIR *dir)
     dir->handle = FindFirstFileA(dir->path, &dir->find_data);
 }
 
-DIR *sysOpenDir(const char *path) { return opendir(path); }
-struct dirent *sysReadDir(DIR *dir) { return readdir(dir); }
-int sysCloseDir(DIR *dir) { return closedir(dir); }
+DIR *sysOpenDir(const char *path)
+{
+    char copy[MAX_PATH];
+    if (strlen(path) >= MAX_PATH) { errno = ENAMETOOLONG; return NULL; }
+    strcpy(copy, path);
+    return opendir(sysNativePath(copy));
+}
 
 /* os.name and os.version, as reported since JDK 1.0. */
 void sysOSInfo(char *name, int namelen, char *version, int versionlen)
