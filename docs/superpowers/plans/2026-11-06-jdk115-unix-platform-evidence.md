@@ -269,3 +269,39 @@ Final regression checks for this slice: Windows Debug 110/110; Linux Release
 optimized strict C89/i386 native probe passed. Logs are
 out/phase3-thread-{win,linux}-{build,tests}.log. No actual Mach execution or
 full SDK ABI compatibility is claimed.
+
+## Task 3: teardown slice
+
+Reconstructed sysThreadFree from 5C144D0C using the existing shared Java Thread,
+ExecEnv and monitor declarations and the recovered Mach monitor record.
+The sequence clears Java privateInfo/eetop, removes the registered thread and
+updates counts under _queue_lock, releases the saved ExecEnv, wakes object
+monitor joiners, clears the cache key and TLS, and frees the native record.
+The original sysThreadExit use-after-free noted above is still an audit item:
+this slice implements Free, not Exit or Objective-C exit dispatch.
+
+Ruling: retain the existing Unix attachment fix allowing a NULL Java cookie.
+DR2 unconditionally dereferences it; reconstructed native attachments can
+exist without Java state. Such records still unregister and clear TLS, but
+skip Java/ExecEnv/object-monitor work. Cost if wrong: an unexpected caller
+could lose Java cleanup; the native contract exercises this explicit case.
+
+The expanded native probe uses the real shared Java Thread/monitor headers,
+not duplicate Java layouts. Its fake HPI also defines the original HPI guard
+so nested shared-header includes do not pull in host platform operations.
+Tests remove middle, tail and head records, verify queue counts and daemon
+notification behavior, check absent/idle/live monitors with and without
+joiners, and assert cleared Java fields and ordering at every cleanup hook.
+The injected free checks TLS is clear, the list no longer contains the record,
+and active counts match enumeration before releasing storage. RED: undefined
+sysThreadFree. GREEN: optimized strict C89/i386 and Windows Debug/Release probes.
+
+Regression results: Windows Debug110/110. Initial Linux run had one transient
+javac-selfhost failure: Profiler115 printed `value=115 recorded=true`, then
+segfaulted before its expected `reset=true` line. The failure location is not
+established as thread exit; reset/report code also follows that first line.
+No production Linux VM objects changed in this slice. Three consecutive
+selfhost reruns passed, followed by a full Linux run with98 passed and the
+expected audio-device skip. This records an unresolved intermittent profiler
+failure, not a fix. Logs: out/phase3-free-{win,linux}-{build,tests}.log and
+out/phase3-free-linux-retest.log. Task3 remains open for the remaining lifecycle.

@@ -113,3 +113,17 @@ document. Task 3 stays open for bootstrap/create/free/exit, roots, priority
 and suspension; the partial backend remains excluded from production.
 Linux Release full regression: 98 passed plus one expected audio-device
 skip, zero failures. Build/test logs: out/phase3-thread-{win,linux}-*.log.
+
+Task 3, teardown slice: sysThreadFree now clears Java state, unregisters under
+the queue lock, releases ExecEnv, wakes joiners and clears TLS before free.
+Null-cookie attachment behavior is preserved. Native contracts verify list
+removal, notification decisions and cleanup ordering using real shared VM
+declarations. Strict C89/i386 and Windows Debug/Release probes pass; Windows
+Debug110/110 and Linux rerun98 passed plus audio skip. Initial Linux selfhost
+Profiler115 intermittently segfaulted after its first output line; three
+selfhost repeats and the full rerun passed. Root cause remains unresolved;
+see evidence. Bootstrap/create/exit, priority, roots and suspension remain open.
+
+New owner-supplied Solaris1.1.8/16 material is inventoried in
+2026-11-06-solaris118-inventory.md. The owner chose X11 AWT first, then a full
+Solaris reconstruction; Phase3 continues and the 1.1.5 version target stays.

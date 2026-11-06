@@ -6,6 +6,9 @@
 #include <string.h>
 #include "sys_api.h"
 #include "cthreads/threads_md.h"
+#include "cthreads/monitor_md.h"
+#include "java_lang_Thread.h"
+#include "monitor_cache.h"
 
 /* Shared VM thread-queue state, declared in threads.h. */
 extern sys_mon_t *_queue_lock;
@@ -44,6 +47,50 @@ sys_thread_t *sysThreadSelf(void)
     sys_thread_t *t;
     memcpy(&t, (char *)cthread_self() + 116, sizeof(t));
     return t;
+}
+
+/* 5C144D0C: detach Java state, unregister, wake joiners, then release TLS.
+ * Preserve the existing attachment fix: a native thread may have no Java
+ * cookie. The original DR2 path unconditionally dereferences that cookie.
+ */
+int sysThreadFree(sys_thread_t *t)
+{
+    Hjava_lang_Thread *h = (Hjava_lang_Thread *)t->cookie;
+    ExecEnv *ee = NULL;
+    sys_thread_t **link;
+    sys_thread_t *empty = NULL;
+    monitor_t *mon;
+
+    if (h != NULL) {
+        ee = (ExecEnv *)unhand(h)->eetop;
+        unhand(h)->PrivateInfo = 0;
+        unhand(h)->eetop = 0;
+    }
+    sysMonitorEnter(_queue_lock);
+    --ActiveThreadCount;
+    if (!t->system_thread) {
+        --UserThreadCount;
+        sysMonitorNotify(_queue_lock);
+    }
+    for (link = &threads; *link != t; link = &(*link)->next) {}
+    *link = t->next;
+    sysMonitorExit(_queue_lock);
+    t->next = NULL;
+    if (ee != NULL) DeleteExecEnv(ee);
+
+    if (h != NULL) {
+        mon = lookupMonitor((unsigned int)h);
+        if (mon != NULL && sysMonitorInUse(&sysmon(mon))) {
+            sysMonitorEnter(&sysmon(mon));
+            if (sysmon(mon).mwait_queue.count > 0)
+                sysMonitorNotifyAll(&sysmon(mon));
+            sysMonitorExit(&sysmon(mon));
+        }
+    }
+    t->cacheKey = 0;
+    memcpy((char *)t->cthread + 116, &empty, sizeof(empty));
+    free(t);
+    return SYS_OK;
 }
 
 int sysThreadEnumerateOver_unlocked(int (*func)(sys_thread_t *, void *), void *arg)
