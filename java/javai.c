@@ -688,34 +688,6 @@ start_java(int argc, char **argv)
     InitializeAsyncIO();
 #endif 
 
-#ifdef XP_PC
-#if defined(_WIN32)
-	PR_LoadLibrary("javai.dll");
-#else
-	PR_LoadLibrary("jrt1630.dll");
-	PR_LoadStaticLibrary("jpeg.dll",	NULL);
-	PR_LoadStaticLibrary("net.dll",		nn_nodl_tab);
-	PR_LoadStaticLibrary("app.dll",		na_nodl_tab);
-	PR_LoadStaticLibrary("jso.dll",		njs_nodl_tab); 
-#endif
-#endif /* XP_PC */
-
-#if defined(STATIC_JAVA)
-#if defined(AIX) || defined(BSDI) || defined(HPUX) || defined(LINUX) || defined(SCO) || defined(UNIXWARE)
-    PR_LoadStaticLibrary("javart.so",	rt_nodl_tab);
-    PR_LoadStaticLibrary("libawt.so",	awt_nodl_tab);
-#else
-    PR_LoadStaticLibrary("javart.so",	NULL);
-    PR_LoadStaticLibrary("libawt.so",	NULL);
-#endif
-    PR_LoadStaticLibrary("libmm3230.so",au_nodl_tab);/* XXX for sun/audio */
-    PR_LoadStaticLibrary("libjpeg.so",	NULL);
-    PR_LoadStaticLibrary("libnet.so",	NULL);
-#else /* STATIC_JAVA */
-    PR_LoadStaticLibrary("libjpeg.so",	NULL);
-    PR_LoadStaticLibrary("libnet.so",	NULL);
-#endif
-
 #ifdef DEBUG
 /*    on_exit(PrintStats, 0); */
 #endif

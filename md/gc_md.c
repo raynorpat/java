@@ -346,12 +346,8 @@ void FreeClassArenas(void) {
 	    /* Free up JIT memory */
 	    for (i = 0; i < arena->methods_count; i++) {
 		struct methodblock* mb = &arena->methods[i];
+		/* Native libraries stay loaded, as in the JDK. */
 		CompilerFreeMethod(mb);
-		/* Free native method libraries too */
-		if (mb->lib != NULL) {
-		    int s = PR_UnloadLibrary(mb->lib);
-		    PR_ASSERT(s == 0);
-		}
 	    }
 
 	    /* Now free it */

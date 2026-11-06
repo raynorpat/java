@@ -111,6 +111,23 @@ add_test(NAME javah COMMAND ${CMAKE_COMMAND} -DJAVAH=$<TARGET_FILE:javah>
   "-DCP=${test_cp}" -DOUT=${CMAKE_BINARY_DIR}/java_lang_Thread.h
   -P ${CMAKE_SOURCE_DIR}/tests/smoke/javah.cmake)
 
+# A user native library built the JDK 1.0 way: javah header + stubs, linked to javai.lib.
+# It lands in <build>/bin, which is <java.home>\bin for the build tree's java.exe.
+set(native_cp "${CMAKE_SOURCE_DIR}/tests/native;${CMAKE_BINARY_DIR}/classes.zip")
+set(native_gen "${CMAKE_BINARY_DIR}/native-gen")
+add_custom_command(OUTPUT "${native_gen}/NativeHello.h" "${native_gen}/NativeHello.c"
+  COMMAND javah -classpath "${native_cp}" -d "${native_gen}" NativeHello
+  COMMAND javah -stubs -classpath "${native_cp}" -d "${native_gen}" NativeHello
+  DEPENDS javah tests/native/NativeHello.class)
+add_library(nativehello SHARED tests/native/nativehello.c "${native_gen}/NativeHello.c")
+target_include_directories(nativehello PRIVATE "${native_gen}")
+target_link_libraries(nativehello javai)
+foreach(config RELEASE DEBUG RELWITHDEBINFO MINSIZEREL)
+  set_target_properties(nativehello PROPERTIES RUNTIME_OUTPUT_DIRECTORY_${config} "${CMAKE_BINARY_DIR}/bin")
+endforeach()
+add_test(NAME native COMMAND java -classpath "${native_cp}" NativeHello)
+set_tests_properties(native PROPERTIES PASS_REGULAR_EXPRESSION "native add=42 greet=hello java")
+
 # --- JDK image ---
 install(TARGETS java javah javap javai nspr RUNTIME DESTINATION bin ARCHIVE DESTINATION lib)
 install(FILES classsrc/classes.zip DESTINATION lib)
