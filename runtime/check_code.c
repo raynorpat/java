@@ -40,7 +40,6 @@
 #include "limits_md.h"
 
 #include "str2id.h"
-#include "prgc.h"
 
 
 #define MAX_ARRAY_DIMENSIONS 255
@@ -295,41 +294,15 @@ static void print_formatted_fieldname(context_type *context, cp_index_type index
 
 /************************************************************************/
 
-extern GCInfo *gcInfo;
-
-void ScanVerifyContext(void *ptr)
-{
-    void (*liveObject)(void **base, int32_t count);
-    context_type *cx = (context_type*) ptr;
-
-    liveObject = gcInfo->liveObject;
-
-    if (cx->class) {
-        (*liveObject)((void**) &cx->class, 1);
-    }
-
-    /* Scan over classHash because it has pointers to ClassClass's */
-    if (cx->classHash) {
-        StrIDhash *next, *hash = cx->classHash;
-        while (hash) {
-            next = hash->next;
-            if (hash->param) {
-                (*liveObject)(hash->param, STR2ID_HTSIZE);
-            }
-            hash = next;
-        }
-    }
-}
-
-extern void *AllocContext(size_t size);
-
 /************************************************************************/
 /* Called by verify_class.  Verify the code of each of the methods
  * in a class.
  */
 
 bool_t verify_class_codes(ClassClass *cb) {
-    context_type *context = AllocContext(sizeof(context_type));
+    /* On the C stack, which the garbage collector scans. */
+    context_type context_structure;
+    context_type *context = &context_structure;
     bool_t result = TRUE;
     void **addr;
     int i;

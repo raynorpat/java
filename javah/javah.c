@@ -978,7 +978,6 @@ main(int argc, char **argv)
 
     InhibitExecute = 1;
 
-    PR_Init("javah", 16, 0, 0);
     InitializeClassPath(argc, argv);
     if (!DoImport("java/lang/Object", 0)) {
 	fprintf(stderr, "java.lang.Object not found: aborting\n");

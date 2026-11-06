@@ -33,7 +33,6 @@ extern int decode_verbose;
 static void usage(char *progname);
 
 #include <path_md.h>
-#include "prglobal.h"
 #include "arena.h"
 
 #define RELEASE "1.0"
@@ -52,7 +51,6 @@ main(argc, argv)
     } else {
 	progname = argv[0];
     }
-    PR_Init("javap", 16, 0, 0);	/* zip_open uses NSPR monitors */
 	cp = getenv("CLASSPATH");
     if (cp) cp = strdup(cp);
     setCLASSPATH(cp);

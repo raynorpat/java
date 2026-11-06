@@ -107,6 +107,7 @@ EXPORTED  void * sysThreadGetBackPtr(sys_thread_t *);
 EXPORTED  int    sysThreadCheckStack(void);
 EXPORTED  int    sysInterruptsPending(void);
 EXPORTED  void	 sysThreadPostException(sys_thread_t *, void *);
+EXPORTED  void ** sysThreadRegisters(sys_thread_t *, int *count);
 JAVA_PUBLIC_API(void)	 sysThreadDumpInfo(sys_thread_t *, FILE*);
 
 /*

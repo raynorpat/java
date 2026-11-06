@@ -53,12 +53,10 @@
 #include "monitor.h"
 #endif /* NATIVE */
 
-#include "prglobal.h"
-
-#include "prlink.h"
-#if defined(AIX) || defined(BSDI) || defined(HPUX) || defined(LINUX) || defined(SCO) || defined(UNIXWARE) || (defined(XP_PC) && !defined(_WIN32))
-extern PRStaticLinkTable rt_nodl_tab[];
-#endif
+/* Platform (md) start-up hooks */
+extern void intrInit(void);
+extern void InitializeMem(void);
+extern void InitializeAsyncIO(void);
 
 #ifdef MONITOR
 #include <mon.h>
@@ -228,29 +226,9 @@ extern void InitializeAsyncMonitors(void);
 int awt_init_xt = 1;
 
 #if defined(STATIC_JAVA)
-#include "prlink.h"
-
 extern void _java_awt_init(void);
 extern void _java_mmedia_init(void);
-
-#if defined(AIX) || defined(BSDI) || defined(HPUX) || defined(LINUX) || defined(SCO) || defined(UNIXWARE)
-extern PRStaticLinkTable au_nodl_tab[];
-extern PRStaticLinkTable awt_nodl_tab[];
-extern PRStaticLinkTable rt_nodl_tab[];
-#endif
-
 #endif /* STATIC_JAVA */
-
-#if defined(XP_PC) && !defined(_WIN32)
-
-#include "prlink.h"
-extern PRStaticLinkTable rt_nodl_tab[];
-
-#endif  /* XP_PC && !_WIN32 */
-
-#if defined(XP_UNIX) && defined(BREAKPTS)
-extern void PR_InitInterrupts(void);
-#endif
 
 #if defined(XP_PC) && !defined(_WIN32)
 /*
@@ -661,15 +639,6 @@ start_java(int argc, char **argv)
         return 1;
     }
 #endif
-
-    PR_Init("javai", 5, 0, 0);
-
-#ifdef XP_UNIX
-    PR_StartEvents(0);
-#ifdef BREAKPTS
-    PR_InitInterrupts();
-#endif
-#endif /* XP_UNIX */
 
     set_java_io_mode(JIO_UNRESTRICTED);
     set_java_fs_mode(JFS_UNRESTRICTED);

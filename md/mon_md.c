@@ -1,162 +1,193 @@
-#include "oobj.h"
-#include "interpreter.h"
-#include "javaThreads.h"
+/*
+ * Reentrant monitors (sys_api.h) on Win32 SRW locks and condition
+ * variables. Object.wait() waiters queue FIFO, each with its own flag, so a
+ * notify() only wakes a thread that was already waiting when it was issued.
+ */
+#include <windows.h>
+#include <stdio.h>
+
 #include "sys_api.h"
-#include "bool.h"
 #include "monitor_md.h"
-#include "string.h"
-#include "stdio.h"
-#include "prlog.h"
-#include "prdump.h"
-#include "monitor.h"
 
-#if 0
+struct sys_mon_waiter {
+    struct sys_mon_waiter *next;
+    int notified;
+};
 
-#define PR_MON_IN_CACHE	0x8000/* XXX */
+#define LOCK(m)		((PSRWLOCK) &(m)->lock)
+#define ENTER_CV(m)	((PCONDITION_VARIABLE) &(m)->enter_cv)
+#define WAIT_CV(m)	((PCONDITION_VARIABLE) &(m)->wait_cv)
 
-int sysMonitorInit(sys_mon_t *mon, bool_t inCache)
+int sysMonitorSizeof(void)
 {
-    memset(mon, 0, sizeof(sys_mon_t));
-    PR_InitMonitor(mon, 0, "java");
-    if (inCache) {
-	mon->flags |= PR_MON_IN_CACHE;/* XXX */
-    }
+    return sizeof(struct sys_mon);
+}
+
+int sysMonitorInit(sys_mon_t *mon, bool_t in_cache)
+{
+    memset(mon, 0, sizeof(*mon));	/* zero is SRWLOCK_INIT / CONDITION_VARIABLE_INIT */
     return SYS_OK;
 }
 
-/*
-** This cannot be called. In the sun md code they call back into java
-** (tsk tsk) and call monitorCleanup which would get us here. We don't
-** need to do that because the lower level kernel can do it.
-*/
-int sysMonitorDestroy(sys_mon_t *mon, sys_thread_t *t)
+int sysMonitorDestroy(sys_mon_t *mon, sys_thread_t *owner)
 {
-    PR_NOT_REACHED("sysMonitorDestroy: shouldn't be called.");
-    return 0;
-}
-
-int sysMonitorEnter(sys_mon_t *mon)
-{
-    PR_EnterMonitor(mon);
     return SYS_OK;
 }
 
 bool_t sysMonitorEntered(sys_mon_t *mon)
 {
-    return PR_InMonitor(mon);
+    return mon->owner == GetCurrentThreadId();
 }
 
-int sysMonitorNotify(sys_mon_t *mon)
+/* Take ownership; called holding the lock. */
+static void acquire_locked(sys_mon_t *mon, DWORD self, int count)
 {
-    return PR_Notify(mon);
-}
-
-int sysMonitorNotifyAll(sys_mon_t *mon)
-{
-    return PR_NotifyAll(mon);
-}
-
-int sysMonitorWait(sys_mon_t *mon, int milliseconds)
-{
-    int64 sleep, ms2us;
-
-    if (milliseconds == SYS_TIMEOUT_INFINITY) {
-	/* Sleep forever */
-	sleep = LL_MAXINT;
-    } else {
-	/* Convert milliseconds to microseconds */ 
-	LL_I2L(ms2us, 1000L);
-	LL_UI2L(sleep, milliseconds);
-	LL_MUL(sleep, sleep, ms2us);
-    }
-    return PR_Wait(mon, sleep);
-}
-#endif
-
-void sysMonitorDumpInfo(sys_mon_t *mon)
-{
-}
-
-void monitorCacheInit(void) { }
-void monitorEnumerate(void (*f)(monitor_t*, void*), void *a) { }
-
-/* XXX these should be throwing IllegalMonitorStateException's */
-
-JAVA_PUBLIC_API(void) monitorEnter(uint32 key)
-{
-    PR_CEnterMonitor((void*) key);
-}
-
-JAVA_PUBLIC_API(void) monitorExit(uint32 key)
-{
-    PR_CExitMonitor((void*) key);
-}
-
-JAVA_PUBLIC_API(void) monitorNotify(uint32 key)
-{
-    PR_CNotify((void*) key);
-}
-
-JAVA_PUBLIC_API(void) monitorNotifyAll(uint32 key)
-{
-    PR_CNotifyAll((void*) key);
-}
-
-JAVA_PUBLIC_API(void) monitorWait(uint32 key, int32_t milliseconds)
-{
-    int64 sleep, ms2us;
-    int rv;
-
-    if (milliseconds == SYS_TIMEOUT_INFINITY) {
-	/* Sleep forever */
-	sleep = LL_MAXINT;
-    } else {
-	/* Convert milliseconds to nanoseconds */ 
-	LL_I2L(ms2us, PR_USEC_PER_MSEC);
-	LL_UI2L(sleep, milliseconds);
-	LL_MUL(sleep, sleep, ms2us);
-    }
-    rv = PR_CWait((void*) key, sleep);
-    if (rv != SYS_OK) {
-	SignalError((struct execenv *) THREAD(threadSelf())->eetop,
-		    JAVAPKG "InternalError",
-		    "monitorWait(): current thread not owner");
-	return;
-    }
-    else if (PR_PendingException(PR_CurrentThread()) != 0) {
-	ExecEnv *ee = (ExecEnv *) THREAD(threadSelf())->eetop;
-	if (!exceptionOccurred(ee)) {
-	    /* XXX Hmmm. Wonder how we got here? */
-	    SignalError(ee, JAVAPKG "ThreadDeath", "rest in peace");
-	}
-	return;
-    }
-}
-
-void monitorRegistryInit(void) { }
-
-void registeredEnumerate(void (*f)(reg_mon_t*, void*), void *a) { }
-
-void monitorRegister(sys_mon_t *mon, char *name)
-{
-    PR_InitMonitor(mon, 0, name);
-}
-
-int sysMonitorSizeof(void)
-{
-    return sizeof(sys_mon_t);
+    while (mon->owner != 0)
+	SleepConditionVariableSRW(ENTER_CV(mon), LOCK(mon), INFINITE, 0);
+    mon->owner = self;
+    mon->count = count;
 }
 
 int sysMonitorEnter(sys_mon_t *mon)
 {
-    PR_EnterMonitor(mon);
+    DWORD self = GetCurrentThreadId();
+
+    if (mon->owner == self) {	/* only this thread can have set it */
+	mon->count++;
+	return SYS_OK;
+    }
+    AcquireSRWLockExclusive(LOCK(mon));
+    acquire_locked(mon, self, 1);
+    ReleaseSRWLockExclusive(LOCK(mon));
     return SYS_OK;
 }
 
 int sysMonitorExit(sys_mon_t *mon)
 {
-    int rv = PR_ExitMonitor(mon);
-    if (rv < 0)
+    if (mon->owner != GetCurrentThreadId())
 	return SYS_ERR;
+    if (--mon->count > 0)
+	return SYS_OK;
+    AcquireSRWLockExclusive(LOCK(mon));
+    mon->owner = 0;
+    ReleaseSRWLockExclusive(LOCK(mon));
+    WakeConditionVariable(ENTER_CV(mon));
     return SYS_OK;
+}
+
+static int notify(sys_mon_t *mon, int all)
+{
+    struct sys_mon_waiter *w;
+
+    if (mon->owner != GetCurrentThreadId())
+	return SYS_ERR;
+    AcquireSRWLockExclusive(LOCK(mon));
+    while ((w = mon->first) != NULL) {
+	mon->first = w->next;
+	w->notified = 1;
+	if (!all)
+	    break;
+    }
+    if (mon->first == NULL)
+	mon->last = NULL;
+    ReleaseSRWLockExclusive(LOCK(mon));
+    if (w != NULL || all)
+	WakeAllConditionVariable(WAIT_CV(mon));
+    return SYS_OK;
+}
+
+int sysMonitorNotify(sys_mon_t *mon)
+{
+    return notify(mon, 0);
+}
+
+int sysMonitorNotifyAll(sys_mon_t *mon)
+{
+    return notify(mon, 1);
+}
+
+static void unlink_waiter(sys_mon_t *mon, struct sys_mon_waiter *me)
+{
+    struct sys_mon_waiter **pp, *prev = NULL;
+
+    for (pp = &mon->first; *pp != NULL; prev = *pp, pp = &(*pp)->next) {
+	if (*pp == me) {
+	    *pp = me->next;
+	    if (mon->last == me)
+		mon->last = prev;
+	    return;
+	}
+    }
+}
+
+int sysMonitorWait(sys_mon_t *mon, int millis)
+{
+    DWORD self = GetCurrentThreadId();
+    sys_thread_t *t = sysThreadSelf();
+    struct sys_mon_waiter me;
+    ULONGLONG deadline = 0;
+    int saved, ret = SYS_OK;
+
+    if (mon->owner != self)
+	return SYS_ERR;
+    if (millis != SYS_TIMEOUT_INFINITY)
+	deadline = GetTickCount64() + (ULONGLONG) millis;
+
+    AcquireSRWLockExclusive(LOCK(mon));
+    me.next = NULL;
+    me.notified = 0;
+    if (mon->last)
+	mon->last->next = &me;
+    else
+	mon->first = &me;
+    mon->last = &me;
+
+    /* Release the monitor completely while waiting. */
+    saved = mon->count;
+    mon->owner = 0;
+    mon->count = 0;
+    WakeConditionVariable(ENTER_CV(mon));
+
+    /* Full barrier: pairs with sysThreadPostException's write of stop_pending. */
+    if (t)
+	InterlockedExchangePointer((PVOID volatile *) &t->waiting_on, mon);
+    while (!me.notified && !(t && t->stop_pending)) {
+	DWORD wait = INFINITE;
+	if (millis != SYS_TIMEOUT_INFINITY) {
+	    ULONGLONG now = GetTickCount64();
+	    if (now >= deadline) {
+		ret = SYS_TIMEOUT;
+		break;
+	    }
+	    wait = (DWORD) (deadline - now);
+	}
+	SleepConditionVariableSRW(WAIT_CV(mon), LOCK(mon), wait, 0);
+    }
+    if (t) {
+	t->waiting_on = NULL;
+	t->stop_pending = 0;	/* the posted exception is now pending in the EE */
+    }
+    if (!me.notified)
+	unlink_waiter(mon, &me);
+
+    acquire_locked(mon, self, saved);
+    ReleaseSRWLockExclusive(LOCK(mon));
+    return ret;
+}
+
+/* Wake a thread blocked in wait() so it sees a posted exception. */
+void sysMonitorInterrupt(sys_mon_t *mon)
+{
+    AcquireSRWLockExclusive(LOCK(mon));
+    ReleaseSRWLockExclusive(LOCK(mon));
+    WakeAllConditionVariable(WAIT_CV(mon));
+}
+
+void sysMonitorDumpInfo(sys_mon_t *mon)
+{
+    if (mon->owner)
+	fprintf(stderr, "owner thread %lu, %d entr%s\n", mon->owner,
+		mon->count, mon->count == 1 ? "y" : "ies");
+    else
+	fprintf(stderr, "<unowned>\n");
 }

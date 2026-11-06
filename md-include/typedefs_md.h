@@ -1,10 +1,6 @@
 #ifndef sun_java_typedefs_md_h___
 #define sun_java_typedefs_md_h___
 
-/* Hack to work around typedef's in sun's sys_api.h */
-#define sys_thread PRThreadStr
-#define sys_mon PRMonitorStr
-
 #include "bool.h"
 #include <sys/types.h>
 #include <stdlib.h>

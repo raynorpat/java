@@ -1,81 +1,96 @@
+/*
+ * Win32 native threads for the HPI (sys_api.h).
+ *
+ * Every Java thread is on a list guarded by _queue_lock. The garbage
+ * collector holds that lock while it stops the other threads
+ * (sysThreadSingle), so no stopped thread can be part-way through
+ * changing the list.
+ */
+#include <windows.h>
+#include <process.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "sys_api.h"
 #include "threads_md.h"
+#include "monitor_md.h"
 #include "javaThreads.h"
-#include "prlog.h"
-#include "prglobal.h"
-#include "prmon.h"
-#include "prdump.h"
-#include "finalize.h"
-#include "interpreter.h"	/* obj_monitor */
+#include "interpreter.h"	/* obj_monitor, ExecEnv */
 #include "monitor.h"
-#ifdef XP_MAC
-#include <Memory.h>
-#endif
-/* ID used to distinguish java's thread-private-data */
-#define JAVA_TPD_ID 0xcafebabe
+#include "exceptions.h"
+#include "finalize.h"
+#include "javaString.h"
 
-int soft_yield_count;
+long ProcStackSize = 0;		/* 0: the executable's default stack size */
 
-long ProcStackSize = 0;		/* Let machine dependent code pick it */
+static DWORD tls = TLS_OUT_OF_INDEXES;
+static sys_thread_t *threads;	/* guarded by _queue_lock */
+static int user_threads;	/* non-daemon threads on the list */
 
-PRMonitor *pr_threadStartLock;
-
-static char *noname = "_java";
-
-/*
-** ASSUMED to be the first thing called!
-*/
-void intrInit(void)
+static void *stack_high(void)
 {
-    PR_ASSERT(PR_CurrentThread() != 0);
-    pr_threadStartLock = PR_NewNamedMonitor(0, "thread-start-lock");
+    ULONG_PTR low, high;
+    GetCurrentThreadStackLimits(&low, &high);
+    return (void *) high;
 }
 
-int WaitToDie()
+static sys_thread_t *new_thread(void)
 {
-    PR_Exit();
-#if !defined(XP_PC) || defined(_WIN32)
-    PR_NOT_REACHED("Continuing after WaitToDie.");
-#endif
-    return 0;
+    return (sys_thread_t *) calloc(1, sizeof(sys_thread_t));
 }
 
-#ifdef PR_NO_PREEMPT
-void PR_CALLBACK force_yield(void *notused)
+/* Called holding _queue_lock. */
+static void add_thread(sys_thread_t *t)
 {
-    ExecEnv *ee;
-    
-    /*	We have to get the ee ourself here... the function EE
-    //	checks for NULL and throws an assert, which can actually
-    //	happen here.  This is the case when a thread is dying
-    //	so eetop gets set to zero, but on the MAC we get pre-empted
-    //	and call force_yield.  It is okay to ingnore a NULL
-    //	ee in this case because the thread is dying anyway, and
-    //	a bonafide yield cannot be far off...
-    */
-    
-    if (threadSelf() == 0)
-		ee = DefaultExecEnv;
-	else
-		ee = (ExecEnv *) THREAD(threadSelf())->eetop;
-		
-	if (ee && !exceptionOccurred(ee)) {
-		ee->exceptionKind = EXCKIND_YIELD;
+    t->next = threads;
+    threads = t;
+    if (!t->system)
+	user_threads++;
+}
+
+/* Called holding _queue_lock. */
+static void remove_thread(sys_thread_t *t)
+{
+    sys_thread_t **pp;
+
+    for (pp = &threads; *pp != NULL; pp = &(*pp)->next) {
+	if (*pp == t) {
+	    *pp = t->next;
+	    if (!t->system)
+		user_threads--;
+	    return;
+	}
     }
 }
-#endif
 
 /*
-** Create the primordial thread. It happened when PR_Init is called...
-*/
+ * ASSUMED to be the first thing called: makes sysThreadSelf() work for the
+ * primordial thread before the thread package is bootstrapped.
+ */
+void intrInit(void)
+{
+    sys_thread_t *t;
+
+    if (tls != TLS_OUT_OF_INDEXES)
+	return;
+    tls = TlsAlloc();
+    t = new_thread();
+    DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(),
+		    &t->handle, 0, FALSE, DUPLICATE_SAME_ACCESS);
+    t->id = GetCurrentThreadId();
+    t->stack_base = stack_high();
+    t->priority = NormalPriority;
+    TlsSetValue(tls, t);
+}
+
 int sysThreadBootstrap(sys_thread_t **tp)
 {
-    sys_thread_t *t = PR_CurrentThread();
+    sys_thread_t *t = sysThreadSelf();
+
+    QUEUE_LOCK();
+    add_thread(t);
+    QUEUE_UNLOCK();
     *tp = t;
-    t->dump = sysThreadDumpInfo;
-#ifdef PR_NO_PREEMPT
-    PR_SetInterruptSwitchHook( (void (*)(void *)) force_yield, 0);
-#endif
     return SYS_OK;
 }
 
@@ -84,295 +99,280 @@ void sysThreadInitializeSystemThreads(void)
     InitializeFinalizerThread();
 }
 
-void PR_CALLBACK start_thread(void *o, void *a)
+/*
+ * The primordial thread may not exit until all user (non-daemon)
+ * threads have.
+ */
+void WaitToDie(void)
 {
-    void (*func)(void*) = (void (*)(void*)) o;
+    sys_thread_t *self = sysThreadSelf();
 
-    /* Wait for creator thread to Resume us */
-    PR_EnterMonitor(pr_threadStartLock);
-    PR_ExitMonitor(pr_threadStartLock);
-
-    /* And away we go... */
-    (*func)(a);
-
-    /* Bye bye */
-    PR_Exit();
+    QUEUE_LOCK();
+    while (user_threads > (self->system ? 0 : 1))
+	QUEUE_WAIT();
+    QUEUE_UNLOCK();
 }
 
-int sysThreadCreate(long stackSize, uint_t flags, 
-		    void *(*func)(void *), 
+static unsigned __stdcall start_thread(void *arg)
+{
+    sys_thread_t *t = (sys_thread_t *) arg;
+
+    TlsSetValue(tls, t);
+    t->stack_base = stack_high();
+    (*t->start)(t->cookie);
+    sysThreadExit();		/* not reached: ThreadRT0 exits the thread */
+    return 0;
+}
+
+int sysThreadCreate(long stackSize, uint_t flags,
+		    void *(*func)(void *),
 		    sys_thread_t **tp,
 		    void *cookie)
 {
-    PRThread *t;
+    sys_thread_t *t = new_thread();
 
-#ifdef XP_MAC
-	//	Make sure the Mac has at least 96K of
-	//	free memory before starting up a thread...
-	//	This is part of our "pre-flight" memory
-	//	strategy.
-	Handle	rainyDayBlock;
-	rainyDayBlock = NewHandle(96 * 1024);
-	if (rainyDayBlock != NULL)
-		DisposeHandle(rainyDayBlock);
-	else
-		return SYS_NORESOURCE;
-#endif
+    *tp = NULL;
+    if (t == NULL)
+	return SYS_NORESOURCE;
+    t->start = func;
+    t->cookie = cookie;
+    t->system = (flags == THR_SYSTEM);
+    t->priority = NormalPriority;
 
-    /*
-    ** Create thread at java priority 0. Adjust the java priority for
-    ** NSPR priority levels
-    */
-    t = PR_CreateThread(noname, NormalPriority+10, stackSize);
-    if (t) {
-	sysThreadSetBackPtr(t, cookie);
-	*tp = t;
-
-	if (flags == THR_SYSTEM) {
-	    t->flags |= _PR_SYSTEM;	/* XXX bug in NSPR API*/
-	}
-	/* Use a monitor to force thread to wait for us to resume it */
-	PR_EnterMonitor(pr_threadStartLock);
-	PR_Start(t, (void (*)(void*,void*))start_thread, func, cookie);
-	PR_Suspend(t);
-	PR_ExitMonitor(pr_threadStartLock);
-
-	t->dump = sysThreadDumpInfo;
-
-	return SYS_OK;
+    /* Created suspended; Thread.start() resumes it. */
+    QUEUE_LOCK();
+    t->handle = (void *) _beginthreadex(NULL, (unsigned) stackSize, start_thread,
+					t, CREATE_SUSPENDED, (unsigned *) &t->id);
+    if (t->handle == NULL) {
+	QUEUE_UNLOCK();
+	free(t);
+	return SYS_NORESOURCE;
     }
-    *tp = 0;
-    return SYS_NORESOURCE;
-}
+    add_thread(t);
+    QUEUE_UNLOCK();
 
-int sysThreadKill(sys_thread_t *t)
-{
-    PR_DestroyThread(t);
+    *tp = t;
     return SYS_OK;
 }
 
 void sysThreadExit(void)
 {
-    PRThread *t;
-    JHandle *p;
+    sys_thread_t *t = sysThreadSelf();
+    JHandle *p = (JHandle *) t->cookie;
     ExecEnv *eep;
 
-    t = PR_CurrentThread();
-    p = PR_GetThreadPrivate(t, JAVA_TPD_ID);
-
-    /*
-    ** Break association to hardware thread to avoid dangling pointer
-    ** problems.
-    */
     if (p) {
 	/* Wake joiners (Thread.join waits on the thread object while isAlive()). */
 	monitorEnter(obj_monitor(p));
 	THREAD(p)->PrivateInfo = 0;
 	monitorNotifyAll(obj_monitor(p));
 	monitorExit(obj_monitor(p));
- 
+
 	/* Delete java stack now that we are done with it */
 	eep = (ExecEnv *) THREAD(p)->eetop;
-	if (eep) {                		/* eep == 0 does happen... */
+	if (eep) {
 	    DeleteExecEnv(eep, p);		/* zeros eetop */
 	}
     }
 
-    PR_Exit();
+    /* Off the list, the GC no longer stops or scans this thread. */
+    QUEUE_LOCK();
+    remove_thread(t);
+    QUEUE_NOTIFY();			/* WaitToDie */
+    QUEUE_UNLOCK();
+
+    TlsSetValue(tls, NULL);
+    CloseHandle(t->handle);
+    free(t);
+    _endthreadex(0);
 }
 
 sys_thread_t *sysThreadSelf(void)
 {
-    return PR_CurrentThread();
+    return tls == TLS_OUT_OF_INDEXES ? NULL : (sys_thread_t *) TlsGetValue(tls);
 }
 
 void sysThreadYield(void)
 {
-    PR_Yield();
+    SwitchToThread();
 }
 
 int sysThreadSuspend(sys_thread_t *t)
 {
-    return PR_Suspend(t);
+    return SuspendThread(t->handle) == (DWORD) -1 ? SYS_ERR : SYS_OK;
 }
 
 int sysThreadResume(sys_thread_t *t)
 {
-    /* HACK: reflect java's name for the thread back to NSPR */
-    if (t->name &&
-	(t->name[0] == '_') &&
-	(t->name[1] == 'j') &&
-	(t->name[2] == 'a') &&
-	(t->name[3] == 'v') &&
-	(t->name[4] == 'a') &&
-	(t->name[5] == '\0')) {
-	TID tid;
-	char *name;
-
-	tid = (TID) PR_GetThreadPrivate(t, JAVA_TPD_ID);
-	name = Object2CString((JHandle *) THREAD(tid)->name);
-	if (name) {
-		/* If the thread already has a name, free it. */
-		if (t->name)
-			sysFree(t->name);
-	    t->name = strdup(name);
-	}
-    }
-    return PR_Resume(t);
+    return ResumeThread(t->handle) == (DWORD) -1 ? SYS_ERR : SYS_OK;
 }
 
 int sysThreadSetPriority(sys_thread_t *t, int32_t n)
 {
-    int nsprPrio = n + 10;
-    PR_ASSERT(java_lang_Thread_MIN_PRIORITY <= n && n <= java_lang_Thread_MAX_PRIORITY);
-    PR_ASSERT(nsprPrio < PR_NUM_PRIORITIES);
-    PR_SetThreadPriority(t, nsprPrio);
+    /* Java 1..10, 5 is normal */
+    static const int win32[] = {
+	THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_LOWEST,
+	THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_BELOW_NORMAL,
+	THREAD_PRIORITY_NORMAL,
+	THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL,
+	THREAD_PRIORITY_HIGHEST, THREAD_PRIORITY_HIGHEST, THREAD_PRIORITY_HIGHEST
+    };
+
+    if (n < MinimumPriority || n > MaximumPriority)
+	return SYS_ERR;
+    t->priority = n;
+    SetThreadPriority(t->handle, win32[n - 1]);
     return SYS_OK;
 }
 
-int sysThreadGetPriority(sys_thread_t *t, int32_t *io)
+int sysThreadGetPriority(sys_thread_t *t, int32_t *pri)
 {
-    int nsprPrio = PR_GetThreadPriority(t);
-    int n = nsprPrio - 10;
-    PR_ASSERT(nsprPrio < PR_NUM_PRIORITIES);
-    PR_ASSERT(java_lang_Thread_MIN_PRIORITY <= n && n <= java_lang_Thread_MAX_PRIORITY);
-    *io = n;
+    *pri = t->priority;
     return SYS_OK;
 }
 
-/* XXX bogus: PR_GetSP should deal with current thread */
+/* Valid for the calling thread and for threads stopped by sysThreadSingle. */
 void *sysThreadStackPointer(sys_thread_t *t)
 {
-    if (t == PR_CurrentThread()) {
-	return (void*) &t;
-    } else {
-	return (void*) PR_GetSP(t);
-    }
+    if (t == sysThreadSelf())
+	return (void *) &t;
+    return t->stack_ptr;
 }
- 
+
 stackp_t sysThreadStackBase(sys_thread_t *t)
 {
-    return (stackp_t) t->stack;
+    return (stackp_t) t->stack_base;
 }
- 
-#if 0
+
+void **sysThreadRegisters(sys_thread_t *t, int *count)
+{
+    *count = t->stack_ptr ? sizeof(t->regs) / sizeof(t->regs[0]) : 0;
+    return t->regs;
+}
+
+/*
+ * Stop every other Java thread for garbage collection. Called holding
+ * _queue_lock (and the heap lock), so the list cannot change.
+ */
 int sysThreadSingle(void)
 {
-    PR_SingleThread();
+    sys_thread_t *self = sysThreadSelf(), *t;
+    CONTEXT ctx;
+
+    sysAssert(QUEUE_LOCKED());
+    for (t = threads; t != NULL; t = t->next) {
+	if (t == self)
+	    continue;
+	if (SuspendThread(t->handle) == (DWORD) -1) {
+	    t->stack_ptr = NULL;
+	    continue;
+	}
+	/* GetThreadContext waits until the thread is really stopped. */
+	ctx.ContextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER;
+	if (!GetThreadContext(t->handle, &ctx)) {
+	    ResumeThread(t->handle);
+	    t->stack_ptr = NULL;
+	    continue;
+	}
+	t->stack_ptr = (void *) ctx.Esp;
+	t->regs[0] = (void *) ctx.Eax;
+	t->regs[1] = (void *) ctx.Ebx;
+	t->regs[2] = (void *) ctx.Ecx;
+	t->regs[3] = (void *) ctx.Edx;
+	t->regs[4] = (void *) ctx.Esi;
+	t->regs[5] = (void *) ctx.Edi;
+	t->regs[6] = (void *) ctx.Ebp;
+    }
     return SYS_OK;
 }
 
 void sysThreadMulti(void)
 {
-    PR_MultiThread();
-}
-#endif
+    sys_thread_t *self = sysThreadSelf(), *t;
 
-struct FooFooStr {
-    int (*func)(sys_thread_t *, void *);
-    void *arg;
-};
-
-static int EnumOneThread(PRThread *t, int i, void *arg)
-{
-    struct FooFooStr *fp = (struct FooFooStr*) arg;
-    void *handle;
-
-    /* Only scan over java threads (skip the non-java threads) */
-    handle = PR_GetThreadPrivate(t, JAVA_TPD_ID);
-    if (handle) {
-	return (*fp->func)(t, fp->arg);
+    for (t = threads; t != NULL; t = t->next) {
+	if (t != self && t->stack_ptr != NULL) {
+	    t->stack_ptr = NULL;
+	    ResumeThread(t->handle);
+	}
     }
-    return 1;
 }
 
 int sysThreadEnumerateOver(int (*func)(sys_thread_t *, void *), void *arg)
 {
-    struct FooFooStr foo;
+    sys_thread_t *t;
+    int ret = SYS_OK;
 
-    foo.func = func;
-    foo.arg = arg;
-    PR_EnumerateThreads(EnumOneThread, &foo);
-    return SYS_OK;
+    QUEUE_LOCK();
+    for (t = threads; t != NULL && ret == SYS_OK; t = t->next) {
+	if (t->cookie != NULL)		/* not yet a Java thread */
+	    ret = (*func)(t, arg);
+    }
+    QUEUE_UNLOCK();
+    return ret;
 }
 
 void sysThreadSetBackPtr(sys_thread_t *t, void *cookie)
 {
-    if (!PR_SetThreadPrivate(t, JAVA_TPD_ID, cookie)) {
-	/* Ran out of memory ! */
-	abort();/* XXX */
-    }
+    t->cookie = cookie;
 }
 
 void *sysThreadGetBackPtr(sys_thread_t *t)
 {
-    return PR_GetThreadPrivate(t, JAVA_TPD_ID);
+    return t->cookie;
 }
 
 void sysThreadInit(sys_thread_t *t, stackp_t sb)
 {
+    /* The stack base is the thread's real stack top, set when it starts. */
 }
 
 int sysThreadCheckStack(void)
 {
-    /* XXX stack is always... OK */
     return 1;
 }
 
-void
-sysThreadPostException(sys_thread_t *t, void *exc) 
-{ 
-    TID tid;
-    struct execenv *ee;
+int sysInterruptsPending(void)
+{
+    return 0;
+}
 
-    tid = (TID) PR_GetThreadPrivate(t, JAVA_TPD_ID);
+/* Thread.stop(): make the exception pending and wake the thread if it waits. */
+void sysThreadPostException(sys_thread_t *t, void *exc)
+{
+    TID tid = (TID) t->cookie;
+    ExecEnv *ee = tid ? (ExecEnv *) THREAD(tid)->eetop : NULL;
+    sys_mon_t *mon;
+    extern void sysMonitorInterrupt(sys_mon_t *);
 
-#if 0
-    {
-	char *name = t->name;
-
-	if (name == noname) {
-	    /* Get java's name */
-	    name = Object2CString((JHandle *) THREAD(tid)->name);
-	}
-	fprintf(stderr,
-	   "attempting to kill thread %s using sysThreadPostException...\n",
-	   name);
-    }
-#endif
-
-    ee = (ExecEnv *) THREAD(tid)->eetop;
-    PR_ASSERT(ee != 0);
-
-    if (ee != (ExecEnv *) 0) {   
-	exceptionThrow(ee, (JHandle*) exc);
-    }
-    PR_SetPendingException(t);
-    PR_Yield();
-} 
+    if (ee != NULL)
+	exceptionThrow(ee, (JHandle *) exc);
+    /* Full barrier: pairs with sysMonitorWait's write of waiting_on. */
+    InterlockedExchange((LONG volatile *) &t->stop_pending, 1);
+    if ((mon = t->waiting_on) != NULL)
+	sysMonitorInterrupt(mon);
+}
 
 JAVA_PUBLIC_API(void)
-sysThreadDumpInfo(sys_thread_t* t, FILE* out)
+sysThreadDumpInfo(sys_thread_t *t, FILE *out)
 {
-    TID tid = (TID)sysThreadGetBackPtr(t);
-    if (tid)
-    {
-	JavaFrame* frame;
-	struct Classjava_lang_Thread* thread = THREAD(tid);
-	ExecEnv* ee = (ExecEnv*)thread->eetop;
-	struct Hjava_lang_ThreadGroup* group = thread->group;
-	if (group)
-	{
+    TID tid = (TID) sysThreadGetBackPtr(t);
+
+    if (tid) {
+	JavaFrame *frame;
+	struct Classjava_lang_Thread *thread = THREAD(tid);
+	ExecEnv *ee = (ExecEnv *) thread->eetop;
+	struct Hjava_lang_ThreadGroup *group = thread->group;
+
+	if (group) {
 	    char name[256];
 	    javaString2CString(unhand(group)->name, name, sizeof(name));
 	    fprintf(out, "    in group %s\n", name);
-	}
-	else {
+	} else {
 	    fprintf(out, "    no group\n");
 	}
 	if (ee) {
-	    for (frame = ee->current_frame; frame != NULL; frame = frame->prev)
-	    {
+	    for (frame = ee->current_frame; frame != NULL; frame = frame->prev) {
 		char where[256];
 		pc2string(frame->lastpc, 0, where, where + sizeof(where));
 		fprintf(out, "\t%s\n", where);
