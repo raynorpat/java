@@ -108,9 +108,10 @@ function by function"; `include/` gives the structure layouts.
   **Exception (owner's decision):** `winawt` is C++, as Sun wrote it; the Rhapsody AWT is
   Objective-C, as Apple wrote it. Nothing else may use C++ or Objective-C.
 - **Source only in git (owner's decision).** Sun's and Apple's binaries and data (1.1.5
-  `classes.zip`, `lib/*.properties`, `include/`, demos, original DLLs, Rhapsody libraries and
+  `classes.zip`, `lib/*.properties`, demos, original DLLs, Rhapsody libraries and
   jars) are copied into a folder inside the repo working tree that is **git-ignored**, never
-  committed. CMake and CTest read them from there. (My call: `vendor/jdk1.1.5/` and
+  committed. Shipped *source* — Sun's 1.1.5 `include/` headers and `demo/jre/*.c` — is
+  committed into the tree, since it is the reconstruction's own source. CMake and CTest read them from there. (My call: `vendor/jdk1.1.5/` and
   `vendor/rhapsody-dr2/`, with `vendor/` in `.gitignore`; the configure step fails with a clear
   message if they are missing.) The committed `classsrc/classes.zip` (1.0.2) goes away with the
   rest of `classsrc/`. IJG libjpeg v6 is source, so it may be committed.
