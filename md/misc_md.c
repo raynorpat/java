@@ -1,151 +1,57 @@
-#include "nspr_md.h"
+#include <windows.h>
+#include <time.h>
 #include "sys_api.h"
-#include "prtime.h"
 
-#ifdef XP_UNIX
-#include <time.h>
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <string.h>
-
-#ifdef sgi
 char *vbase = (char*) 0x40000000;
-#endif
 
-#endif
+/* Milliseconds since 1970-01-01 UTC. */
+static int64_t now_millis(void)
+{
+    FILETIME ft;
+    int64_t t;
 
-#ifdef XP_PC
-#include <time.h>
-char *vbase = (char*) 0x40000000;
-#endif
-
-#ifdef XP_MAC
-char *vbase = (char*) 0x40000000;
-#endif
+    GetSystemTimeAsFileTime(&ft);	/* 100ns units since 1601 */
+    t = ((int64_t) ft.dwHighDateTime << 32) | ft.dwLowDateTime;
+    return t / 10000 - 11644473600000;
+}
 
 long sysGetMilliTicks(void)
 {
-    int64_t now;
-    long l;
-
-    now = PR_NowMS();
-    LL_L2I(l, now);
-    return l;
+    return (long) now_millis();
 }
 
 long sysTime(long *p)
 {
-    return (long) time((time_t*)p);/* XXX bug! */
+    long t = (long) time(NULL);
+    if (p)
+	*p = t;
+    return t;
 }
 
 int64_t sysTimeMillis(void)
 {
-    int64_t now;
-
-    now = PR_NowMS();
-    return now;
+    return now_millis();
 }
 
 struct tm * sysGmtime(time_t * timer, struct tm *result)
 {
-	uint64_t	timeInMicros,
-			s2us;
-	PRTime	localPRTimeRecord;
-
-    LL_I2L(timeInMicros, *timer);
-    LL_I2L(s2us, PR_USEC_PER_SEC);
-    LL_MUL(timeInMicros, timeInMicros, s2us);
-    
-    timeInMicros = PR_ToGMT(timeInMicros);
-    
-    PR_ExplodeTime(&localPRTimeRecord, timeInMicros);
-	
-   	result->tm_sec = localPRTimeRecord.tm_sec;
- 	result->tm_min = localPRTimeRecord.tm_min;
- 	result->tm_hour = localPRTimeRecord.tm_hour;
- 	result->tm_mday = localPRTimeRecord.tm_mday;
- 	result->tm_mon = localPRTimeRecord.tm_mon;
- 	result->tm_wday = localPRTimeRecord.tm_wday;
- 	result->tm_year = localPRTimeRecord.tm_year - 1900;
- 	result->tm_yday = localPRTimeRecord.tm_yday;
- 	result->tm_isdst = localPRTimeRecord.tm_isdst;
-    
-    return result;
+    return gmtime_s(result, timer) == 0 ? result : NULL;
 }
 
 struct tm * sysLocaltime( time_t *timer, struct tm * result )
 {
-	uint64_t	timeInMicros,
-			s2us;
-	PRTime	localPRTimeRecord;
-
-    LL_I2L(timeInMicros, *timer);
-    LL_I2L(s2us, PR_USEC_PER_SEC);
-    LL_MUL(timeInMicros, timeInMicros, s2us);
-    
-    PR_ExplodeTime(&localPRTimeRecord, timeInMicros);
-	
-   	result->tm_sec = localPRTimeRecord.tm_sec;
- 	result->tm_min = localPRTimeRecord.tm_min;
- 	result->tm_hour = localPRTimeRecord.tm_hour;
- 	result->tm_mday = localPRTimeRecord.tm_mday;
- 	result->tm_mon = localPRTimeRecord.tm_mon;
- 	result->tm_wday = localPRTimeRecord.tm_wday;
- 	result->tm_year = localPRTimeRecord.tm_year - 1900;
- 	result->tm_yday = localPRTimeRecord.tm_yday;
- 	result->tm_isdst = localPRTimeRecord.tm_isdst;
-    
-    return result;
+    return localtime_s(result, timer) == 0 ? result : NULL;
 }
 
 void sysStrftime(char *buf, int buflen, char *fmt, struct tm *t)
 {
-	PRTime prTimeRecord;
-
-	prTimeRecord.tm_usec = 0;
-	prTimeRecord.tm_sec = t->tm_sec;
-	prTimeRecord.tm_min = t->tm_min;
-	prTimeRecord.tm_hour = t->tm_hour;
-	prTimeRecord.tm_mday = t->tm_mday;
-	prTimeRecord.tm_mon = t->tm_mon;
-	prTimeRecord.tm_wday = t->tm_wday;
-	prTimeRecord.tm_year = t->tm_year + 1900;
-	prTimeRecord.tm_yday = t->tm_yday;
-	prTimeRecord.tm_isdst = t->tm_isdst;
-
-	PR_FormatTime(buf, buflen, fmt, &prTimeRecord);
-	
+    if (strftime(buf, buflen, fmt, t) == 0 && buflen > 0)
+	buf[0] = 0;
 }
 
 time_t sysMktime(struct tm *t)
 {
-	PRTime	 	prTimeRecord;
-	uint64_t		timeInMicros;
-	time_t		result;
-	uint64_t		resultLong,
-				divisor;
-
-	prTimeRecord.tm_usec = 0;
-	prTimeRecord.tm_sec = t->tm_sec;
-	prTimeRecord.tm_min = t->tm_min;
-	prTimeRecord.tm_hour = t->tm_hour;
-	prTimeRecord.tm_mday = t->tm_mday;
-	prTimeRecord.tm_mon = t->tm_mon;
-	prTimeRecord.tm_wday = t->tm_wday;
-	prTimeRecord.tm_year = t->tm_year + 1900;
-	prTimeRecord.tm_yday = t->tm_yday;
-	prTimeRecord.tm_isdst = t->tm_isdst;
-	
-	timeInMicros = PR_ComputeTime(&prTimeRecord);
-	
-	LL_I2L(divisor, PR_USEC_PER_SEC);
-	LL_DIV(resultLong, timeInMicros, divisor);
-	LL_L2I(result, resultLong);
-
-	return result;
-
+    return mktime(t);
 }
 
 

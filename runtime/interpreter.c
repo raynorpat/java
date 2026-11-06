@@ -1347,14 +1347,6 @@ static char longstringbuf[30];
     }
 
 #ifdef TRACING
-    {
-	extern PRLogModule MethodLog;
-	if (PR_LOG_TEST(Method, out)) {
-	    /* If netscape trace log messages are turned on, 
-	       we'd better turn tracing on too: */
-	    tracem = 1;
-	}
-    }
     if (trace) {
 	char where_am_i[100];
 
@@ -3352,9 +3344,6 @@ DumpStatistics ()
 
 #ifdef TRACING
 
-#if 0 /* Java 1.0.2 code that has moved to md/trace_md.c  This
-       Code should be merged in one direction or the other. */
-
 void
 trace_method(struct execenv* ee, struct methodblock* mb,
 	     int args_size, int type)
@@ -3394,6 +3383,5 @@ trace_method(struct execenv* ee, struct methodblock* mb,
     fflush(stdout);
 }
 
-#endif /* 0 Java 1.0.2 code */
 
 #endif

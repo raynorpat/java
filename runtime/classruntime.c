@@ -244,9 +244,8 @@ invokeLazyNativeMethod(JHandle *o, struct methodblock *mb, int args_size,
 	return (mb->invoker)(o, mb, args_size, ee);
     } else {
 	char buf[1024];
-	jio_snprintf(buf, sizeof(buf), "native method %s.%s not found: %s", 
-		     classname((&mb->fb)->clazz), fieldname(&mb->fb),
-		     PR_GetErrorString());
+	jio_snprintf(buf, sizeof(buf), "native method %s.%s not found", 
+		     classname((&mb->fb)->clazz), fieldname(&mb->fb));
 	SignalError(ee, JAVAPKG "UnsatisfiedLinkError", buf);
 	return FALSE;
     }

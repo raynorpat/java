@@ -61,7 +61,7 @@ prefixed(runtime_sources runtime agent arena class date debug globals io math
   compiler check_class check_code classloader classruntime gifdecoder exception
   exceptions filesystem interpreter)
 prefixed(md_sources md dir_md gc_md io_md link_md math_md misc_md mon_md path_md
-  ionet_md stubs_md trace_md agentthread compiler_md process_md properties_md
+  ionet_md stubs_md agentthread compiler_md process_md properties_md
   socket_md system_md thread_md)
 
 add_library(javai SHARED java/javai.c java/javai_dll.c ${runtime_sources}
@@ -96,6 +96,8 @@ set_tests_properties(threads PROPERTIES TIMEOUT 60
   PASS_REGULAR_EXPRESSION "count=80000 .*caught NPE.*gc ok, free=true")
 add_test(NAME longs COMMAND java -classpath "${test_cp}" Longs)
 set_tests_properties(longs PROPERTIES PASS_REGULAR_EXPRESSION "longs ok")
+add_test(NAME dates COMMAND java -classpath "${test_cp}" Dates)
+set_tests_properties(dates PROPERTIES PASS_REGULAR_EXPRESSION "dates ok")
 add_test(NAME props COMMAND java -classpath "${test_cp}" Props)
 set_tests_properties(props PROPERTIES PASS_REGULAR_EXPRESSION
   "version=1\\.0\\.2.*vendor=Sun Microsystems Inc\\..*separator=\\\\.*home is dir=true.*child is dir=true.*classpath set=true.*os=Windows (NT|95)/[0-9]+\\.[0-9]+/x86")

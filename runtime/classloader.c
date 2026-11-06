@@ -47,8 +47,6 @@
 #include "byteorder_md.h"
 #include "io_md.h"
 
-#include "prlog.h"
-PR_LOG_DEFINE(Load);
 
 int verbose_class_loading;
 
@@ -205,7 +203,6 @@ again:
     codefd = -1;
     cb = AllocClass();
     if (!createInternalClass(external_class, external_class + st.st_size, cb)) {
-	PR_LOG(Load, error, ("Can't load %s.", fn));
 	sysFree(external_class);
 	goto failed;
     }
@@ -463,7 +460,6 @@ createInternalClass(unsigned char *ptr, unsigned char *end_ptr, ClassClass *cb)
     context->detail = &detail;
     if (setjmp(context->jump_buffer)) {
 	/* Indicate an error of some sort */
-	PR_LOG(Load, error, ("%s", *(context->detail)));
 	return FALSE;
     }
     
