@@ -9,5 +9,7 @@ public class Props {
         System.out.println("home is dir=" + new File(home).isDirectory());
         System.out.println("child is dir=" + new File(home, ".").isDirectory());
         System.out.println("classpath set=" + (System.getProperty("java.class.path").length() > 0));
+        System.out.println("os=" + System.getProperty("os.name") + "/" + System.getProperty("os.version")
+                           + "/" + System.getProperty("os.arch"));
     }
 }

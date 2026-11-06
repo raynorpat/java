@@ -68,9 +68,6 @@ extern PRStaticLinkTable rt_nodl_tab[];
 #include <java_lang_Thread.h>
 #endif /* NATIVE */
 
-int RELEASE =
-#include "../../build/build_number"
-;
 
 extern int verbose_class_loading;
 
@@ -198,23 +195,6 @@ atomi(register char *p)
 	}
     return v * mult;
 }
-
-/*
- * The reason we do not use this routine anymore is that we explicitly
- * leave stdin, stdout, and stderr, unblocked i.e we do not mark this 
- * file descriptors nonblocking and hence we do not have to undo i.e
- * mark them blocking before we exit anymore.  Look at iomgr.c for how
- * these fds are left unmarked and more details
- */
-#ifndef NATIVE
-void
-makeTTYsane()
-{
-    nonblock_io(0, IO_BLOCK);
-    nonblock_io(1, IO_BLOCK);
-    nonblock_io(2, IO_BLOCK);
-}
-#endif /* NATIVE */
 
 extern void InitializeAsyncMonitors(void);
 
@@ -408,7 +388,7 @@ static int start_exec_env(int argc, char** argv)
 		usage();
 		return 0;
             } else if (strcmp(*argv, "-version") == 0) {
-                fprintf(stderr, "%s version %d\n", progname, RELEASE);
+                fprintf(stderr, "%s version \"1.0.2\"\n", progname);
                 return 0;
 	    } else {
 		fprintf(stderr, "%s: illegal argument\n", *argv);

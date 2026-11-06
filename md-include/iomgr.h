@@ -1,8 +1,6 @@
 #ifndef sun_java_iomgr_h___
 #define sun_java_iomgr_h___
 
-#include "nspr_md.h"
-#include "prfile.h"
 
 #if defined(XP_UNIX)
 #include <sys/socket.h>
@@ -18,7 +16,6 @@
 
 #define IO_DONTBLOCK 0
 #define IO_BLOCK 1
-#define nonblock_io(a,b) PR_NonBlockIO(a,b)
 
 #if defined(XP_UNIX)
 extern int sysConnect(int, struct sockaddr*, int);
@@ -63,7 +60,8 @@ extern int sysSendTo(int fd, const void *buf, int len, int flags,
 extern long sysSocketAvailable(int, long *);
 
 #define sysGethostname(a,b)		gethostname(a,b)
-#define sysGethostbyname(a,b,c,d,e)	PR_gethostbyname(a,b,c,d,e)
-#define sysGethostbyaddr(a,b,c,d,e,f,g)	PR_gethostbyaddr(a,b,c,d,e,f,g)
+/* Winsock returns per-thread hostent storage, so no copy is needed. */
+#define sysGethostbyname(a,b,c,d,e)	gethostbyname(a)
+#define sysGethostbyaddr(a,b,c,d,e,f,g)	gethostbyaddr(a,b,c)
 
 #endif /* sun_java_iomgr_h___ */

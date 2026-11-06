@@ -19,7 +19,6 @@
 #endif
 
 #include "sys_api.h"
-#include "prsystem.h"
 #include "oobj.h"
 #include "java_lang_System.h"
 #include "path_md.h"	/* sysJavaHome */
@@ -58,14 +57,10 @@ java_lang_System_initProperties(struct Hjava_lang_System *this,
     PUTPROP(props, "java.class.path", v ? v : "");
 
     /* os properties */
-    PR_GetSystemInfo(PR_SI_SYSNAME, buf, sizeof(buf));
+    sysOSInfo(buf, 256, buf + 256, sizeof(buf) - 256);
     PUTPROP(props, "os.name", buf);
-
-    PR_GetSystemInfo(PR_SI_RELEASE, buf, sizeof(buf));
-    PUTPROP(props, "os.version", buf);
-
-    PR_GetSystemInfo(PR_SI_ARCHITECTURE, buf, sizeof(buf));
-    PUTPROP(props, "os.arch", buf);
+    PUTPROP(props, "os.version", buf + 256);
+    PUTPROP(props, "os.arch", "x86");
 
     /* file system properties */
 #ifdef XP_UNIX

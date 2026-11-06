@@ -390,7 +390,7 @@ renameIfDiff(char *tempfn, char *newfn, char *newdir)
 	fclose(nf);
     }
     if ((nf = fopen(newfn, "w")) == 0) {
-	if (mkdir(newdir, 0777) != 0) {
+	if (sysMkdir(newdir, 0777) != 0) {
 	    perror(newdir);
 	    return -1;
 	}

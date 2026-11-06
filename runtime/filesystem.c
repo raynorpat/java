@@ -268,8 +268,8 @@ java_io_File_list0(Hjava_io_File *this)
 {
     Classjava_io_File *thisptr = unhand(this);
     char path[MAXPATHLEN];
-    PRDir *dir;
-    struct PRDirEntryStr *ptr;
+    sys_dir_t *dir;
+    sys_dirent_t *ptr;
     int len, maxlen;
     HArrayOfString *arr;
     HArrayOfString *narr;
