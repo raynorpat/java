@@ -128,12 +128,17 @@ monitorWait(unsigned int key, int millis)
     if (mid == MID_NULL) {
 	ret = SYS_ERR;
     } else {
-	ret = sysMonitorWait(&sysmon(mid), millis);
+	ret = sysMonitorWait(&sysmon(mid), millis, TRUE);
 	if (ret == SYS_TIMEOUT) {
 	    ret = SYS_OK;
 	}
     }
 
+    if (ret == SYS_INTRPT) {
+	SignalError((struct execenv *) THREAD(threadSelf())->eetop,
+		    JAVAPKG "InterruptedException", NULL);
+	return;
+    }
     if (ret != SYS_OK) {
 	SignalError((struct execenv *) THREAD(threadSelf())->eetop,
 		    JAVAPKG "IllegalMonitorStateException",
@@ -240,7 +245,7 @@ registeredCleanupHelper(reg_mon_t *reg, void *T)
 
     sysAssert(REGISTRY_LOCKED());
     if (reg->mid != _registry_lock) {
-        (void) sysMonitorDestroy(reg->mid, tid);  
+        (void) sysMonitorCleanup(reg->mid, tid);  
     }
 }
 
@@ -270,7 +275,7 @@ monitorCleanupHelper(monitor_t *mid, void *T)
     sys_thread_t *tid = (sys_thread_t *) T;
 
     sysAssert(CACHE_LOCKED());
-    if (sysMonitorDestroy(&sysmon(mid), tid) == SYS_DESTROY) {
+    if (sysMonitorCleanup(&sysmon(mid), tid) == SYS_DESTROY) {
 	/* See comment on monitorExit() */
 	monitorDestroy(mid, mid->key);
     }

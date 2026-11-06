@@ -20,6 +20,9 @@
 #ifndef SYSMACROS_MD_H_
 #define SYSMACROS_MD_H_
 
+/* JDK 1.1.5 per-thread monitor cache size. */
+#define SYS_TLS_MONCACHE 8
+
 /* Win32: the HPI file calls map onto the C runtime. */
 #include <io.h>
 #include <direct.h>

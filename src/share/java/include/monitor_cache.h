@@ -30,7 +30,7 @@ extern sys_mon_t *_moncache_lock;
 #define CACHE_LOCK_INIT() monitorRegister(_moncache_lock, "Monitor cache lock");
 #define CACHE_LOCK()	  sysMonitorEnter(_moncache_lock)
 #define CACHE_NOTIFY()	  sysMonitorNotify(_moncache_lock)
-#define CACHE_WAIT()	  sysMonitorWait(_moncache_lock, TIMEOUT_INFINITY)
+#define CACHE_WAIT()	  sysMonitorWait(_moncache_lock, TIMEOUT_INFINITY, FALSE)
 #define CACHE_LOCKED()	  sysMonitorEntered(_moncache_lock)
 #define CACHE_UNLOCK()	  sysMonitorExit(_moncache_lock)
 

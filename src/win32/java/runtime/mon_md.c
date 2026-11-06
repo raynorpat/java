@@ -1,193 +1,145 @@
-/*
- * Reentrant monitors (sys_api.h) on Win32 SRW locks and condition
- * variables. Object.wait() waiters queue FIFO, each with its own flag, so a
- * notify() only wakes a thread that was already waiting when it was issued.
+/* Win32 monitor reconstruction from JDK 1.1.5 javai_g.dll.
+ * See tests/native/monitor-evidence.md for addresses and interim deviations.
  */
 #include <windows.h>
 #include <stdio.h>
-
 #include "sys_api.h"
 #include "monitor_md.h"
 
-struct sys_mon_waiter {
-    struct sys_mon_waiter *next;
-    int notified;
-};
-
-#define LOCK(m)		((PSRWLOCK) &(m)->lock)
-#define ENTER_CV(m)	((PCONDITION_VARIABLE) &(m)->enter_cv)
-#define WAIT_CV(m)	((PCONDITION_VARIABLE) &(m)->wait_cv)
-
 int sysMonitorSizeof(void)
 {
-    return sizeof(struct sys_mon);
+    return sizeof(sys_mon_t);
 }
 
 int sysMonitorInit(sys_mon_t *mon)
 {
-    memset(mon, 0, sizeof(*mon));	/* zero is SRWLOCK_INIT / CONDITION_VARIABLE_INIT */
+    sysAssert(mon != NULL);
+    mon->monitor_owner = NULL;
+    mon->entry_count = 0;
+    mutexInit(&mon->mutex);
+    if (condvarInit(&mon->condvar)) return SYS_OK;
+    mutexDestroy(&mon->mutex);
+    return SYS_ERR;
+}
+
+int sysMonitorDestroy(sys_mon_t *mon)
+{
+    sysAssert(mon != NULL);
+    mutexDestroy(&mon->mutex);
+    condvarDestroy(&mon->condvar);
     return SYS_OK;
 }
 
-int sysMonitorDestroy(sys_mon_t *mon, sys_thread_t *owner)
+/* Compatibility with the old shared monitor thread-exit cleanup contract.
+ * This preserves the former Windows no-op; it is not Sun sysMonitorDestroy.
+ */
+int sysMonitorCleanup(sys_mon_t *mon, sys_thread_t *owner)
 {
+    return SYS_OK;
+}
+
+int sysMonitorEnter(sys_mon_t *mon)
+{
+    sys_thread_t *self;
+    self = sysThreadSelf();
+    sysAssert(mon != NULL);
+    if (self == NULL) return ThreadsInitialized ? SYS_ERR : SYS_OK;
+    sysAssert(ThreadsInitialized);
+    self->state = MONITOR_WAIT;
+    mutexLock(&mon->mutex);
+    self->state = RUNNABLE;
+    if (mon->monitor_owner != NULL) {
+        sysAssert(mon->monitor_owner == self);
+        sysAssert(mon->entry_count > 0);
+        mutexUnlock(&mon->mutex);
+    } else {
+        mon->monitor_owner = self;
+    }
+    ++mon->entry_count;
     return SYS_OK;
 }
 
 bool_t sysMonitorEntered(sys_mon_t *mon)
 {
-    return mon->owner == GetCurrentThreadId();
-}
-
-/* Take ownership; called holding the lock. */
-static void acquire_locked(sys_mon_t *mon, DWORD self, int count)
-{
-    while (mon->owner != 0)
-	SleepConditionVariableSRW(ENTER_CV(mon), LOCK(mon), INFINITE, 0);
-    mon->owner = self;
-    mon->count = count;
-}
-
-int sysMonitorEnter(sys_mon_t *mon)
-{
-    DWORD self = GetCurrentThreadId();
-
-    if (mon->owner == self) {	/* only this thread can have set it */
-	mon->count++;
-	return SYS_OK;
-    }
-    AcquireSRWLockExclusive(LOCK(mon));
-    acquire_locked(mon, self, 1);
-    ReleaseSRWLockExclusive(LOCK(mon));
-    return SYS_OK;
+    sys_thread_t *self;
+    self = sysThreadSelf();
+    sysAssert(mon != NULL);
+    return !ThreadsInitialized ||
+        (self != NULL && mon->monitor_owner == self);
 }
 
 int sysMonitorExit(sys_mon_t *mon)
 {
-    if (mon->owner != GetCurrentThreadId())
-	return SYS_ERR;
-    if (--mon->count > 0)
-	return SYS_OK;
-    AcquireSRWLockExclusive(LOCK(mon));
-    mon->owner = 0;
-    ReleaseSRWLockExclusive(LOCK(mon));
-    WakeConditionVariable(ENTER_CV(mon));
-    return SYS_OK;
-}
-
-static int notify(sys_mon_t *mon, int all)
-{
-    struct sys_mon_waiter *w;
-
-    if (mon->owner != GetCurrentThreadId())
-	return SYS_ERR;
-    AcquireSRWLockExclusive(LOCK(mon));
-    while ((w = mon->first) != NULL) {
-	mon->first = w->next;
-	w->notified = 1;
-	if (!all)
-	    break;
+    sys_thread_t *self;
+    self = sysThreadSelf();
+    sysAssert(mon != NULL);
+    if (self == NULL) return ThreadsInitialized ? SYS_ERR : SYS_OK;
+    sysAssert(ThreadsInitialized);
+    if (mon->monitor_owner != self) return SYS_ERR;
+    sysAssert(mon->entry_count > 0);
+    if (--mon->entry_count == 0) {
+        mon->monitor_owner = NULL;
+        mutexUnlock(&mon->mutex);
     }
-    if (mon->first == NULL)
-	mon->last = NULL;
-    ReleaseSRWLockExclusive(LOCK(mon));
-    if (w != NULL || all)
-	WakeAllConditionVariable(WAIT_CV(mon));
     return SYS_OK;
 }
 
 int sysMonitorNotify(sys_mon_t *mon)
 {
-    return notify(mon, 0);
+    sysAssert(mon != NULL);
+    if (!sysMonitorEntered(mon)) return SYS_ERR;
+    return condvarSignal(&mon->condvar) ? SYS_OK : SYS_ERR;
 }
 
 int sysMonitorNotifyAll(sys_mon_t *mon)
 {
-    return notify(mon, 1);
+    sysAssert(mon != NULL);
+    if (!sysMonitorEntered(mon)) return SYS_ERR;
+    return condvarBroadcast(&mon->condvar) ? SYS_OK : SYS_ERR;
 }
 
-static void unlink_waiter(sys_mon_t *mon, struct sys_mon_waiter *me)
+int sysMonitorWait(sys_mon_t *mon, int millis, bool_t clear)
 {
-    struct sys_mon_waiter **pp, *prev = NULL;
-
-    for (pp = &mon->first; *pp != NULL; prev = *pp, pp = &(*pp)->next) {
-	if (*pp == me) {
-	    *pp = me->next;
-	    if (mon->last == me)
-		mon->last = prev;
-	    return;
-	}
-    }
-}
-
-int sysMonitorWait(sys_mon_t *mon, int millis)
-{
-    DWORD self = GetCurrentThreadId();
-    sys_thread_t *t = sysThreadSelf();
-    struct sys_mon_waiter me;
-    ULONGLONG deadline = 0;
-    int saved, ret = SYS_OK;
-
-    if (mon->owner != self)
-	return SYS_ERR;
-    if (millis != SYS_TIMEOUT_INFINITY)
-	deadline = GetTickCount64() + (ULONGLONG) millis;
-
-    AcquireSRWLockExclusive(LOCK(mon));
-    me.next = NULL;
-    me.notified = 0;
-    if (mon->last)
-	mon->last->next = &me;
+    sys_thread_t *self;
+    long saved;
+    self = sysThreadSelf();
+    sysAssert(mon != NULL);
+    saved = mon->entry_count;
+    if (self == NULL) return SYS_ERR;
+    sysAssert(ThreadsInitialized);
+    if (mon->monitor_owner != self) return SYS_ERR;
+    if (sysThreadIsInterrupted(self, clear)) return SYS_INTRPT;
+    mon->monitor_owner = NULL;
+    mon->entry_count = 0;
+    self->state = CONDVAR_WAIT;
+    if (millis == SYS_TIMEOUT_INFINITY)
+        condvarWait(self, &mon->condvar, &mon->mutex);
     else
-	mon->first = &me;
-    mon->last = &me;
-
-    /* Release the monitor completely while waiting. */
-    saved = mon->count;
-    mon->owner = 0;
-    mon->count = 0;
-    WakeConditionVariable(ENTER_CV(mon));
-
-    /* Full barrier: pairs with sysThreadPostException's write of stop_pending. */
-    if (t)
-	InterlockedExchangePointer((PVOID volatile *) &t->waiting_on, mon);
-    while (!me.notified && !(t && t->stop_pending)) {
-	DWORD wait = INFINITE;
-	if (millis != SYS_TIMEOUT_INFINITY) {
-	    ULONGLONG now = GetTickCount64();
-	    if (now >= deadline) {
-		ret = SYS_TIMEOUT;
-		break;
-	    }
-	    wait = (DWORD) (deadline - now);
-	}
-	SleepConditionVariableSRW(WAIT_CV(mon), LOCK(mon), wait, 0);
-    }
-    if (t) {
-	t->waiting_on = NULL;
-	t->stop_pending = 0;	/* the posted exception is now pending in the EE */
-    }
-    if (!me.notified)
-	unlink_waiter(mon, &me);
-
-    acquire_locked(mon, self, saved);
-    ReleaseSRWLockExclusive(LOCK(mon));
-    return ret;
+        condvarTimedWait(self, &mon->condvar, &mon->mutex, (DWORD)millis);
+    self->state = RUNNABLE;
+    mon->entry_count = saved;
+    mon->monitor_owner = self;
+    return sysThreadIsInterrupted(self, clear) ? SYS_INTRPT : SYS_OK;
 }
 
-/* Wake a thread blocked in wait() so it sees a posted exception. */
-void sysMonitorInterrupt(sys_mon_t *mon)
+bool_t sysMonitorInUse(sys_mon_t *mon)
 {
-    AcquireSRWLockExclusive(LOCK(mon));
-    ReleaseSRWLockExclusive(LOCK(mon));
-    WakeAllConditionVariable(WAIT_CV(mon));
+    return mon->monitor_owner != NULL || mon->condvar.waiters != 0 ||
+        mon->condvar.signals != 0;
 }
 
+/* Diagnostic deviation: retain this port's numeric owner identification. */
 void sysMonitorDumpInfo(sys_mon_t *mon)
 {
-    if (mon->owner)
-	fprintf(stderr, "owner thread %lu, %d entr%s\n", mon->owner,
-		mon->count, mon->count == 1 ? "y" : "ies");
+    sysAssert(mon != NULL);
+    if (mon->monitor_owner != NULL)
+        fprintf(stderr, "owner thread %lu, %ld entr%s\n",
+                mon->monitor_owner->id, mon->entry_count,
+                mon->entry_count == 1 ? "y" : "ies");
     else
-	fprintf(stderr, "<unowned>\n");
+        fprintf(stderr, "<unowned>\n");
+    if (mon->condvar.waiters != 0)
+        fprintf(stderr, "waiters: %u\n", mon->condvar.waiters);
+    if (mon->condvar.signals != 0)
+        fprintf(stderr, "tickets: %u\n", mon->condvar.signals);
 }

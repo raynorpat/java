@@ -46,7 +46,7 @@ extern sys_mon_t *_queue_lock;
 #define QUEUE_LOCKED()	  sysMonitorEntered(_queue_lock)
 #define QUEUE_UNLOCK()	  sysMonitorExit(_queue_lock)
 #define QUEUE_NOTIFY()	  sysMonitorNotify(_queue_lock)
-#define QUEUE_WAIT()	  sysMonitorWait(_queue_lock, SYS_TIMEOUT_INFINITY)
+#define QUEUE_WAIT()	  sysMonitorWait(_queue_lock, SYS_TIMEOUT_INFINITY, FALSE)
 
 /*
  * Thread-related data structures

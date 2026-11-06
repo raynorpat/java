@@ -50,7 +50,7 @@ extern sys_mon_t *_hasfinalq_lock;
 #define HASFINALQ_UNLOCK()	sysMonitorExit(_hasfinalq_lock)
 #define HASFINALQ_NOTIFY()	sysMonitorNotify(_hasfinalq_lock)
 #define HASFINALQ_WAIT()	sysMonitorWait(_hasfinalq_lock, \
-					       TIMEOUT_INFINITY)
+					       TIMEOUT_INFINITY, FALSE)
 extern sys_mon_t *_finalmeq_lock;
 #define FINALMEQ_LOCK_INIT()	monitorRegister(_finalmeq_lock, \
 						"Finalize me queue lock")
@@ -59,7 +59,7 @@ extern sys_mon_t *_finalmeq_lock;
 #define FINALMEQ_UNLOCK()	sysMonitorExit(_finalmeq_lock)
 #define FINALMEQ_NOTIFY()	sysMonitorNotify(_finalmeq_lock)
 #define FINALMEQ_WAIT()		sysMonitorWait(_finalmeq_lock, \
-					       TIMEOUT_INFINITY)
+					       TIMEOUT_INFINITY, FALSE)
 
 extern void InitializeFinalizer(void);
 extern void InitializeFinalizerThread(void);

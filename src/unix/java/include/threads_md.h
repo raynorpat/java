@@ -22,6 +22,7 @@ struct sys_thread {
     volatile sig_atomic_t stop_seq, ack_seq;	/* stop handshake */
     void *(*start)(void *);
     volatile int stop_pending;	/* Thread.stop() posted an exception */
+    int interrupted;             /* JDK 1.1 interruption shadow, guarded by post_lock */
     struct sys_mon *volatile waiting_on;	/* monitor it waits on, if any */
     struct sys_thread *next;	/* thread list, guarded by _queue_lock */
 };

@@ -49,9 +49,26 @@ int sysMonitorInit(sys_mon_t *mon)
  * shortcut: the pthread objects are not destroyed; this is harmless on
  * Linux and macOS, where they hold no kernel resources.
  */
-int sysMonitorDestroy(sys_mon_t *mon, sys_thread_t *owner)
+int sysMonitorCleanup(sys_mon_t *mon, sys_thread_t *owner)
 {
     return SYS_OK;
+}
+
+int sysMonitorDestroy(sys_mon_t *mon)
+{
+    if (mon->ready) {
+	if (pthread_cond_destroy(&mon->wait_cv) != 0 ||
+	    pthread_cond_destroy(&mon->enter_cv) != 0 ||
+	    pthread_mutex_destroy(&mon->lock) != 0)
+	    return SYS_ERR;
+	mon->ready = 0;
+    }
+    return SYS_OK;
+}
+
+bool_t sysMonitorInUse(sys_mon_t *mon)
+{
+    return mon->owner != NULL || mon->first != NULL;
 }
 
 bool_t sysMonitorEntered(sys_mon_t *mon)
@@ -141,7 +158,7 @@ static void unlink_waiter(sys_mon_t *mon, struct sys_mon_waiter *me)
     }
 }
 
-int sysMonitorWait(sys_mon_t *mon, int millis)
+int sysMonitorWait(sys_mon_t *mon, int millis, bool_t clear)
 {
     sys_thread_t *self = sysThreadSelf();
     struct sys_mon_waiter me;
@@ -150,6 +167,8 @@ int sysMonitorWait(sys_mon_t *mon, int millis)
 
     if (self == NULL || mon->owner != self)
 	return SYS_ERR;
+    if (sysThreadIsInterrupted(self, clear))
+	return SYS_INTRPT;
     if (millis != SYS_TIMEOUT_INFINITY) {
 	struct timeval now;
 	gettimeofday(&now, NULL);
@@ -177,7 +196,8 @@ int sysMonitorWait(sys_mon_t *mon, int millis)
     pthread_cond_signal(&mon->enter_cv);
 
     stopped = sysThreadSetWaitingOn(self, mon);
-    while (!me.notified && !stopped && !self->stop_pending) {
+    while (!me.notified && !stopped && !self->stop_pending &&
+	   !sysThreadIsInterrupted(self, FALSE)) {
 	int err;
 	if (millis == SYS_TIMEOUT_INFINITY)
 	    err = pthread_cond_wait(&mon->wait_cv, &mon->lock);
@@ -195,6 +215,8 @@ int sysMonitorWait(sys_mon_t *mon, int millis)
 
     acquire_locked(mon, self, saved);
     pthread_mutex_unlock(&mon->lock);
+    if (sysThreadIsInterrupted(self, clear))
+	return SYS_INTRPT;
     return ret;
 }
 

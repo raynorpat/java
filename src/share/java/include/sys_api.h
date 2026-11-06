@@ -107,6 +107,8 @@ EXPORTED  void * sysThreadGetBackPtr(sys_thread_t *);
 EXPORTED  int    sysThreadCheckStack(void);
 EXPORTED  int    sysInterruptsPending(void);
 EXPORTED  void	 sysThreadPostException(sys_thread_t *, void *);
+EXPORTED void sysThreadInterrupt(sys_thread_t *);
+EXPORTED int sysThreadIsInterrupted(sys_thread_t *, long);
 EXPORTED  void ** sysThreadRegisters(sys_thread_t *, int *count);
 JAVA_PUBLIC_API(void)	 sysThreadDumpInfo(sys_thread_t *, FILE*);
 
@@ -120,12 +122,18 @@ EXPORTED bool_t  sysMonitorEntered(sys_mon_t *);
 EXPORTED int     sysMonitorExit(sys_mon_t *);
 EXPORTED int     sysMonitorNotify(sys_mon_t *);
 EXPORTED int     sysMonitorNotifyAll(sys_mon_t *);
-EXPORTED int 	 sysMonitorWait(sys_mon_t *, int);
-EXPORTED int	 sysMonitorDestroy(sys_mon_t *, sys_thread_t *);
+EXPORTED int 	 sysMonitorWait(sys_mon_t *, int, bool_t);
+EXPORTED int	 sysMonitorDestroy(sys_mon_t *);
 EXPORTED void    sysMonitorDumpInfo(sys_mon_t *);
+EXPORTED bool_t sysMonitorInUse(sys_mon_t *);
+/* deviation: old shared thread-exit cleanup, distinct from resource destruction. */
+EXPORTED int sysMonitorCleanup(sys_mon_t *, sys_thread_t *);
+
+#define SYS_TIMEOUT_INFINITY -1
+#define SYS_INTRPT      -2
 
 #define SYS_OK	        0
-#define SYS_TIMEOUT     1
+#define SYS_TIMEOUT    -3
 #define SYS_ERR	       -1
 #define SYS_INVALID    -2    /* invalid arguments */
 #define SYS_NOTHREAD   -3    /* no such thread */

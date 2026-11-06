@@ -26,6 +26,7 @@ long ProcStackSize = 0;		/* 0: the executable's default stack size */
 static DWORD tls = TLS_OUT_OF_INDEXES;
 static sys_thread_t *threads;	/* guarded by _queue_lock */
 static int user_threads;	/* non-daemon threads on the list */
+bool_t ThreadsInitialized;
 
 static void *stack_high(void)
 {
@@ -36,7 +37,16 @@ static void *stack_high(void)
 
 static sys_thread_t *new_thread(void)
 {
-    return (sys_thread_t *) calloc(1, sizeof(sys_thread_t));
+    sys_thread_t *t = (sys_thread_t *) calloc(1, sizeof(sys_thread_t));
+
+    if (t != NULL) {
+	t->interrupt_event = CreateEventA(NULL, TRUE, FALSE, NULL);
+	if (t->interrupt_event == NULL) {
+	    free(t);
+	    return NULL;
+	}
+    }
+    return t;
 }
 
 /* Called holding _queue_lock. */
@@ -44,7 +54,7 @@ static void add_thread(sys_thread_t *t)
 {
     t->next = threads;
     threads = t;
-    if (!t->system)
+    if (!t->system_thread)
 	user_threads++;
 }
 
@@ -56,7 +66,7 @@ static void remove_thread(sys_thread_t *t)
     for (pp = &threads; *pp != NULL; pp = &(*pp)->next) {
 	if (*pp == t) {
 	    *pp = t->next;
-	    if (!t->system)
+	    if (!t->system_thread)
 		user_threads--;
 	    return;
 	}
@@ -75,12 +85,17 @@ void intrInit(void)
 	return;
     tls = TlsAlloc();
     t = new_thread();
+    if (tls == TLS_OUT_OF_INDEXES || t == NULL) {
+	fprintf(stderr, "Unable to initialize primordial thread\n");
+	exit(1);
+    }
     DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(),
 		    &t->handle, 0, FALSE, DUPLICATE_SAME_ACCESS);
     t->id = GetCurrentThreadId();
     t->stack_base = stack_high();
     t->priority = NormalPriority;
     TlsSetValue(tls, t);
+    ThreadsInitialized = TRUE;
 }
 
 int sysThreadBootstrap(sys_thread_t **tp, void *cookie)
@@ -109,7 +124,7 @@ void WaitToDie(void)
     sys_thread_t *self = sysThreadSelf();
 
     QUEUE_LOCK();
-    while (user_threads > (self->system ? 0 : 1))
+    while (user_threads > (self->system_thread ? 0 : 1))
 	QUEUE_WAIT();
     QUEUE_UNLOCK();
 }
@@ -120,7 +135,7 @@ static unsigned __stdcall start_thread(void *arg)
 
     TlsSetValue(tls, t);
     t->stack_base = stack_high();
-    (*t->start)(t->cookie);
+    (*t->start_proc)(t->start_parm);
     sysThreadExit();		/* not reached: ThreadRT0 exits the thread */
     return 0;
 }
@@ -135,9 +150,10 @@ int sysThreadCreate(long stackSize, uint_t flags,
     *tp = NULL;
     if (t == NULL)
 	return SYS_NORESOURCE;
-    t->start = func;
+    t->start_proc = func;
+    t->start_parm = cookie;
     t->cookie = cookie;
-    t->system = (flags == THR_SYSTEM);
+    t->system_thread = (flags == THR_SYSTEM);
     t->priority = NormalPriority;
 
     /* Created suspended; Thread.start() resumes it. */
@@ -146,6 +162,7 @@ int sysThreadCreate(long stackSize, uint_t flags,
 					t, CREATE_SUSPENDED, (unsigned *) &t->id);
     if (t->handle == NULL) {
 	QUEUE_UNLOCK();
+	CloseHandle(t->interrupt_event);
 	free(t);
 	return SYS_NORESOURCE;
     }
@@ -184,6 +201,7 @@ void sysThreadExit(void)
 
     TlsSetValue(tls, NULL);
     CloseHandle(t->handle);
+    CloseHandle(t->interrupt_event);
     free(t);
     _endthreadex(0);
 }
@@ -343,15 +361,10 @@ void sysThreadPostException(sys_thread_t *t, void *exc)
 {
     TID tid = (TID) t->cookie;
     ExecEnv *ee = tid ? (ExecEnv *) THREAD(tid)->eetop : NULL;
-    sys_mon_t *mon;
-    extern void sysMonitorInterrupt(sys_mon_t *);
 
     if (ee != NULL)
 	exceptionThrow(ee, (JHandle *) exc);
-    /* Full barrier: pairs with sysMonitorWait's write of waiting_on. */
-    InterlockedExchange((LONG volatile *) &t->stop_pending, 1);
-    if ((mon = t->waiting_on) != NULL)
-	sysMonitorInterrupt(mon);
+    SetEvent(t->interrupt_event);
 }
 
 JAVA_PUBLIC_API(void)
@@ -380,4 +393,22 @@ sysThreadDumpInfo(sys_thread_t *t, FILE *out)
 	    }
 	}
     }
+}
+
+/* Reconstructed from javai_g.dll 0x1004d404 and 0x1004d426. */
+void sysThreadInterrupt(sys_thread_t *t)
+{
+    t->interrupted = TRUE;
+    SetEvent(t->interrupt_event);
+}
+
+int sysThreadIsInterrupted(sys_thread_t *t, long clear)
+{
+    int interrupted = t->interrupted;
+
+    if (clear == TRUE) {
+	t->interrupted = FALSE;
+	ResetEvent(t->interrupt_event);
+    }
+    return interrupted;
 }

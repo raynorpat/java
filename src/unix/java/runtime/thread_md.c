@@ -525,3 +525,30 @@ sysThreadDumpInfo(sys_thread_t *t, FILE *out)
 	}
     }
 }
+
+/* deviation: preserve the pthreads port, using its post lock and wake handshake
+ * for the JDK 1.1.5 interruption shadow instead of a Win32 event. */
+void sysThreadInterrupt(sys_thread_t *t)
+{
+    sys_mon_t *mon;
+    extern void sysMonitorInterrupt(sys_mon_t *);
+
+    pthread_mutex_lock(&post_lock);
+    t->interrupted = 1;
+    mon = t->waiting_on;
+    pthread_mutex_unlock(&post_lock);
+    if (mon != NULL)
+	sysMonitorInterrupt(mon);
+}
+
+int sysThreadIsInterrupted(sys_thread_t *t, long clear)
+{
+    int interrupted;
+
+    pthread_mutex_lock(&post_lock);
+    interrupted = t->interrupted;
+    if (clear == TRUE)
+	t->interrupted = 0;
+    pthread_mutex_unlock(&post_lock);
+    return interrupted;
+}

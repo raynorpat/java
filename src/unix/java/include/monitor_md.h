@@ -25,6 +25,6 @@ struct sys_mon {
 /* Collection is synchronous; there is no idle-time GC thread. */
 #define SYS_INTERRUPTS_PENDING() 0
 
-extern int sysMonitorDestroy(struct sys_mon *, struct sys_thread *);
+extern int sysMonitorDestroy(struct sys_mon *);
 
 #endif /* sun_java_monitor_md_h___ */

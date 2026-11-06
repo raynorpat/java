@@ -1,29 +1,45 @@
-#ifndef sun_java_monitor_md_h___
-#define sun_java_monitor_md_h___
-
-#include "threads_md.h"
+/*
+ * @(#)monitor_md.h	1.16 97/02/17
+ * 
+ * Copyright (c) 1995, 1996 Sun Microsystems, Inc. All Rights Reserved.
+ * 
+ * This software is the confidential and proprietary information of Sun
+ * Microsystems, Inc. ("Confidential Information").  You shall not
+ * disclose such Confidential Information and shall use it only in
+ * accordance with the terms of the license agreement you entered into
+ * with Sun.
+ * 
+ * SUN MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
+ * SOFTWARE, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ * PURPOSE, OR NON-INFRINGEMENT. SUN SHALL NOT BE LIABLE FOR ANY DAMAGES
+ * SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
+ * THIS SOFTWARE OR ITS DERIVATIVES.
+ * 
+ * CopyrightVersion 1.1_beta
+ * 
+ */
 
 /*
- * Reentrant monitor (md/mon_md.c). The first three fields are a Win32
- * SRWLOCK and two CONDITION_VARIABLEs, which are valid when zero-filled, so
- * a memset-cleared monitor works before sysMonitorInit is called.
+ * Win32 implementation of Java monitors
  */
-struct sys_mon_waiter;
 
-struct sys_mon {
-    void *lock;			/* SRWLOCK guarding the fields below */
-    void *enter_cv;		/* CONDITION_VARIABLE: monitor became free */
-    void *wait_cv;		/* CONDITION_VARIABLE: a waiter was notified */
-    volatile unsigned long owner;	/* owning Win32 thread id, 0 if free */
-    int count;			/* recursive entry count */
-    struct sys_mon_waiter *first, *last;	/* threads in wait(), FIFO */
-};
+#ifndef	_WIN32_MONITOR_MD_H_
+#define	_WIN32_MONITOR_MD_H_
 
-#define SYS_TIMEOUT_INFINITY -1
+#include <windows.h>
 
-/* Collection is synchronous; there is no idle-time GC thread. */
-#define SYS_INTERRUPTS_PENDING() 0
+#include "threads_md.h"
+#include "mutex_md.h"
+#include "condvar_md.h"
 
-extern int sysMonitorDestroy(sys_mon_t *, sys_thread_t *);
+#define SYS_MID_NULL ((sys_mon_t *) 0)
 
-#endif /* sun_java_monitor_md_h___ */
+typedef struct sys_mon {
+    mutex_t 		mutex;	    	/* Mutex for monitor */
+    condvar_t 		condvar;      	/* Condition variable for monitor */
+    sys_thread_t 	*monitor_owner; /* Current owner of this monitor */
+    long 		entry_count;	/* Recursion depth */
+} sys_mon_t;
+
+#endif	/* !_WIN32_MONITOR_MD_H_ */
