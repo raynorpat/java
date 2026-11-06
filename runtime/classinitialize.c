@@ -76,7 +76,6 @@ sysAssert(i<=0xFFFF);
 }
 
 int verify_in_progress;
-#include "prmon.h"
 
 /*  
     Perform runtime-specific initialization on the class.  The

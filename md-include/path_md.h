@@ -1,8 +1,8 @@
 #ifndef sun_java_path_md_h___
 #define sun_java_path_md_h___
 
-#include "nspr_md.h"
-#include "prosdep.h"
+#define DIRECTORY_SEPARATOR '\\'
+#define PATH_SEPARATOR ';'
 
 #define LOCAL_DIR_SEPARATOR DIRECTORY_SEPARATOR
 #define DIR_SEPARATOR DIRECTORY_SEPARATOR
@@ -26,29 +26,7 @@
 
 #define sysGetSeparator() PATH_SEPARATOR
 
-#ifdef XP_UNIX
-#define sysNativePath(path) (path)
-#elif XP_PC
 extern char *sysNativePath(char *path);
 extern const char *sysJavaHome(void);
-#elif XP_MAC
-#define sysNativePath(path) (path)
-/*
- * The mac has some additional functionality.  We can bind append class path
- * entries on a per-thread basis
- */
-
-typedef struct MacClassPath {
-	int ctEntries;			// actual number of entries
-	struct mac_cpe_t** entries;		// array of pointers, with null in the last slot
-} MacClassPath;
-
-MacClassPath* InitClassPath();
-void AddToClassPath(const char* path);
-void DeleteClassPath(MacClassPath* classPath);
-
-#else
-#error port me
-#endif
 
 #endif /* sun_java_path_md_h___ */

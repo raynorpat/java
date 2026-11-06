@@ -21,14 +21,11 @@
  * Machine dependent path name and file name manipulation code
  */
 
+#include <windows.h>	/* GetModuleFileNameA */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-
-#ifdef XP_MAC
-#include "prmacos.h"
-#endif
 
 #include "sys_api.h"
 #include "io_md.h"
