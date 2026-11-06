@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mach/mach.h>
+#include <mach/thread_info.h>
 #include "sys_api.h"
 #include "cthreads/threads_md.h"
 #include "cthreads/monitor_md.h"
@@ -174,6 +175,87 @@ void sysThreadExit(void)
 {
     sysThreadFree(sysThreadSelf());
     cthread_exit(NULL);
+}
+
+static thread_t mach_thread(sys_thread_t *t)
+{
+    thread_t port;
+    memcpy(&port, (char *)t->cthread + 4, sizeof(port));
+    return port;
+}
+
+/* 5C145020. These states are hints (see the original threads_md.h).
+ * Match the original update-before-Mach-call ordering, including on error. */
+int sysThreadSuspend(sys_thread_t *t)
+{
+    if (t == sysThreadSelf()) {
+        t->state = SUSPENDED;
+    } else {
+        if (!mutex_try_lock(&t->mutex)) mutex_wait_lock(&t->mutex);
+        switch (t->state) {
+        case RUNNABLE:
+        case RUNNING:
+            t->state = SUSPENDED;
+            break;
+        case RUNNING_AT_BREAKPOINT:
+            t->state = SUSPENDED_AT_BREAKPOINT;
+            break;
+        case MONITOR_WAIT:
+            t->state = SUSPENDED;
+            t->mpending_suspend = TRUE;
+            break;
+        case CONDVAR_WAIT:
+            t->state = SUSPENDED;
+            t->cpending_suspend = TRUE;
+            break;
+        case SUSPENDED:
+        case MONITOR_SUSPENDED:
+        case SUSPENDED_AT_BREAKPOINT:
+            t->mutex.lock = 0;
+            return SYS_ERR;
+        default:
+            break;
+        }
+        t->mutex.lock = 0;
+    }
+    return thread_suspend(mach_thread(t)) == 0 ? SYS_OK : SYS_ERR;
+}
+
+/* 5C145160: pending monitor/condition suspension takes precedence. */
+int sysThreadResume(sys_thread_t *t)
+{
+    if (!mutex_try_lock(&t->mutex)) mutex_wait_lock(&t->mutex);
+    if (t->mpending_suspend) {
+        t->mpending_suspend = FALSE;
+        t->state = MONITOR_WAIT;
+    } else if (t->cpending_suspend) {
+        t->cpending_suspend = FALSE;
+        t->state = CONDVAR_WAIT;
+    } else if (t->state == MONITOR_SUSPENDED) {
+        t->state = MONITOR_WAIT;
+    } else if (t->state == SUSPENDED || t->state == SUSPENDED_AT_BREAKPOINT) {
+        t->state = RUNNING;
+    }
+    t->mutex.lock = 0;
+    return thread_resume(mach_thread(t)) == 0 ? SYS_OK : SYS_ERR;
+}
+
+/* 5C144F9C/5C144FDC query the current Mach priority, not base_priority.
+ * Deviation: use the shared HPI status convention and do not publish an
+ * uninitialized stack word when thread_info fails, as the binary does. */
+int sysThreadGetPriority(sys_thread_t *t, int *priority)
+{
+    thread_basic_info_data_t info;
+    unsigned int count = THREAD_BASIC_INFO_COUNT;
+    if (thread_info(mach_thread(t), THREAD_BASIC_INFO,
+                    (thread_info_t)&info, &count) != 0) return SYS_ERR;
+    *priority = info.cur_priority;
+    return SYS_OK;
+}
+
+int sysThreadSetPriority(sys_thread_t *t, int priority)
+{
+    return cthread_priority(t->cthread, priority, 0) == 0 ? SYS_OK : SYS_ERR;
 }
 
 int sysThreadEnumerateOver_unlocked(int (*func)(sys_thread_t *, void *), void *arg)

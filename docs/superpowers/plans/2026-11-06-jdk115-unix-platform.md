@@ -138,3 +138,13 @@ bootstrap/exit ordering. Strict C89/i386, Windows Debug/Release and external
 SDK-header probes pass. Full Windows Debug110/110, Linux Release98 passed plus
 audio skip. No profiler recurrence in this run. Task3 remains incomplete for
 priority, stack/register roots, suspension/resumption and system-thread setup.
+
+Task 3, thread-control slice: Suspend/Resume now implement the recovered
+eight-state transitions, pending wait flags, self-suspension and Mach error
+returns. Priority queries use current native priority; results follow the
+existing HPI status convention and failed queries preserve caller output.
+All-state/failure probes, strict C89/i386, Windows Debug/Release and SDK-header
+checks pass. Full Windows110/110, Linux98 passed plus audio skip. Evidence and
+logs are recorded above/in the evidence document. Remaining Task3 work:
+GC stack/register roots and Single/Multi rollback, breakpoint/system-thread
+support and final integration audit. Mach production selection is still off.

@@ -14,6 +14,7 @@ void cthread_detach(cthread_t);
 void *cthread_join(cthread_t);
 void cthread_yield(void);
 void cthread_exit(void *);
+int cthread_priority(cthread_t, int, unsigned int);
 ur_cthread_t ur_cthread_self(void);
 void spin_lock(int *);
 void cond_broadcast(condition_t);

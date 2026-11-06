@@ -9,6 +9,7 @@
 #include "java_lang_Thread.h"
 #include "monitor_cache.h"
 #include <mach/mach.h>
+#include <mach/thread_info.h>
 
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"line %d: %s\n",__LINE__,#x); exit(1); } } while (0)
 static struct sys_mon queue;
@@ -33,6 +34,9 @@ static ExecEnv *saved_ee;
 static int creating, fail_fork, fail_suspend, forked, joined, detached, yielded;
 static int started, suspended, force_wait, waited;
 static int exited;
+static int controlling, control_error, suspend_calls, resume_calls, priority_calls;
+static sys_thread_t control_thread;
+static native_thread_state_t control_state;
 static sys_thread_t *pending;
 static void *(*child_entry)(void *);
 extern int sysThreadEnumerateOver_unlocked(int (*)(sys_thread_t *, void *), void *);
@@ -140,10 +144,37 @@ void cthread_yield(void)
 }
 kern_return_t thread_suspend(thread_t thread)
 {
+    if (controlling) {
+        CHECK(thread == 97 && !control_thread.mutex.lock);
+        CHECK(control_thread.state == control_state);
+        ++suspend_calls; return control_error;
+    }
     CHECK(thread == 73 && pending->start_mutex.lock && !child.data);
     CHECK(!ActiveThreadCount && !UserThreadCount && !detached);
     if (fail_suspend) return 5;
     suspended = 1; return 0;
+}
+kern_return_t thread_resume(thread_t thread)
+{
+    CHECK(controlling && thread == 97 && !control_thread.mutex.lock);
+    CHECK(control_thread.state == control_state);
+    ++resume_calls; return control_error;
+}
+kern_return_t thread_info(thread_t thread, int flavor, thread_info_t info,
+                          unsigned int *count)
+{
+    thread_basic_info_data_t *basic = (thread_basic_info_data_t *)info;
+    CHECK(thread == 97 && flavor == THREAD_BASIC_INFO && *count == 11);
+    ++priority_calls;
+    if (control_error) return control_error;
+    memset(basic, 0, sizeof(*basic)); basic->base_priority = 11;
+    basic->cur_priority = 17;
+    return 0;
+}
+int cthread_priority(cthread_t t, int priority, unsigned int set_max)
+{
+    CHECK(t == control_thread.cthread && priority == 8 && set_max == 0);
+    ++priority_calls; return control_error;
 }
 void cthread_detach(cthread_t t)
 {
@@ -170,6 +201,67 @@ void cthread_exit(void *result)
     CHECK(result == NULL && sysThreadSelf() == NULL);
     CHECK(!ActiveThreadCount && !UserThreadCount && !locked && !join_locked);
     ++exited;
+}
+static void test_control(void)
+{
+    int i, calls, priority;
+    native_thread_state_t after_suspend[8] = {
+        SUSPENDED, SUSPENDED, SUSPENDED, SUSPENDED,
+        SUSPENDED, MONITOR_SUSPENDED, SUSPENDED_AT_BREAKPOINT,
+        SUSPENDED_AT_BREAKPOINT
+    };
+    native_thread_state_t after_resume[8] = {
+        RUNNABLE, RUNNING, RUNNING, MONITOR_WAIT, CONDVAR_WAIT,
+        MONITOR_WAIT, RUNNING_AT_BREAKPOINT, RUNNING
+    };
+    controlling = 1;
+    current.incarnation = (cthread_t)&native[0];
+    child.real_thread = 97;
+    for (i = 0; i < 8; ++i) {
+        memset(&control_thread, 0, sizeof(control_thread));
+        control_thread.cthread = (cthread_t)&child;
+        control_thread.state = (native_thread_state_t)i;
+        control_state = after_suspend[i]; calls = suspend_calls;
+        if (i == 2 || i == 5 || i == 7) {
+            CHECK(sysThreadSuspend(&control_thread) == SYS_ERR);
+            CHECK(suspend_calls == calls);
+        } else {
+            CHECK(sysThreadSuspend(&control_thread) == SYS_OK);
+            CHECK(suspend_calls == calls+1);
+        }
+        CHECK(control_thread.state == control_state && !control_thread.mutex.lock);
+        CHECK(control_thread.mpending_suspend == (i == 3));
+        CHECK(control_thread.cpending_suspend == (i == 4));
+        control_state = i == 3 ? MONITOR_WAIT : i == 4 ? CONDVAR_WAIT :
+                        after_resume[after_suspend[i]];
+        CHECK(sysThreadResume(&control_thread) == SYS_OK);
+        CHECK(!control_thread.mpending_suspend && !control_thread.cpending_suspend);
+        /* Also exercise resume directly from each state. */
+        control_thread.state = (native_thread_state_t)i; control_state = after_resume[i];
+        CHECK(sysThreadResume(&control_thread) == SYS_OK);
+    }
+    /* Mach failure leaves the original state hints updated, but unlocks and
+     * returns SYS_ERR. Self-suspension must not hold the thread's mutex. */
+    control_error = 5; control_thread.state = RUNNING; control_state = SUSPENDED;
+    CHECK(sysThreadSuspend(&control_thread) == SYS_ERR);
+    control_state = RUNNING;
+    CHECK(sysThreadResume(&control_thread) == SYS_ERR);
+    control_error = 0;
+    native[0].data = &control_thread; control_state = SUSPENDED;
+    calls = waited; force_wait = 1;
+    CHECK(sysThreadSuspend(&control_thread) == SYS_OK && waited == calls);
+    CHECK(force_wait == 1); force_wait = 0; native[0].data = NULL;
+    control_thread.state = RUNNING; control_state = SUSPENDED; force_wait = 1;
+    CHECK(sysThreadSuspend(&control_thread) == SYS_OK && waited == calls+1);
+    CHECK(sizeof(thread_basic_info_data_t) == 44);
+    CHECK(offsetof(thread_basic_info_data_t, cur_priority) == 24);
+    priority = -99;
+    CHECK(sysThreadGetPriority(&control_thread, &priority) == SYS_OK && priority == 17);
+    CHECK(sysThreadSetPriority(&control_thread, 8) == SYS_OK);
+    control_error = 5; priority = -99;
+    CHECK(sysThreadGetPriority(&control_thread, &priority) == SYS_ERR && priority == -99);
+    CHECK(sysThreadSetPriority(&control_thread, 8) == SYS_ERR && priority_calls == 4);
+    CHECK(!control_thread.mutex.lock && resume_calls == 17);
 }
 static int visit(sys_thread_t *t, void *arg)
 {
@@ -307,7 +399,8 @@ int main(void)
     sysThreadExit();
     dying = NULL;
     CHECK(exited == 1 && !sysThreadSelf() && !ActiveThreadCount && !UserThreadCount);
-    puts("Mach thread lifecycle contracts passed");
+    test_control();
+    puts("Mach thread lifecycle/control contracts passed");
     return 0;
 }
 

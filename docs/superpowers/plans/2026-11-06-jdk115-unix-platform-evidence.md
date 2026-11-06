@@ -349,3 +349,53 @@ audio-device skip. No recurrence of the earlier profiler failure in these
 runs; its root cause remains unresolved. Logs:
 out/phase3-create-{win,linux}-{build,tests}.log. Task3 remains open for priority,
 stack/register roots, suspend/resume and remaining system-thread initialization.
+
+## Task 3: suspension, resumption and priority
+
+Recovered sysThreadSuspend (5C145020), Resume (5C145160), GetPriority
+(5C144F9C) and SetPriority (5C144FDC). IDA had classified the suspend switch
+targets as data; its table at5C145080 contains offsets20,20,58,38,48,58,2c,58.
+Reading the target instruction bytes establishes these transitions:
+RUNNABLE/RUNNING -> SUSPENDED; RUNNING_AT_BREAKPOINT ->
+SUSPENDED_AT_BREAKPOINT; MONITOR_WAIT/CONDVAR_WAIT -> SUSPENDED with the
+respective pending flag. Already-suspended states2/5/7 reject a non-self
+suspend without calling Mach. Self-suspend sets SUSPENDED without taking the
+record mutex. All actual Mach calls occur with that mutex released.
+
+Resume clears pending monitor/condition flags and restores the respective
+wait state; otherwise MONITOR_SUSPENDED -> MONITOR_WAIT, states2/7 -> RUNNING,
+and other states remain unchanged. It calls Mach even when the hint already
+indicates a running thread. Mach failure returns SYS_ERR; as in the original,
+the preceding hint/flag update remains. These are explicitly hints, not a
+replacement for the kernel suspend count. No speculative concurrent rollback
+of Java thread hints is introduced in this slice.
+
+Priority uses THREAD_BASIC_INFO (flavor1,11 words) and cur_priority (word6),
+not base_priority (word5). SetPriority passes the priority unchanged to
+cthread_priority with set_max false. Ruling: normalize the original Boolean
+success result to the existing project's SYS_OK/SYS_ERR HPI convention and
+leave the caller's priority untouched on query failure, rather than copying
+an uninitialized stack word. Cost: this differs from Apple's Boolean-return
+ABI; any later AppKit adapter requiring that convention must translate it.
+
+RED: undefined suspension/resumption/priority symbols. GREEN: tests exercise
+all eight states, pending flags, redundant suspension rejection, native
+errors, self-suspension without a held mutex, contended mutex acquisition,
+current-vs-base priority and unchanged output on failed queries. The first
+external-SDK compile caught a signedness mismatch in the test double's
+cthread_priority parameter; the declaration now matches Mach's unsigned
+boolean_t. Optimized strict C89/i386, GNU89 with external SDK headers, and
+Windows Debug/Release probes pass. Full Windows Debug110/110; Linux Release98
+passed plus expected audio-device skip. No profiler failure this run.
+Logs: out/phase3-control-{win,linux}-{build,tests}.log. Production backend
+selection remains unchanged; these probes do not prove Mach concurrency.
+
+Next-slice audit: StackPointer (5C14487C) returns sentinel1 for self and,
+otherwise, word7 of a16-word thread_get_state(-1) buffer without checking
+errors. Registers (5C1448C0) returnsNULL. Single/Multi (5C145440/5C1454B0)
+enumerate under _queue_lock and skip self via helpers5C14551C/5C145574; each
+stops at the first Mach error. Single has no rollback for earlier successful
+suspensions, and Multi may leave later threads suspended. Reconstruction
+must preserve the existing GC-root fixes and add partial-failure recovery
+before enabling this backend. InitializeSigquitHandler (5C136B40) installs
+signal3's handler; it is not an empty initialization stub.
