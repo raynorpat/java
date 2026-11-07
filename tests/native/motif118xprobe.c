@@ -1,6 +1,7 @@
 /* Test-only X11 event/pixel observation through the live peer's widget. */
 #include "awt118.h"
 #include "java_awt_Component.h"
+#include "java_awt_MenuComponent.h"
 #include "sun_awt_motif_MComponentPeer.h"
 #include "sun_awt_motif_X11Graphics.h"
 #include <X11/extensions/XTest.h>
@@ -16,6 +17,21 @@ static Widget widget(Hjava_awt_Component *target)
     Hsun_awt_motif_MComponentPeer *peer=(Hsun_awt_motif_MComponentPeer *)unhand(target)->peer;
     AwtPeer *data=peer ? awt118_peer(peer) : NULL;
     return data ? (data->content ? data->content : data->widget) : NULL;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Menus115_click_stub(stack_item *p,struct execenv *ee)
+{
+    Widget item;
+    Position x,y; Dimension width,height;
+    AWT_LOCK(); item=awt118_menu_widget((HObject *)unhand((Hjava_awt_MenuComponent *)p[0].p)->peer);
+    if (!item || !XtIsRealized(item)) SignalError(ee,"java/lang/RuntimeException","menu not realized");
+    else {
+        XtVaGetValues(item,XmNwidth,&width,XmNheight,&height,NULL);
+        XtTranslateCoords(item,width/2,height/2,&x,&y);
+        XTestFakeMotionEvent(awt_display,awt_screen,x,y,CurrentTime);
+        XTestFakeButtonEvent(awt_display,Button1,True,CurrentTime);
+        XTestFakeButtonEvent(awt_display,Button1,False,CurrentTime); XFlush(awt_display);
+    }
+    AWT_UNLOCK(); return p;
 }
 
 JAVA_PUBLIC_API(stack_item *) Java_TextField115_displayed_stub(stack_item *p,struct execenv *ee)

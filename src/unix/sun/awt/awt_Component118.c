@@ -133,8 +133,11 @@ void sun_awt_motif_MComponentPeer_pDisable(Hsun_awt_motif_MComponentPeer *self)
 { AwtPeer *d; AWT_LOCK(); d=awt118_peer(self); if(d && d->widget) XtSetSensitive(d->widget,False); AWT_UNLOCK(); }
 void sun_awt_motif_MComponentPeer_pReshape(Hsun_awt_motif_MComponentPeer *self,long x,long y,long width,long height)
 {
-    AwtPeer *data;
+    AwtPeer *data,*parent=NULL;
+    Hjava_awt_Component *target=unhand(self)->target;
     AWT_LOCK(); data=awt118_peer(self);
+    if (unhand(target)->parent) parent=awt118_peer((Hsun_awt_motif_MComponentPeer *)unhand((Hjava_awt_Component *)unhand(target)->parent)->peer);
+    if (parent) y-=parent->menuHeight;
     if (data && data->widget) XtVaSetValues(data->widget,XmNx,x,XmNy,y,
         XmNwidth,width>0 ? width : 1,XmNheight,height>0 ? height : 1,NULL);
     AWT_UNLOCK();
@@ -152,7 +155,7 @@ struct Hjava_awt_Point *sun_awt_motif_MComponentPeer_pGetLocationOnScreen(Hsun_a
     if (!data || !data->widget) SignalError(EE(),"java/lang/NullPointerException",NULL);
     else if (!XtIsRealized(data->widget)) SignalError(EE(),"java/lang/InternalError","Widget not visible");
     else {
-        XtTranslateCoords(data->widget,0,0,&x,&y);
+        XtTranslateCoords(data->shell ? data->shell : data->widget,0,0,&x,&y);
         point=(struct Hjava_awt_Point *)execute_java_constructor(EE(),"java/awt/Point",NULL,"(II)",x,y);
     }
     AWT_UNLOCK();

@@ -5,6 +5,7 @@
 #include "java_awt_Insets.h"
 #include <X11/Shell.h>
 #include <Xm/DrawingA.h>
+#include <Xm/Form.h>
 #include <Xm/Protocols.h>
 #include <Xm/Text.h>
 #include <Xm/TextF.h>
@@ -104,8 +105,12 @@ void sun_awt_motif_MFramePeer_create(Hsun_awt_motif_MFramePeer *self,Hsun_awt_mo
             XtNwidth,unhand(target)->width>0 ? unhand(target)->width : 1,
             XtNheight,unhand(target)->height>0 ? unhand(target)->height : 1,
             XtNallowShellResize,True,XtNmappedWhenManaged,False,XmNdeleteResponse,XmDO_NOTHING,NULL);
-        data->widget=XtVaCreateManagedWidget("frame",xmDrawingAreaWidgetClass,data->shell,
+        data->container=XtVaCreateManagedWidget("main",xmFormWidgetClass,data->shell,
             XmNmarginWidth,0,XmNmarginHeight,0,XmNresizePolicy,XmRESIZE_NONE,NULL);
+        data->widget=XtVaCreateManagedWidget("frame",xmDrawingAreaWidgetClass,data->container,
+            XmNmarginWidth,0,XmNmarginHeight,0,XmNresizePolicy,XmRESIZE_NONE,
+            XmNtopAttachment,XmATTACH_FORM,XmNbottomAttachment,XmATTACH_FORM,
+            XmNleftAttachment,XmATTACH_FORM,XmNrightAttachment,XmATTACH_FORM,NULL);
         close=XmInternAtom(awt_display,"WM_DELETE_WINDOW",False);
         XmAddWMProtocolCallback(data->shell,close,close_window,self);
         XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask,False,shell_event,self);
@@ -174,5 +179,35 @@ void sun_awt_motif_MFramePeer_toBack(Hsun_awt_motif_MFramePeer *self)
     AwtPeer *data;
     AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
     if (data && data->shell && XtIsRealized(data->shell)) XLowerWindow(awt_display,XtWindow(data->shell));
+    AWT_UNLOCK();
+}
+/* Release 2d794: attach the menu above the client and adjust Java insets. */
+void sun_awt_motif_MFramePeer_pSetMenuBar(Hsun_awt_motif_MFramePeer *self,struct Hsun_awt_motif_MMenuBarPeer *bar)
+{
+    AwtPeer *data;
+    Widget menu;
+    Dimension height=0;
+    XtWidgetGeometry preferred;
+    AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
+    menu=awt118_menu_widget((HObject *)bar);
+    if (!data || !data->widget || (bar && !menu)) SignalError(EE(),"java/lang/NullPointerException",NULL);
+    else {
+        if (data->menuBar && data->menuBar!=menu) XtUnmanageChild(data->menuBar);
+        data->menuBar=menu;
+        if (menu) {
+            XtVaSetValues(menu,XmNtopAttachment,XmATTACH_FORM,XmNleftAttachment,XmATTACH_FORM,
+                XmNrightAttachment,XmATTACH_FORM,NULL);
+            XtSetMappedWhenManaged(menu,True); XtManageChild(menu);
+            XtVaGetValues(menu,XmNheight,&height,NULL);
+            XtQueryGeometry(menu,NULL,&preferred);
+            if ((preferred.request_mode&CWHeight) && preferred.height>height) {
+                height=preferred.height; XtVaSetValues(menu,XmNheight,height,NULL);
+            }
+        }
+        XtVaSetValues(data->widget,XmNtopAttachment,menu ? XmATTACH_WIDGET : XmATTACH_FORM,
+            XmNtopWidget,menu,NULL);
+        if (unhand(self)->insets) unhand(unhand(self)->insets)->top+=height-data->menuHeight;
+        data->menuHeight=height; XFlush(awt_display);
+    }
     AWT_UNLOCK();
 }

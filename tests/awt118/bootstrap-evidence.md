@@ -262,3 +262,20 @@ because bytecode 88..122 unconditionally reads newbits cleared by flush; the
 fixture records that behavior rather than silently changing the baseline class.
 All 19 focused Linux Debug tests pass (71.37 seconds), with 143 bindings.
 Image codecs, other visuals, complete fonts and printing still require validation.
+
+## Menu bar and item checkpoint
+
+Release 0x28158..0x29704 recovers menu bars, pulldown/submenus, ordinary and
+checkbox items, label/sensitivity updates and disposal. Frame pSetMenuBar and
+helper 0x2c434 place the bar above the client and include its height in insets.
+The port uses a public XmForm container and preferred widget geometry; the first
+height reported by Motif was 16 while its preferred/final height was 30.
+Frame screen locations use the shell origin and child placement accounts for
+the menu offset. Native menu records are distinct from component peer layouts.
+
+Menus115 failed at MMenuBarPeer.create and later at client-origin geometry.
+It now drives real XTest menu selection, checkbox callbacks, label/membership
+changes, attach/detach and frame disposal from an action over four cycles.
+All 20 focused Linux Debug tests pass (88.00 seconds), with 156 bindings.
+Popup menus, full shortcut/input semantics, multifont labels and decorated
+window-manager behavior remain open gates.
