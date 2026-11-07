@@ -28,6 +28,12 @@ public class Menus115 {
             check(actions==before+1,"menu activation");
             before=changes; click(menu); Thread.sleep(150); click(toggle); Thread.sleep(400);
             check(changes==before+1 && toggle.getState(),"checkbox menu activation");
+            PopupMenu popup=new PopupMenu("Popup"); MenuItem popupItem=new MenuItem("Popup action");
+            popupItem.addActionListener(new ActionListener() { public void actionPerformed(ActionEvent event) { actions++; } });
+            popup.add(popupItem); content.add(popup); before=actions;
+            popup.show(content,20,20); Thread.sleep(150); click(popupItem); Thread.sleep(400);
+            check(actions==before+1,"popup activation");
+            popup.show(content,30,25); Thread.sleep(100); content.remove(popup);
             toggle.setState(false); item.setLabel("Renamed"); item.setEnabled(false);
             menu.remove(item); menu.add(new MenuItem("Replacement"));
             frame.setMenuBar(null); check(frame.getInsets().top==0,"menu bar detach inset");

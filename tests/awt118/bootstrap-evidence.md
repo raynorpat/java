@@ -279,3 +279,19 @@ changes, attach/detach and frame disposal from an action over four cycles.
 All 20 focused Linux Debug tests pass (88.00 seconds), with 156 bindings.
 Popup menus, full shortcut/input semantics, multifont labels and decorated
 window-manager behavior remain open gates.
+
+## Owned window and popup checkpoint
+
+Release 0x2af14..0x2b594 supplies six owned-window bindings and
+0x288e0/0x28cd4/0x28e74 supplies popup creation, positioning and disposal.
+OwnedWindow115 failed at create, then verified position, resize, painting,
+hide/show, stacking and callback disposal over six cycles. Menus115 failed at
+popup createMenu, then reproduced a disposal crash. GDB located a freed active
+item in Motif ClearTraversalInternal while its parent popup was closing.
+Retiring an item now first unmanages its active popup/pulldown parent, while
+the traversal target remains alive. Programmatic popup selection and removal
+while open pass over four cycles. The current popup path synthesizes its
+position event; native mouse-trigger metadata remains part of the input gate.
+All 21 focused Linux Debug tests pass (95.71 seconds), with 165 bindings.
+Decorated-window geometry, security warning banners and full modal/input
+semantics remain open; the owned-window check uses Xvfb without a window manager.

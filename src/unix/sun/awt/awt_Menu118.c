@@ -4,6 +4,7 @@
 #include "sun_awt_motif_MMenuPeer.h"
 #include "sun_awt_motif_MMenuItemPeer.h"
 #include "sun_awt_motif_MCheckboxMenuItemPeer.h"
+#include "sun_awt_motif_MPopupMenuPeer.h"
 #include "java_awt_MenuItem.h"
 #include "java_awt_Menu.h"
 #include <Xm/RowColumn.h>
@@ -11,6 +12,7 @@
 #include <Xm/PushB.h>
 #include <Xm/ToggleB.h>
 #include <Xm/SeparatoG.h>
+#include <Xm/Label.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -18,6 +20,7 @@ typedef struct {
     Widget widget,pulldown;
     AwtPeer *frame;
 } AwtMenu;
+static Widget active_popup;
 
 /* Both audited peer layouts put the native pData word first. */
 static AwtMenu *record(HObject *peer)
@@ -34,6 +37,7 @@ static AwtMenu *allocate(HObject *peer)
 static void destroyed(Widget widget,XtPointer closure,XtPointer call)
 {
     AwtMenu *data=(AwtMenu *)closure;
+    if (active_popup==widget) active_popup=NULL;
     if (data->frame && data->frame->menuBar==widget) data->frame->menuBar=NULL;
     if (data->widget==widget) data->widget=NULL;
     if (data->pulldown==widget) data->pulldown=NULL;
@@ -41,8 +45,15 @@ static void destroyed(Widget widget,XtPointer closure,XtPointer call)
 static void dispose(HObject *peer)
 {
     AwtMenu *data=record(peer);
+    Widget parent;
+    unsigned char type;
     if (!data) return;
     *(long *)unhand(peer)=0;
+    if (data->widget && (parent=XtParent(data->widget))!=NULL && XmIsRowColumn(parent) && XtIsManaged(parent)) {
+        XtVaGetValues(parent,XmNrowColumnType,&type,NULL);
+        if (type==XmMENU_POPUP || type==XmMENU_PULLDOWN) XtUnmanageChild(parent);
+    }
+    if (data->pulldown && XtIsManaged(data->pulldown)) XtUnmanageChild(data->pulldown);
     if (data->pulldown) XtDestroyWidget(data->pulldown);
     if (data->widget) XtDestroyWidget(data->widget);
     if (data->frame) awt118_release_peer(data->frame);
@@ -162,3 +173,56 @@ void sun_awt_motif_MCheckboxMenuItemPeer_pSetState(Hsun_awt_motif_MCheckboxMenuI
 { Widget widget; AWT_LOCK(); widget=awt118_menu_widget((HObject *)self); if (widget) XmToggleButtonSetState(widget,state!=0,False); AWT_UNLOCK(); }
 long sun_awt_motif_MCheckboxMenuItemPeer_getState(Hsun_awt_motif_MCheckboxMenuItemPeer *self)
 { Widget widget; long state=0; AWT_LOCK(); widget=awt118_menu_widget((HObject *)self); if (widget) state=XmToggleButtonGetState(widget); AWT_UNLOCK(); return state; }
+
+/* Release 288e0/28cd4/28e74: popup menus use the same item hierarchy. */
+void sun_awt_motif_MPopupMenuPeer_createMenu(Hsun_awt_motif_MPopupMenuPeer *self,Hsun_awt_motif_MComponentPeer *parent)
+{
+    AwtPeer *owner;
+    AwtMenu *data;
+    XmString text;
+    Widget heading;
+    Hjava_awt_MenuItem *target=unhand(self)->target;
+    AWT_LOCK(); owner=awt118_peer(parent);
+    if (!owner || !owner->widget) SignalError(EE(),"java/lang/NullPointerException",NULL);
+    else if ((data=allocate((HObject *)self))!=NULL) {
+        data->widget=data->pulldown=XmCreatePopupMenu(owner->widget,"popup",NULL,0);
+        XtAddCallback(data->widget,XmNdestroyCallback,destroyed,data);
+        XtUngrabButton(owner->widget,AnyButton,AnyModifier);
+        XtUngrabPointer(owner->widget,CurrentTime);
+        if (unhand(target)->label) {
+            text=label(unhand(target)->label);
+            heading=XtVaCreateManagedWidget("title",xmLabelWidgetClass,data->widget,XmNlabelString,text,NULL);
+            XmStringFree(text); font(heading,target);
+            if (javaStringLength(unhand(target)->label)) {
+                Widget separator=XmCreateSeparatorGadget(data->widget,"separator",NULL,0);
+                XtManageChild(separator);
+            }
+        }
+        XtSetSensitive(data->widget,unhand(target)->enabled);
+    }
+    AWT_UNLOCK();
+}
+void sun_awt_motif_MPopupMenuPeer_pShow(Hsun_awt_motif_MPopupMenuPeer *self,struct Hjava_awt_Event *event,
+    long x,long y,Hsun_awt_motif_MComponentPeer *parent)
+{
+    AwtMenu *data;
+    AwtPeer *owner;
+    XButtonEvent button;
+    Position rootX,rootY;
+    AWT_LOCK(); data=record((HObject *)self); owner=awt118_peer(parent);
+    if (!data || !data->widget || !owner || !owner->widget) SignalError(EE(),"java/lang/NullPointerException",NULL);
+    else if (!XtIsRealized(owner->widget)) SignalError(EE(),"java/lang/InternalError","Widget not visible");
+    else {
+        if (active_popup && active_popup!=data->widget) XtUnmanageChild(active_popup);
+        memset(&button,0,sizeof(button)); XtTranslateCoords(owner->widget,x,y,&rootX,&rootY);
+        button.type=ButtonPress; button.display=awt_display; button.window=XtWindow(owner->widget);
+        button.root=RootWindow(awt_display,awt_screen); button.x=x; button.y=y;
+        button.x_root=rootX; button.y_root=rootY; button.button=Button3;
+        button.time=XtLastTimestampProcessed(awt_display); button.same_screen=True;
+        XmMenuPosition(data->widget,&button); XtManageChild(data->widget);
+        active_popup=data->widget; XFlush(awt_display);
+    }
+    AWT_UNLOCK();
+}
+void sun_awt_motif_MPopupMenuPeer_pDispose(Hsun_awt_motif_MPopupMenuPeer *self)
+{ AWT_LOCK(); dispose((HObject *)self); AWT_UNLOCK(); }
