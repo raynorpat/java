@@ -206,3 +206,23 @@ replacement and disposal while holding an embedded scrollbar. That final case
 reproduced the stale Xt keyboard grab with VertScrollBar in GDB. Grab retirement
 now recognizes ancestor disposal and tracks the scrollbar's destruction callback.
 All 17 focused Linux Debug tests pass, with 118 Motif bindings implemented.
+
+## Graphics primitive and text checkpoint
+
+Release 0x2ec44..0x2fbe0 recovers lines, rectangles, arcs/ovals, rounded rectangles,
+polygons, copying and XOR/paint mode. Helpers 0x2e334 and 0x2f7a8 establish angle
+normalization, polygon closure and translated X11 points. Text paths at
+0x2e7cc..0x2eaa8 and 0x3240c preserve byte order, the single-font 1024-character
+limit and multifont segment advances. Native arrays are bounds-checked without
+signed overflow, and temporary polygon storage is freed on retired graphics.
+
+Raster115 first failed at drawLine, then at drawMFCharsSegment. It now compares
+exact server pixels for primitive geometry, XOR reversibility, copying and
+translated clips over five allocation/disposal cycles. String, char-array,
+byte-array and direct single-font renders have identical nonempty pixel rasters.
+A further RED empty-clip test found a retained height; release 0x2f4c4 confirms
+both dimensions become zero. Modular coordinates and X11's 16-bit clip storage
+are retained explicitly, including the tested truncation boundary.
+All 18 focused Linux Debug tests pass; 134 Motif bindings are implemented.
+Offscreen images, image delivery/scaling, complete multifont/locale behavior,
+printing and remaining window/input peers are still open Phase 6 gates.

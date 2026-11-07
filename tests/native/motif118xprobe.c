@@ -2,6 +2,7 @@
 #include "awt118.h"
 #include "java_awt_Component.h"
 #include "sun_awt_motif_MComponentPeer.h"
+#include "sun_awt_motif_X11Graphics.h"
 #include <X11/extensions/XTest.h>
 #include <X11/keysym.h>
 #include <Xm/ToggleB.h>
@@ -220,4 +221,26 @@ JAVA_PUBLIC_API(stack_item *) Java_Window115_pixel_stub(stack_item *p,struct exe
     AWT_UNLOCK();
     p[0].i=pixel;
     return p+1;
+}
+
+JAVA_PUBLIC_API(stack_item *) Java_Raster115_pixels_stub(stack_item *p,struct execenv *ee)
+{
+    XImage *image;
+    HArrayOfInt *pixels;
+    int x,y,width=p[3].i,height=p[4].i;
+    AWT_LOCK();
+    image=XGetImage(awt_display,XtWindow(widget(p[0].p)),p[1].i,p[2].i,width,height,AllPlanes,ZPixmap);
+    pixels=(HArrayOfInt *)ArrayAlloc(T_INT,width*height);
+    if (image && pixels) {
+        for (y=0;y<height;y++) for (x=0;x<width;x++) unhand(pixels)->body[y*width+x]=XGetPixel(image,x,y);
+    }
+    if (image) XDestroyImage(image);
+    p[0].p=pixels;
+    AWT_UNLOCK(); return p+1;
+}
+
+JAVA_PUBLIC_API(stack_item *) Java_Raster115_singleFont_stub(stack_item *p,struct execenv *ee)
+{
+    sun_awt_motif_X11Graphics_drawSFChars(p[0].p,p[1].p,p[2].i,p[3].i,p[4].i,p[5].i);
+    return p;
 }

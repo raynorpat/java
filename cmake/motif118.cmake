@@ -139,4 +139,10 @@ if(UNIX AND NOT APPLE)
     "-DLIBDIR=$<TARGET_FILE_DIR:awt>" -DCLASS=ScrollPane115
     -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
   set_tests_properties(motif118-scrollpane PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+  add_test(NAME motif118-raster COMMAND ${CMAKE_COMMAND}
+    "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
+    "-DJAVA=$<TARGET_FILE:java>" "-DJAVAC=$<TARGET_FILE:javac>"
+    "-DLIBDIR=$<TARGET_FILE_DIR:awt>" -DCLASS=Raster115
+    -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
+  set_tests_properties(motif118-raster PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
 endif()
