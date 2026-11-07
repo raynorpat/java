@@ -242,3 +242,23 @@ row callback; delivery stops safely. Retained graphics also tolerate image flush
 All 19 focused Linux Debug Motif tests pass (67.16 seconds). Incoming pixel
 conversion, transparency, scaling, other visuals and the full platform/demo
 gates remain open; this checkpoint does not complete Task 5 or Phase 6.
+
+## Producer image checkpoint
+
+Release 0x336a4/0x338a0 supplies source/array bounds and conversion; 0x33a98
+supplies finish/resend behavior. The generic Java ColorModel.getRGB path feeds
+the X11 visual. Alpha uses the ordered matrix from 0x36630 and its transposed
+lookup at 0x3b6d0. Coverage distinguishes undelivered, transparent and opaque
+pixels. image_Done supplies coarse scanline replication for COMPLETESCANLINES.
+Drawing follows 0x33b58 and 0x35a34, including XOR, background, clipping and
+center-sampled reflection. It skips images without the original availability bits.
+
+Image115 failed first at setIntPixels, then transparency, then imageStretch.
+Expanded checks cover exact RGB/indexed pixels, transparent backgrounds, XOR
+reversibility, scaled/flipped rectangles, incremental row replication and bounds.
+A getRGB callback flushes the image and forces GC: native conversion stops after
+one callback. The unchanged Java setPixels then throws NullPointerException
+because bytecode 88..122 unconditionally reads newbits cleared by flush; the
+fixture records that behavior rather than silently changing the baseline class.
+All 19 focused Linux Debug tests pass (71.37 seconds), with 143 bindings.
+Image codecs, other visuals, complete fonts and printing still require validation.

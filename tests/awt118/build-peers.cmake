@@ -29,7 +29,7 @@ file(STRINGS "${OUT}/native-classes.txt" native_classes)
 set(image_classes sun.awt.image.ImageRepresentation sun.awt.image.OffScreenImageSource)
 execute_process(COMMAND "${JAVAH}" -classpath "${cp}" -d "${OUT}/generated" ${classes}
   java.awt.Component java.awt.Button java.awt.Canvas java.awt.Window java.awt.Frame java.awt.Checkbox java.awt.Scrollbar java.awt.TextArea java.awt.ScrollPane
-  java.awt.Font sun.awt.FontDescriptor java.awt.Insets java.awt.Color java.awt.Cursor java.awt.AWTEvent
+  java.awt.Font sun.awt.FontDescriptor java.awt.Insets java.awt.Color java.awt.Cursor java.awt.AWTEvent java.awt.Rectangle
   ${image_classes}
   RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 120)
 require_success("Generate baseline-layout peer headers")

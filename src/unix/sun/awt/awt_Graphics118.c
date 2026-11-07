@@ -403,15 +403,105 @@ void sun_awt_image_ImageRepresentation_imageDraw(Hsun_awt_image_ImageRepresentat
     AwtImage *source;
     AwtGraphics *data;
     Hsun_awt_motif_X11Graphics *destination=(Hsun_awt_motif_X11Graphics *)target;
+    int row,start,end,state;
     if (!target) { SignalError(EE(),"java/lang/NullPointerException",NULL); return; }
     if (obj_classblock((HObject *)target)!=FindClass(EE(),"sun/awt/motif/X11Graphics",TRUE)) {
         SignalError(EE(),"java/lang/IllegalArgumentException",NULL); return;
     }
+    if (!self || (unhand(self)->availinfo&11)!=11) return;
     AWT_LOCK(); data=graphics(destination); source=awt118_image(self,NULL);
     if (data && source && !source->retired) {
-        XCopyArea(awt_display,source->pixmap,data->drawable,data->gc,0,0,source->width,source->height,
-            x+unhand(destination)->originX,y+unhand(destination)->originY);
+        x=(long)((unsigned long)x+(unsigned long)unhand(destination)->originX);
+        y=(long)((unsigned long)y+(unsigned long)unhand(destination)->originY);
+        for (row=0;row<source->height;row++) for (start=0;start<source->width;start=end) {
+            state=source->coverage ? source->coverage[row*source->width+start] : 2;
+            for (end=start+1;end<source->width && (!source->coverage || source->coverage[row*source->width+end]==state);end++);
+            if (state==2) {
+                if (data->xorMode) {
+                    XSetForeground(awt_display,data->gc,data->xorPixel);
+                    XFillRectangle(awt_display,data->drawable,data->gc,x+start,y+row,end-start,1);
+                }
+                XCopyArea(awt_display,source->pixmap,data->drawable,data->gc,start,row,end-start,1,x+start,y+row);
+            } else if (state==1 && background && !data->xorMode) {
+                XSetForeground(awt_display,data->gc,awt118_pixel(unhand(background)->value));
+                XFillRectangle(awt_display,data->drawable,data->gc,x+start,y+row,end-start,1);
+            }
+        }
+        XSetForeground(awt_display,data->gc,data->foreground ^ (data->xorMode ? data->xorPixel : 0));
         XFlush(awt_display);
     }
+    AWT_UNLOCK();
+}
+
+/* Release 2fd1c/35a34: center-sampled stretching, clipping and reflection. */
+void sun_awt_image_ImageRepresentation_imageStretch(Hsun_awt_image_ImageRepresentation *self,
+    struct Hjava_awt_Graphics *target,long dx1,long dy1,long dx2,long dy2,
+    long sx1,long sy1,long sx2,long sy2,Hjava_awt_Color *background)
+{
+    Hsun_awt_motif_X11Graphics *destination=(Hsun_awt_motif_X11Graphics *)target;
+    AwtGraphics *data;
+    AwtImage *source;
+    XImage *input=NULL,*output=NULL;
+    unsigned char *paint=NULL;
+    Window root;
+    int gx,gy,left,top,right,bottom,x,y,sx,sy,start,end,state;
+    unsigned int width,height,border,depth;
+    long swap;
+    long long x1,x2,y1,y2;
+    long double sample;
+    unsigned long pixel;
+    if (!target) { SignalError(EE(),"java/lang/NullPointerException",NULL); return; }
+    if (obj_classblock((HObject *)target)!=FindClass(EE(),"sun/awt/motif/X11Graphics",TRUE)) {
+        SignalError(EE(),"java/lang/IllegalArgumentException",NULL); return;
+    }
+    if (!self || (unhand(self)->availinfo&11)!=11) return;
+    if (dx1==dx2 || dy1==dy2 || sx1==sx2 || sy1==sy2) return;
+    if (dx1>dx2) { swap=dx1; dx1=dx2; dx2=swap; swap=sx1; sx1=sx2; sx2=swap; }
+    if (dy1>dy2) { swap=dy1; dy1=dy2; dy2=swap; swap=sy1; sy1=sy2; sy2=swap; }
+    AWT_LOCK(); data=graphics(destination); source=awt118_image(self,NULL);
+    if (!data || !source || source->retired) goto done;
+    if (!XGetGeometry(awt_display,data->drawable,&root,&gx,&gy,&width,&height,&border,&depth)) goto done;
+    x1=(long long)dx1+unhand(destination)->originX; x2=(long long)dx2+unhand(destination)->originX;
+    y1=(long long)dy1+unhand(destination)->originY; y2=(long long)dy2+unhand(destination)->originY;
+    if (x1>=width || y1>=height || x2<=0 || y2<=0) goto done;
+    left=x1<0 ? 0 : x1; top=y1<0 ? 0 : y1;
+    right=x2>width ? width : x2; bottom=y2>height ? height : y2;
+    if (data->clipped) {
+        if (left<data->clip.x) left=data->clip.x;
+        if (top<data->clip.y) top=data->clip.y;
+        if (right>data->clip.x+data->clip.width) right=data->clip.x+data->clip.width;
+        if (bottom>data->clip.y+data->clip.height) bottom=data->clip.y+data->clip.height;
+    }
+    if (right<=left || bottom<=top) goto done;
+    input=XGetImage(awt_display,source->pixmap,0,0,source->width,source->height,AllPlanes,ZPixmap);
+    output=XCreateImage(awt_display,awt_visInfo.visual,awt_visInfo.depth,ZPixmap,0,NULL,right-left,1,32,0);
+    if (output) output->data=(char *)calloc(1,output->bytes_per_line);
+    paint=(unsigned char *)malloc(right-left);
+    if (!input || !output || !output->data || !paint) {
+        SignalError(EE(),"java/lang/OutOfMemoryError",NULL); goto done;
+    }
+    for (y=top;y<bottom;y++) {
+        sample=sy1+((long double)y-y1+0.5L)*((long double)sy2-sy1)/(y2-y1);
+        sy=sample<0 || sample>=source->height ? -1 : (int)sample;
+        for (x=left;x<right;x++) {
+            sample=sx1+((long double)x-x1+0.5L)*((long double)sx2-sx1)/(x2-x1);
+            sx=sample<0 || sample>=source->width ? -1 : (int)sample;
+            state=sx<0 || sy<0 ? 1 : source->coverage ? source->coverage[sy*source->width+sx] : 2;
+            paint[x-left]=state==2 || (state==1 && background && !data->xorMode);
+            if (paint[x-left]) {
+                pixel=state==2 ? XGetPixel(input,sx,sy) : awt118_pixel(unhand(background)->value);
+                XPutPixel(output,x-left,0,pixel ^ (data->xorMode ? data->xorPixel : 0));
+            }
+        }
+        for (start=0;start<right-left;start=end) {
+            for (end=start+1;end<right-left && paint[end]==paint[start];end++);
+            if (paint[start]) XPutImage(awt_display,data->drawable,data->gc,output,start,0,left+start,y,end-start,1);
+        }
+    }
+    XFlush(awt_display);
+done:
+    free(paint);
+    if (input) XDestroyImage(input);
+    if (output) XDestroyImage(output);
     AWT_UNLOCK();
 }
