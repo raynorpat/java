@@ -469,3 +469,270 @@ uses the unchanged AppletViewer init/parse APIs through a tiny test driver,
 so it does not interact with the separate first-run copyright dialog or
 write acceptance settings. Native demo fixtures reject that unexpected
 startup dialog before sending input.
+
+Post-fix integrated gates:
+- Full Windows Debug passed 165/165 in 165.52 seconds, including the previously
+  hanging WindowState115, all three focus fixtures, and seven demo-runner
+  rejection/ownership fixtures. Log: out/phase4-complete-win-debug-tests.log.
+- Linux Release and Debug after the resource integration each passed 108
+  tests plus the expected audio-device skip (38.57s and 50.64s). Logs:
+  out/phase4-complete-linux-{release,debug}-tests.log.
+- Reinstalled Windows Debug and Release images each passed 13 AWT cases and
+  all eight resource hash checks. Logs:
+  out/phase4-complete-image-{debug,release}-awt.log.
+- The first broad demo batch was discarded as input evidence when lightweight
+  button action logs showed that synthetic clicks targeted an ancestor HWND.
+  The corrected harness must hit-test the actual owned child window and
+  verify action output before the final all-demo gate can close.
+
+Unchanged demos exposed shared VM resolution gaps:
+- RoundButtons/OpenlookButtons failed in AppletPanel.createApplet with an
+  empty NoSuchMethodError. Class.newInstance omitted ResolveClass before
+  constructor lookup for loadClass(false). Original javai_g 1000B81A performs
+  this step. Resources now creates a fresh custom-loaded unresolved class;
+  Sun passed, reconstruction failed, and commit8303263 restores the step.
+- SpreadSheet failed with VerifyError for [[LCell;: its synthetic constant
+  pool was incorrectly passed to the class-file verifier. Original javai_g
+  10010E9B skips RuntimeInitClass for arrays and resolves their component.
+  Resources now also creates a multidimensional array of its custom-loaded
+  payload. Sun passed; reconstruction reproduced the same constant-pool
+  error. Commitb83948b restores the array resolution path. Seven focused
+  reflection/resource/class-init/self-host checks passed in each Windows
+  configuration (Release3.73s, Debug6.64s).
+- The first final demo batch captured162 launches, with143 strict successes:
+  eight plain-Frame mains per origin have no close listener, JumpingBox's
+  original malformed HTML prevents parser completion in both origins, and
+  the reconstructed SpreadSheet failed as above. These are raw results,
+  not a completion claim; narrow cleanup/parser rulings and focused replay
+  remain required.
+- Visual review covers every window in24 contact sheets (96 window rows).
+  Drawing lines, fractal refinement, ArcTest fill, CardTest layout changes,
+  GraphicsTest navigation and TicTacToe moves are visible in both origins.
+  Random graph layouts and intermediate sorting/animation frames differ
+  naturally. Multi-window ordinal order is not a stable model identity.
+  ImageMap/eventmodel hover and SymbolTest keyboard delivery require a
+  corrected input replay. WireFrame2/3 need a longer render-settling check.
+  Locale/timezone differences are real missing system-property behavior,
+  not accepted as pixel variation, and are being corrected.
+- A reported BarChart shadow mismatch was rejected after full-resolution
+  verification: all four before/after content pairs across both versions
+  are byte-identical and contain the black shadows (2022before/2040after
+  black pixels). No speculative graphics change was made.
+
+Locale/timezone correction (5a7a0d1):
+- Windows System.initProperties omitted user.language, user.region,
+  file.encoding and user.timezone. This made Clock five hours ahead of the
+  host and selected different defaults in the i18n demos. The reconstruction
+  now follows javai_g 1003C6E0's LC_CTYPE parsing and timezone-name lookup.
+- Independent review compared all245 ordered mappings directly with IDA:
+  language106 at10076B48, region86 at10076EA0, encoding25 at10077158,
+  timezone28 at10077228. Unknown names and no-DST status retain Sun's GMT
+  fallback; this is the historical mapping, not a modern timezone database.
+- The regression first failed with missing user.language. Sun reports host
+  en_US/8859_1/EST. A process-local native fixture temporarily patches the VM
+  imports, calls its exported initializer and restores the imports, testing
+  eleven locale/region/encoding/timezone cases without changing host settings.
+  Explicit -D overrides remain last. Seven scoped tests pass in both configs;
+  logs are out/phase4-locale-{debug,release}.log.
+- Latest Linux Release and Debug suites pass108 tests plus the expected
+  audio-device skip in37.96s/54.79s; logs:
+  out/phase4-final-linux-{release,debug}-{build,tests}.log.
+- Exact166-export audits pass both Windows configurations after these fixes.
+- A scratch WireFrame probe accidentally triggered javac's implicit source
+  compilation. Its four changed reference classes were restored from the
+  pristine local Sun distribution before replay. Every shipped demo file was
+  then SHA256-compared against that distribution with zero differences; the
+  scratch probe result is excluded from evidence.
+
+Final platform verification after the shared VM fixes:
+- Windows Release:117 non-GUI tests in33.40s and49 AWT tests in117.76s,
+  all166 passed. Debug:117 non-GUI tests in36.49s and49 AWT tests in128.67s,
+  all166 passed. The complementary CTest filters were -E '^awt-' and
+  -R '^awt-' so GUI desktop ownership remained serial with the demo worker.
+  Logs: out/phase4-final-win-{release,debug}-{core,gui}-tests.log.
+- The AWT partition includes the nine native runner fixtures, covering
+  nested child input, animation pause, blank/hung/missing/error windows,
+  an input-time watchdog and unexpected copyright notices. The unrelated
+  sentinel remains alive after each child-specific cleanup.
+- The corrected physical-hover guard discovered a real environment blocker:
+  WindowFromPoint returned PickerHost.exe's Shell_SystemDim window instead
+  of the owned applet. Its command line identifies a Windows Firewall
+  notification dialog. Input was rejected rather than sent through a foreign
+  window. The user has been asked to dismiss that security prompt; no firewall
+  permission or host security setting was changed by the agent.
+  Diagnostic: out/phase4-demo-hover-diagnostic/Sun/html-ImageMap_example1/
+  input-trace.log. This remains a validation blocker, not a passing hover gate.
+
+Focused demo replay closures:
+- SymbolTest's Sun grid now changes to2200 in both HTML and standalone
+  launches. Sun queues character edits through Java before replaying them
+  to EDIT; the harness now observes the completed text before sending Return.
+  After-grid labels match the reconstruction. The standalone capture has
+  incomplete header/status painting under the covering system dialog, so it
+  is not yet evidence of complete unobstructed raster parity.
+- Removing forced repaint immediately before capture and allowing the large
+  model to settle closes WireFrame2/3: both before client images are300x303
+  and contain zero differing pixels against Sun. Model3D input data was also
+  checked read-only after restoring originals: both runtimes report555vertices,
+  1613connections and identical vertex/connection hashes for the dinosaur.
+- MoleculeViewer's four-window and SortDemo's three-window replay now keeps
+  HWND identity stable across before/after captures. All eight paired model
+  launches completed without exceptions or harness failures.
+- DitherTest now changes the Horizontal choice from Red to Green before
+  clicking New Image, rather than regenerating an indistinguishable gradient.
+  All eight HTML/main/version launches pass with the expected green/blue
+  after-image. The1.1 HTML after pair differs in958/171275pixels (0.5593%),
+  including native control focus decoration; the gradient visibly matches.
+- Four alternative.PictureFrame mains hardcode Beeper.gif, which is absent
+  from the shipped tree. Their matching blank image area, border and captions
+  are recorded as original missing-asset behavior, not successful photo
+  rendering. Vendor inputs remain unchanged.
+
+Validation follow-up: the blank native controls are not yet attributable only
+to desktop occlusion. Original begin/end validation uses BeginDeferWindowPos /
+EndDeferWindowPos (javai-independent winawt_g10009532/10009556), dispatched
+from100061E9 via the component vtable. Original reshape10005F77 uses0x114
+position flags, including SWP_NOCOPYBITS. Reconstruction instead suppressed
+WM_SETREDRAW and invalidated only the parent. Validation115 first passes on
+Sun and fails on reconstruction with "validation showed hidden frame":
+WM_SETREDRAW(TRUE) exposes a previously hidden peer during validation.
+The production layout path is being corrected and must pass natural-paint
+and deferred-position regressions before the last visual gate can close.
+Earlier complete-suite counts above are the pre-layout-correction checkpoint.
+
+The corrected positioning path passes Validation115 against Sun and the
+reconstructed Debug library, but also exposes an existing HWND lifetime bug
+in ReentrantPeers115. During native ListBox painting, the owner-draw getItem
+callback disposes the peer and destroys its HWND; USER32 then resumes its
+paint procedure using freed control state. The C++ callback lease preserves
+the peer object but cannot preserve USER32's window allocation. CDB captures
+the failing native stack in out/phase4-validation-reentrant-stacks.log.
+The fix must detach the Java peer immediately while retaining the native
+window until the active native procedure returns. This regression remains
+part of the release gate; suppressing repaint or bypassing the case is not
+an acceptable closure.
+
+Validation/lifetime correction: Dispose detaches pData immediately and uses
+a native-only retirement window procedure while an original control procedure
+is active. Its initial native owner reference remains queued until that
+procedure returns, then DestroyWindow and Release drain the queue. Retired
+dispatch never accesses Java; live parent routing rejects retired children
+before creating leases or invoking callbacks. WM_NCDESTROY clears the saved
+HWND so parent-first destruction cannot later destroy a reused child handle.
+This is a safety correction for reentrant control callbacks, not a claim that
+the original binary safely supported every such callback.
+
+The final Validation115 also covers repeated begin/end, deferred own-peer
+bounds, natural initial and resize painting, and disposal with pending bounds.
+Repeated begin reuses the active batch rather than leaking Sun's overwritten
+handle. Pixel observation uses one read-only DIB capture; it never invalidates
+or forces painting. Final scoped Debug six tests repeated three times pass
+(18 runs,32.38s); Release six tests pass (8.11s). The other five tests are
+WindowState115, Lifecycle115, ScrollPane115, ReentrantPeers115 and PaneRace115.
+Logs: out/phase4-validation-{debug,release}-tests.log. Independent review
+accepted this patch with no actionable findings; broader integration and
+unforced demo replays are still required before Phase4 completion.
+
+Integrated verification for commit0b96f13: Windows Debug52/52 AWT/export
+checks pass in134.69s and Release52/52 pass in117.73s. Each partition contains
+50 AWT checks plus exact166-export parity and the original toolkit comparison.
+The previously verified117 non-AWT tests overlap those last two, giving167
+distinct Windows tests per configuration at this checkpoint. Both installed
+images pass14 AWT contracts and eight resource hashes; nine installed runtime
+PE files match the corresponding build by SHA256. Logs:
+out/phase4-layout-{debug,release}-{build,tests,install,image-tests}.log.
+The final demo helper's owned-window TOPMOST adjustment was included in the
+Release gate; its Debug helper is rebuilt and checked separately because that
+small harness change arrived during the integrated Debug run.
+
+The final Debug helper rebuild passes all nine rejection/ownership fixtures
+through awt-demo-runner (60.68s); log out/phase4-demo-final-debug-tests.log.
+Independent static review accepts the narrowly scoped TOPMOST request:
+only responsive owned move/imagemap windows are raised, with NOMOVE/NOSIZE/
+NOACTIVATE. WindowFromPoint must still resolve to the owned target or its
+owned descendant before physical motion. Results record the request and
+input-trace records SetWindowPos success; neither is treated as input success.
+No security prompt is dismissed and no repaint shortcut is introduced.
+
+Fresh unforced captures after0b96f13 close the missing-control finding:
+SymbolTest's HTML and main show font/base labels, choice/edit borders, the
+requested2200 grid and status/footer text. Dither HTML and both mains show
+restored control chrome and the requested green/blue gradient. All five i18n
+HTML/main variants render their titles, labels and controls; locale/format/
+boundary actions match the original. Clock's01:31:22/25 display matches its
+capture timestamps, closing the earlier five-hour discrepancy. Independent
+visual review covered the nine mains/Clock cases, with coordinator checks of
+the HTML variants. Example paired full-client differences are129/201200pixels
+for Symbol HTML and90/171275 for Dither1.1 HTML, largely focus/caret decoration;
+these metrics supplement visual/action inspection rather than define parity.
+
+Deferred minor: some i18n checkbox/radio captions sit approximately two pixels
+left of Sun (Collate/NumberFormat/DateTime). Their text, other controls and
+functional results match. This cosmetic discrepancy is disclosed, not silently
+treated as exact pixel equality.
+
+The complete manifest contains ten physical move/hover profiles per runtime.
+Earlier replay selection covered only five; the other five's old accepted
+captures predate the physical ownership guard and cannot close the final gate.
+All ten must be refreshed with the guard: Animator1.1/example4, Animator/example4,
+eventmodel HTML, ImageMap, both JumpingBox pages, and standalone Click0..3.
+The final replay retains environment failures when WindowFromPoint identifies
+PickerHost's Shell_SystemDim overlay even after the owned window is raised.
+
+## Latest checkpoint and remaining gate
+
+Commits0b96f13 and6a3f1ba contain the verified validation/lifetime correction
+and the complete demo/installed-image harness. The final demo aggregate has
+162 unique records:71/81 accepted for each runtime,142/162 total. Accepted
+records comprise126 captured launches and16 explicitly bounded plain-Frame
+cleanups. All20 rejected records are physical-input ownership failures against
+Shell_SystemDim/PID60580, with zero posted input messages. The two malformed
+legacy JumpingBox records additionally retain the expected-app-count parser
+diagnostic because their bounded parser policy requires demonstrated input;
+these are not new Java startup exceptions. The records are not promoted to
+passes merely because their windows render.
+
+All81 reconstructed launches were refreshed using the final production and
+helper binaries; all20 physical-input launches were refreshed on both runtimes.
+Runtime-record references and binary hashes were independently audited.
+All474 vendor demo files remain present and SHA256-identical to the pristine
+distribution. Logs are out/phase4-demos-validation-{targeted,complement,heavy}.log,
+the Sun hover replay logs, and out/phase4-demos-review-final.log. Raw commands,
+captures, input traces and results remain under out/phase4-demos-final.
+Two reviewers inspected the96 displayed window rows across24 contact sheets,
+using raw images and action logs for exceptions. Unique-title windows are
+paired across differing native class names in the scratch contact sheets.
+The main harness's raw ordinal comparison metrics do not establish semantic
+window pairing or pixel parity by themselves.
+
+MoleculeViewer/example3 required a separate controlled comparison. A fresh Sun
+baseline reproduced a fourth applet at120x80 while the others were100x100;
+another Sun run had all four100x100, proving that startup state is not invariant.
+After the same diagnostic panel invalidation/frame validation on each runtime,
+all four applets become120x80 and all four full-client before images match
+exactly. Pacing the eight drag moves at80ms yields four exact after-image
+matches too: all eight120x103 BMP pairs have zero differing pixels. Artifacts
+and commands are under out/molecule-diagnostic/{SunPaced,OursPaced}; the
+unmodified baseline captures remain separate. The shipped EventQueue.postEvent
+bytecode merges pending mouse-move/drag events with the same source/modifiers,
+consistent with the burst-input timing explanation, but the precise merged
+event sequence was not traced. Original Java/native Frame bounds also differ
+during this startup sequence, so no invariant public-bounds equality is claimed.
+The same-layout renderer and controlled-input concerns are closed without
+changing production code or the shipped demos.
+
+Phase4 remains incomplete. The physical-hover gate requires the user to dismiss
+the Windows Firewall notification overlay, then replay the ten affected cases
+on both runtimes and review their actual responses. The computer-use skill
+prohibits acting on security/privacy permission requests; no agent dismissed
+the prompt, allowed network access or changed firewall settings. All available
+code fixes and nonblocked checks are committed/verified. The approximately
+two-pixel i18n caption offset remains a disclosed cosmetic difference.
+
+A final read-only top-level enumeration found no visible Shell_SystemDim,
+but the guarded Sun ImageMap pilot still resolved both target points to
+HWND0A9B1168/Shell_SystemDim/PID60580, despite raising the owned test window.
+The direct cursor ownership result therefore keeps the gate blocked; ordinary
+top-level enumeration was insufficient evidence that the interception ended.
+The pilot sent no foreign input and did not overwrite the final aggregate.
+Artifacts: out/phase4-hover-unblocked-pilot.log and its per-case input trace.
