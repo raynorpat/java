@@ -39,6 +39,7 @@
 #include "path.h"
 
 #include "sys_api.h"
+#include "breakpoints115.h"
 
 #include "java_lang_Throwable.h"
 #include "java_lang_Thread.h"
@@ -203,6 +204,11 @@ invokeNativeMethod(JHandle *o, struct methodblock *mb, int args_size,
     }
     old_frame->optop = optop;
     TRACE_METHOD(ee, mb, args_size, TRACE_METHOD_NATIVE_RETURN);
+#ifdef DEBUG
+    /* Sun10012FAC reports exceptions crossing the native return boundary. */
+    if (exceptionOccurred(ee))
+        notify_debugger_of_exception(mb->code, ee, ee->exception.exc);
+#endif
     return !(exceptionOccurred(ee));
 }
 
@@ -228,6 +234,11 @@ invokeSynchronizedNativeMethod(JHandle *o, struct methodblock *mb, int args_size
     old_frame->optop = optop;
     monitorExit(obj_monitor(o));
     TRACE_METHOD(ee, mb, args_size, TRACE_METHOD_NATIVE_RETURN);
+#ifdef DEBUG
+    /* Sun100130AA releases the method monitor before notifying the debugger. */
+    if (exceptionOccurred(ee))
+        notify_debugger_of_exception(mb->code, ee, ee->exception.exc);
+#endif
     return !(exceptionOccurred(ee));
 }
 

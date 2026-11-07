@@ -35,13 +35,13 @@ This task establishes launch/argument behavior, not a working debug session.
 
 ## Task 2: reconstruct agent native operations
 
-- [ ] Generate Agent/BreakpointHandler headers and stubs from original classes;
+- [x] Generate Agent/BreakpointHandler headers and stubs from original classes;
   compare with manifests and the legacy BREAKPTS code in runtime/agent.c.
-- [ ] Recover the 1.1.5 implementations into a separate shared agent source
+- [x] Recover the 1.1.5 implementations into a separate shared agent source
   target, with exact exports. Audit existing VM debug hooks before changes.
-- [ ] Add original-versus-rebuilt fixtures for class/field/method enumeration,
+- [x] Add original-versus-rebuilt fixtures for class/field/method enumeration,
   slots, stack locals, line tables, object IDs, and exception stack traces.
-- [ ] Implement and verify each operation group before committing that group.
+- [x] Implement and verify each operation group before committing that group.
 
 Interfaces: original stack_item native stubs, VM debug.h services; proposed
 cmake/agent115.cmake and src/share/java/debug/agent115.c. Determine exact class
@@ -49,11 +49,11 @@ layouts and callbacks from IDA/generated headers before implementation.
 
 ## Task 3: debugger lifecycle and end-to-end sessions
 
-- [ ] Recover agent initialization, thread exclusion/suspension, callbacks,
+- [x] Recover agent initialization, thread exclusion/suspension, callbacks,
   breakpoint insertion/removal, and single-step behavior.
-- [ ] Add a bounded loopback harness and Java debuggee with known source lines;
+- [x] Add a bounded loopback harness and Java debuggee with known source lines;
   verify launch/attach, break, stack/local inspection, step, continue, and exit.
-- [ ] Repeat Windows Debug/Release and Linux; exercise disconnect/exit while
+- [x] Repeat Windows Debug/Release and Linux; exercise disconnect/exit while
   stopped and repeated sessions. Commit only demonstrated behavior.
 
 Recover configuration differences explicitly: Release agent.dll does not import
@@ -65,24 +65,28 @@ jdb launcher and reconstructed agent. Every process must be owned and bounded.
 
 ## Task 4: reconstruct Windows JDBC-ODBC bridge
 
-- [ ] Generate native signatures from sun.jdbc.odbc.JdbcOdbc and recover all
+- [x] Generate native signatures from sun.jdbc.odbc.JdbcOdbc and recover all
   69 wrappers, including parameter buffer lifetime and status arrays.
-- [ ] Add cmake/odbc115.cmake and src/win32/sun/jdbc/odbc115.c, linking odbc32.
-- [ ] Test environment/connection/statement lifecycle and invalid-DSN diagnostics
+- [x] Add cmake/odbc115.cmake and src/win32/sun/jdbc/odbc115.c, linking odbc32.
+- [x] Test environment/connection/statement lifecycle and invalid-DSN diagnostics
   against Sun first, then prepared parameters, result conversion, metadata,
   transactions, SQL NULL, truncation, and cleanup with a local driver fixture.
-- [ ] Inventory installed 32-bit drivers before selecting a temporary database
+- [x] Inventory installed 32-bit drivers before selecting a temporary database
   fixture. Record any unavailable coverage; do not call the phase complete with
   driver-dependent behavior untested. Verify exact exports; commit by group.
 
 ## Task 5: integrate and close Phase 5
 
-- [ ] Verify installed images contain reconstructed agent/jdb on both platforms
+- [x] Verify installed images contain reconstructed agent/jdb on both platforms
   and JdbcOdbc on Windows; run real debug sessions and bridge tests from images.
 - [ ] Run relevant VM regressions and complete platform suites in both configs.
 - [ ] Audit all exports and evidence, obtain branch review, resolve findings,
   and mark completion only when all Phase 5 gates pass.
 
-Status: Task 1 complete, started from merged Phase 4 commit 0d97dea. Tasks 2-5 require detailed
-binary-derived operation briefs before their implementation; no method bodies
-or driver behavior are assumed by this roadmap.
+Status: Tasks 1-4 complete. ODBC implementation and installed-image evidence
+are committed as f0ff16e and 2a47ef6; native agent recovery is 0662a2c and JNI
+exception callbacks are a3b8839. Debugger sessions and installed-image checks
+pass on Windows and Linux. Final complete regression gates remain in progress.
+Native recovery evidence is in tests/native/agent115-evidence.md,
+tests/native/debugger115-evidence.md, and tests/odbc/PROVENANCE.md. Phase 5 began
+from merged Phase 4 commit 0d97dea.

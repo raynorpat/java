@@ -129,6 +129,10 @@ target_link_libraries(javai zlib115 ${sys_libs})
 
 add_executable(java src/share/java/javai/java_stub.c)
 target_link_libraries(java javai)
+# The unchanged RemoteAgent class launches java.home/bin/java_g.
+add_executable(java_g src/share/java/javai/java_stub.c)
+target_link_libraries(java_g javai)
+install(TARGETS java_g RUNTIME DESTINATION bin CONFIGURATIONS Debug)
 add_executable(java-rmi src/share/java/javai/rmi_cgi.c)
 set_target_properties(java-rmi PROPERTIES SUFFIX ".cgi")
 install(TARGETS java-rmi RUNTIME DESTINATION bin)
@@ -175,6 +179,10 @@ endforeach()
 
 # --- Smoke tests (ctest -C Release). Classes are prebuilt with JDK 1.1.5 javac (class file 45.3). ---
 enable_testing()
+include(cmake/agent115.cmake)
+include(cmake/odbc115.cmake)
+include(cmake/debugger115.cmake)
+include(cmake/debugger-jni115.cmake)
 add_test(NAME tools-jdb115 COMMAND ${CMAKE_COMMAND}
   "-DTOOL=$<TARGET_FILE:jdb>" "-DFIXTURES=${CMAKE_SOURCE_DIR}/tests/tools"
   "-DLIBDIR=$<TARGET_FILE_DIR:net>"

@@ -256,12 +256,28 @@ void sysThreadYield(void)
 
 int sysThreadSuspend(sys_thread_t *t)
 {
-    return SuspendThread(t->handle) == (DWORD) -1 ? SYS_ERR : SYS_OK;
+    /* Sun javai_g.dll1004CDD9: publish self-suspension before stopping,
+     * restore the old state on failure, and publish external suspension after. */
+    thread_state_t previous = t->state;
+    if (t == sysThreadSelf()) t->state = SUSPENDED;
+    if (SuspendThread(t->handle) == (DWORD)-1) {
+        t->state = previous;
+        return SYS_ERR;
+    }
+    t->state = SUSPENDED;
+    return SYS_OK;
 }
 
 int sysThreadResume(sys_thread_t *t)
 {
-    return ResumeThread(t->handle) == (DWORD) -1 ? SYS_ERR : SYS_OK;
+    DWORD count;
+    /* Sun1004CE42 drains the native suspend count with one Java resume. */
+    t->state = RUNNABLE;
+    do {
+        count = ResumeThread(t->handle);
+        if (count == (DWORD)-1) return SYS_ERR;
+    } while (count > 1);
+    return SYS_OK;
 }
 
 /* Primary javai_g.dll 1004cdaa/1004cdc7/1004cdbc contain only return 0,
