@@ -13,12 +13,13 @@ struct AwtSurface {
     HBITMAP bitmap;
     HGDIOBJ oldBitmap;
     DWORD *bits;
-    BYTE *alpha;
+    BYTE *alpha, *coverage, *rows;
+    unsigned remaining;
     int width, height;
     COLORREF background;
     BOOL ownsDC, finished;
     AwtSurface(AwtComponent *c) : component(c), references(1), dc(NULL),
-        bitmap(NULL), oldBitmap(NULL), bits(NULL), alpha(NULL), width(0), height(0),
+        bitmap(NULL), oldBitmap(NULL), bits(NULL), alpha(NULL), coverage(NULL), rows(NULL), remaining(0), width(0), height(0),
         background(RGB(255,255,255)), ownsDC(FALSE), finished(FALSE) {}
     ~AwtSurface();
     void Release() { if (!--references) delete this; }

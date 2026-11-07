@@ -7,6 +7,7 @@ public class Images115 {
         if (!grab.grabPixels(5000)) throw new RuntimeException("pixel production " + grab.getStatus());
         return result;
     }
+    /* The 32-bpp Sun sendPixels branch repeats source blue in all channels. */
     static void color(int[] p,int w,int x,int y,int rgb) {
         if ((p[y*w+x]&0xffffff) != (rgb&255)*0x10101) throw new RuntimeException("pixel " + x+","+y+" = "+Integer.toHexString(p[y*w+x]));
     }

@@ -28,6 +28,9 @@ AwtSurface *awtImageSurface(Hsun_awt_image_ImageRepresentation *image,BOOL creat
     if (!s->dc || !s->bitmap) { delete s; return NULL; }
     s->oldBitmap=SelectObject(s->dc,s->bitmap);
     ZeroMemory(s->bits,(size_t)w*h*4);
+    s->coverage=(BYTE *)calloc((size_t)w*h,1); s->remaining=w*h;
+    if (!s->coverage) { delete s; return NULL; }
+    if (unhand(image)->hints&4) { s->rows=(BYTE *)calloc(h,1); if (!s->rows) { delete s; return NULL; } }
     unhand(image)->pData=(long)s; return s;
 }
 enum ImageOperation { INIT, PIXELS, FINISH, DISPOSE_IMAGE, SNAPSHOT, DRAW, STRETCH };
@@ -51,21 +54,28 @@ static void imageRequest(void *argument)
     if (!s) return;
     switch (r->operation) {
     case INIT:
+        free(s->coverage); s->coverage=NULL; s->remaining=0;
+        free(s->rows); s->rows=NULL;
         s->background=r->color;
         for (int i=0;i<s->width*s->height;i++) s->bits[i]=RGB(GetBValue(r->color),GetGValue(r->color),GetRValue(r->color));
         unhand(r->peer)->availinfo=43; r->result=TRUE; break;
     case PIXELS: {
         int sw=unhand(r->peer)->srcW,sh=unhand(r->peer)->srcH;
         if (sw <= 0) sw=s->width; if (sh <= 0) sh=s->height;
-        GdiFlush();
+        GdiFlush(); int firstY=s->height,lastY=0,firstX=s->width,lastX=0;
         for (int y=0;y<s->height;y++) {
             int sy=(int)(((__int64)2*y+1)*sh/(2*s->height));
             if (sy < r->v[1] || sy-r->v[1] >= r->v[3]) continue;
+            firstY=min(firstY,y); lastY=y+1;
             for (int x=0;x<s->width;x++) {
                 int sx=(int)(((__int64)2*x+1)*sw/(2*s->width));
                 if (sx < r->v[0] || sx-r->v[0] >= r->v[2]) continue;
+                firstX=min(firstX,x); lastX=max(lastX,x+1);
                 DWORD pixel=r->pixels[(sy-r->v[1])*r->v[2]+sx-r->v[0]];
                 s->bits[y*s->width+x]=pixel&0xffffff;
+                if (s->coverage && !s->coverage[y*s->width+x]) {
+                    s->coverage[y*s->width+x]=1; --s->remaining;
+                }
                 /* 100251F0 + 1002B3E0: transposed 8x8 ordered alpha dither. */
                 static const BYTE dither[8][8] = {
                     {0,128,32,160,8,136,40,168},{192,64,224,96,200,72,232,104},
@@ -82,12 +92,28 @@ static void imageRequest(void *argument)
                 if (s->alpha) s->alpha[y*s->width+x]=opaque?255:0;
             }
         }
+        /* 10017071 replicates a top-down scanline into preceding missing
+         * rows, giving interlaced decoders their coarse-to-fine display. */
+        if (s->rows && firstY<lastY && firstX<lastX) {
+            for (int y=firstY-1;y>=0 && !s->rows[y];y--) {
+                memcpy(s->bits+y*s->width,s->bits+firstY*s->width,s->width*4);
+                if (s->alpha) memcpy(s->alpha+y*s->width,s->alpha+firstY*s->width,s->width);
+                if (s->coverage) for (int x=0;x<s->width;x++) {
+                    if (!s->coverage[y*s->width+x]) { s->coverage[y*s->width+x]=1; --s->remaining; }
+                }
+            }
+            int changed=firstY;
+            while (changed>0 && !s->rows[changed-1]) --changed;
+            for (int y=firstY;y<lastY;y++) s->rows[y]=1;
+            firstY=changed;
+        }
+        if (s->coverage && !s->remaining) { free(s->coverage); s->coverage=NULL; }
         Hjava_awt_Rectangle *rect=unhand(r->peer)->newbits;
         if (rect) {
-            unhand(rect)->x=(long)((__int64)r->v[0]*s->width/sw);
-            unhand(rect)->y=(long)((__int64)r->v[1]*s->height/sh);
-            unhand(rect)->width=(long)((__int64)r->v[2]*s->width/sw);
-            unhand(rect)->height=(long)((__int64)r->v[3]*s->height/sh);
+            unhand(rect)->x=firstX<s->width?firstX:0;
+            unhand(rect)->y=firstY<s->height?firstY:0;
+            unhand(rect)->width=max(0,lastX-firstX);
+            unhand(rect)->height=max(0,lastY-firstY);
         }
         r->result=TRUE; break;
     }
@@ -116,7 +142,7 @@ static void imageRequest(void *argument)
         HBRUSH xorBrush=NULL; HGDIOBJ oldBrush=NULL;
         if (xormode) { xorBrush=CreateSolidBrush(xorColor); oldBrush=SelectObject(lease.dc,xorBrush); }
         SetStretchBltMode(lease.dc,COLORONCOLOR);
-        if (!s->alpha) {
+        if (!s->alpha && !s->coverage) {
             StretchBlt(lease.dc,dx,dy,dw,dh,s->dc,sx,sy,sw,sh,xormode?0x960000:SRCCOPY);
         } else {
             BITMAPINFO info; ZeroMemory(&info,sizeof(info));
@@ -129,13 +155,13 @@ static void imageRequest(void *argument)
                 HGDIOBJ old=SelectObject(temp,bitmap); GdiFlush();
                 DWORD bg=RGB(GetBValue(r->color),GetGValue(r->color),GetRValue(r->color));
                 DWORD xorPixel=RGB(GetBValue(xorColor),GetGValue(xorColor),GetRValue(xorColor));
-                if (xormode || r->background) {
-                    for (int i=0;i<s->width*s->height;i++) bits[i]=s->alpha[i]?s->bits[i]:(xormode?xorPixel:bg);
+                if (xormode || (r->background && !s->coverage)) {
+                    for (int i=0;i<s->width*s->height;i++) bits[i]=(s->coverage && !s->coverage[i])?xorPixel:(!s->alpha || s->alpha[i])?s->bits[i]:(xormode?xorPixel:bg);
                     StretchBlt(lease.dc,dx,dy,dw,dh,temp,sx,sy,sw,sh,xormode?0x960000:SRCCOPY);
                 } else {
-                    for (int i=0;i<s->width*s->height;i++) bits[i]=s->alpha[i]?0:0xffffff;
+                    for (int i=0;i<s->width*s->height;i++) bits[i]=(!s->coverage || s->coverage[i]) && (r->background || !s->alpha || s->alpha[i])?0:0xffffff;
                     StretchBlt(lease.dc,dx,dy,dw,dh,temp,sx,sy,sw,sh,SRCAND); GdiFlush();
-                    for (int i=0;i<s->width*s->height;i++) bits[i]=s->alpha[i]?s->bits[i]:0;
+                    for (int i=0;i<s->width*s->height;i++) bits[i]=(s->coverage && !s->coverage[i])?0:(!s->alpha || s->alpha[i])?s->bits[i]:r->background?bg:0;
                     StretchBlt(lease.dc,dx,dy,dw,dh,temp,sx,sy,sw,sh,SRCPAINT);
                 }
                 GdiFlush(); SelectObject(temp,old); DeleteObject(bitmap);

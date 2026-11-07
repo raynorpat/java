@@ -15,7 +15,7 @@ AwtSurface::~AwtSurface()
     if (dc && oldBitmap) SelectObject(dc,oldBitmap);
     if (bitmap) DeleteObject(bitmap);
     if (dc && ownsDC) DeleteDC(dc);
-    free(alpha);
+    free(alpha); free(coverage); free(rows);
 }
 struct AwtGraphics {
     AwtSurface *surface;
