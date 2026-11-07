@@ -24,6 +24,9 @@ public:
     virtual void MeasureItem(MEASUREITEMSTRUCT *item) {}
     virtual void UpdateInsets(Hjava_awt_Insets *insets) {}
     void Dispose();
+    BOOL InputMessage(UINT message, WPARAM w, LPARAM l);
+    void ClearInput();
+    void ReplayInput(Hjava_awt_AWTEvent *event);
     void Retain() { InterlockedIncrement(&references); }
     void Release() { if (!InterlockedDecrement(&references)) delete this; }
     BOOL IsDisposed() const { return disposed; }
@@ -42,6 +45,10 @@ public:
     AwtSurface *surface;
     RECT pendingPaint;
     BOOL paintPending;
+    BOOL mouseInside, mouseDragged, suppressTyped;
+    DWORD lastClick;
+    POINT clickPoint;
+    int clickCount;
 protected:
     void Unlink();
     HWND hwnd;

@@ -62,7 +62,7 @@ LRESULT CALLBACK AwtToolkit::WndProc(HWND hwnd, UINT message, WPARAM w, LPARAM l
 
 LRESULT CALLBACK AwtToolkit::GetMessageHook(int code, WPARAM w, LPARAM l)
 {
-    /* Peer input preprocessing is supplied with the component implementation. */
+    /* Input is staged by the peer window procedure, including sent messages. */
     return CallNextHookEx(GetInstance().hook, code, w, l);
 }
 

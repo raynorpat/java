@@ -1,5 +1,6 @@
 public class WinAwtProbe {
     static { System.loadLibrary("awt115probe"); }
+    public static native void input(String title, boolean text, int message, int key, int x, int y);
     public static native void move(String title, int x, int y, int w, int h);
     public static native void close(String title);
     public static native void click(String title, String label);

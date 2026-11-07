@@ -342,3 +342,17 @@ Modern Save's nested filename editor requires a different test-driver lookup.
 Release and Debug FileDialog115/ScaledDelivery115 each pass 2/2 after full matching
 builds (out/phase4-file-{release,debug}-build.log). Graphics final integration
 includes ScaledDelivery115; independent Task4 review remains pending.
+
+Input slice: recovered key/mouse construction10008D49/10008ED2, native event
+handlers10007441..1000806E and synthetic/saved-message replay1000920A/10009352/
+10009956. Native messages are staged, delivered as Java events, then replayed
+only if not consumed. Opaque tokens replace raw saved MSG pointers; disposal
+reclaims pending records, making late event returns harmless. Coordinates,
+button modifiers, click counts, Unicode/ACP and typed synthetic replay covered.
+Input115 initially failed with mouse delivery0:0:0 while Sun passed. InputRetire115
+covers20 dispose/GC callbacks. Oracle getText is racy during native edits; test
+now awaits TextEvent before reading settled text. Debug AWT34/34 plus both final
+input tests2/2; Release AWT35/35 (43.66s), out/phase4-input-*-{build,tests}.log.
+Independent input review pending; wider focus/IME/demo gate remains open.
+Task4 scoped review accepted after b78706d restored retained GIF notice and
+425390b preserved borrowed-HDC copy clipping; targeted3/3 Debug/Release pass.

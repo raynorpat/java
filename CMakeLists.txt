@@ -500,7 +500,9 @@ if(WIN32)
   install(FILES "${JDK115_DIR}/lib/font.properties" DESTINATION lib)
   set(awt_classes sun.awt.windows.WComponentPeer sun.awt.windows.WWindowPeer
     sun.awt.windows.WFramePeer sun.awt.windows.WGraphics java.awt.Component java.awt.Container java.awt.Window
-    java.awt.Frame java.awt.Button java.awt.Label java.awt.Checkbox java.awt.Scrollbar java.awt.TextArea java.awt.TextField java.awt.Insets java.awt.Font java.awt.Cursor java.awt.Color java.awt.AWTEvent
+    sun.awt.windows.WMenuItemPeer sun.awt.windows.WMenuPeer sun.awt.windows.WMenuBarPeer sun.awt.windows.WCheckboxMenuItemPeer sun.awt.windows.WPopupMenuPeer
+    java.awt.MenuComponent java.awt.MenuItem java.awt.Menu java.awt.MenuBar java.awt.CheckboxMenuItem java.awt.PopupMenu java.awt.MenuShortcut
+    java.awt.Frame java.awt.Button java.awt.Label java.awt.Checkbox java.awt.Scrollbar java.awt.TextArea java.awt.TextField java.awt.Insets java.awt.Font java.awt.Cursor java.awt.Color java.awt.AWTEvent java.awt.event.KeyEvent java.awt.event.MouseEvent
     sun.awt.windows.WFontMetrics sun.awt.windows.WDefaultFontCharset sun.awt.FontDescriptor sun.awt.PlatformFont sun.awt.CharsetString
     sun.awt.image.ImageRepresentation sun.awt.image.Image sun.awt.image.OffScreenImageSource sun.awt.image.GifImageDecoder
     java.awt.image.ColorModel java.awt.image.DirectColorModel java.awt.image.IndexColorModel java.awt.Rectangle
@@ -524,7 +526,7 @@ if(WIN32)
       sun.awt.windows.WComponentPeer sun.awt.windows.WWindowPeer
     DEPENDS javah ${awt_headers})
   add_library(winawt SHARED src/win32/sun/windows/awt_Toolkit.cpp
-    src/win32/sun/windows/awt_Component.cpp src/win32/sun/windows/awt_Window.cpp
+    src/win32/sun/windows/awt_Component.cpp src/win32/sun/windows/awt_Input.cpp src/win32/sun/windows/awt_Window.cpp
     src/win32/sun/windows/awt_Frame.cpp src/win32/sun/windows/awt_Graphics.cpp
     src/win32/sun/windows/awt_Canvas.cpp src/win32/sun/windows/awt_Button.cpp
     src/win32/sun/windows/awt_Font.cpp src/win32/sun/windows/awt_Label.cpp
@@ -547,7 +549,7 @@ if(WIN32)
   target_link_libraries(winawt115-toolkit user32 gdi32)
   add_test(NAME winawt115-toolkit COMMAND winawt115-toolkit
     "${JDK115_DIR}/bin/winawt$<$<CONFIG:Debug>:_g>.dll")
-  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 WindowState115 Dialog115 FileDialog115 Canvas115 Button115 Fonts115 Label115 Checkbox115 Choice115 List115 Scrollbar115 Text115 ScrollPane115 ReentrantPeers115 PaneRace115 RetiredGraphics115 Images115 Raster115 TextRaster115 ImageRaster115 ColorRaster115 ImageBounds115 DecoderImages115 GifRaster115 GraphicsResources115 ProgressiveImages115 GraphicsHDC115 ScaledDelivery115)
+  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 WindowState115 Dialog115 FileDialog115 Input115 InputRetire115 Canvas115 Button115 Fonts115 Label115 Checkbox115 Choice115 List115 Scrollbar115 Text115 ScrollPane115 ReentrantPeers115 PaneRace115 RetiredGraphics115 Images115 Raster115 TextRaster115 ImageRaster115 ColorRaster115 ImageBounds115 DecoderImages115 GifRaster115 GraphicsResources115 ProgressiveImages115 GraphicsHDC115 ScaledDelivery115)
   add_test(NAME awt-${awt_test} COMMAND ${CMAKE_COMMAND}
     -DROOT=${CMAKE_SOURCE_DIR} -DJAVA=$<TARGET_FILE:java> -DJAVAC=$<TARGET_FILE:javac>
     -DJDK=${JDK115_DIR} -DLIBDIR=$<TARGET_FILE_DIR:winawt>

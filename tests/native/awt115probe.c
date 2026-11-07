@@ -48,6 +48,14 @@ static BOOL CALLBACK find_edit(HWND window, LPARAM parameter)
     if (!lstrcmpiW(name,L"EDIT")) { *(HWND *)parameter = window; return FALSE; }
     return TRUE;
 }
+static BOOL CALLBACK find_canvas(HWND window, LPARAM parameter)
+{
+    WCHAR name[64]; GetClassNameW(window,name,64);
+    if (!lstrcmpiW(name,L"SunAwtCanvas") || !lstrcmpiW(name,L"AwtCanvas")) {
+        *(HWND *)parameter=window; return FALSE;
+    }
+    return TRUE;
+}
 static BOOL CALLBACK find_pane(HWND window, LPARAM parameter)
 {
     WCHAR name[64]; GetClassNameW(window,name,64);
@@ -134,6 +142,14 @@ __declspec(dllexport) stack_item *Java_WinAwtProbe_paneScroll_stub(stack_item *s
     if (frame) EnumChildWindows(frame,find_pane,(LPARAM)&pane);
     if (!pane) { SignalError(ee,"java/lang/RuntimeException","scroll pane not found"); return sp; }
     PostMessage(pane,sp[1].i ? WM_VSCROLL:WM_HSCROLL,MAKEWPARAM(sp[2].i,sp[3].i),0);
+    return sp;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_input_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND frame=test_window((struct Hjava_lang_String *)sp[0].p), child=NULL;
+    if (frame) EnumChildWindows(frame,sp[1].i ? find_edit:find_canvas,(LPARAM)&child);
+    if (!child || !PostMessageW(child,sp[2].i,sp[3].i,MAKELPARAM(sp[4].i,sp[5].i)))
+        SignalError(ee,"java/lang/RuntimeException","input target not found");
     return sp;
 }
 __declspec(dllexport) stack_item *Java_WinAwtProbe_move_stub(stack_item *sp,struct execenv *ee)

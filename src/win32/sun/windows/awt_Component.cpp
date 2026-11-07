@@ -25,7 +25,7 @@ void AwtComponent::UnlockPeers() { LeaveCriticalSection(&peerMutex.section); }
 UINT AwtComponent::nextControlID = 1;
 AwtComponent::AwtComponent(Hsun_awt_windows_WComponentPeer *p)
     : foreground(GetSysColor(COLOR_WINDOWTEXT)), background(GetSysColor(COLOR_WINDOW)),
-      font(NULL), cursor(LoadCursor(NULL, IDC_ARROW)), started(FALSE), surface(NULL), paintPending(FALSE), hwnd(NULL), peer(p), next(NULL), originalProc(NULL), controlID(0), references(1), disposed(FALSE) {}
+      font(NULL), cursor(LoadCursor(NULL, IDC_ARROW)), started(FALSE), surface(NULL), paintPending(FALSE), mouseInside(FALSE), mouseDragged(FALSE), suppressTyped(FALSE), lastClick(0), clickCount(0), hwnd(NULL), peer(p), next(NULL), originalProc(NULL), controlID(0), references(1), disposed(FALSE) {}
 AwtComponent::~AwtComponent() { if (font) DeleteObject(font); }
 AwtComponent *AwtComponent::Get(Hsun_awt_windows_WComponentPeer *p)
 { return p ? (AwtComponent *)unhand(p)->pData : NULL; }
@@ -78,6 +78,7 @@ void AwtComponent::Dispose()
     disposed = TRUE; started = FALSE;
     unhand(peer)->pData = 0;
     Unlink();
+    ClearInput();
     if (surface) { surface->component = NULL; surface->Release(); surface = NULL; }
     if (IsWindow(hwnd)) DestroyWindow(hwnd);
     hwnd = NULL;
@@ -94,9 +95,10 @@ LRESULT CALLBACK AwtComponent::WndProc(HWND window, UINT message, WPARAM w, LPAR
     }
     if (!component) return DefWindowProcA(window, message, w, l);
     AwtComponentLease lease(component);
-    LRESULT result = component->WindowProc(message, w, l);
+    LRESULT result = component->InputMessage(message,w,l) ? 0 : component->WindowProc(message, w, l);
     if (message == WM_NCDESTROY) {
         component->started = FALSE;
+        component->ClearInput();
         if (component->surface) {
             component->surface->component = NULL;
             component->surface->Release(); component->surface = NULL;
@@ -291,6 +293,7 @@ extern "C" Hjava_awt_Point *sun_awt_windows_WComponentPeer_getLocationOnScreen(H
 extern "C" void sun_awt_windows_WComponentPeer_handleEvent(Hsun_awt_windows_WComponentPeer *p,Hjava_awt_AWTEvent *event)
 {
     if (!event) { SignalError(NULL,"java/lang/NullPointerException","null event"); return; }
-    /* Java-generated non-input events carry no saved native MSG. Input
-     * message replay is implemented with the toolkit input hook. */
+    AwtComponentLock lock;
+    AwtComponent *component=AwtComponent::Get(p);
+    if (component) component->ReplayInput(event);
 }
