@@ -20,6 +20,7 @@ struct DrawingRequest {
 static void drawingRequest(void *argument)
 {
     DrawingRequest *r=(DrawingRequest *)argument;
+    if (r->operation==4) { r->result=(long)awtImagePalette(); return; }
     Classsun_awt_windows_WDrawingSurfaceInfo *info=unhand(r->peer);
     if (r->operation==1) {
         if (r->lock->window) ReleaseDC(r->lock->window,r->lock->dc);
@@ -116,5 +117,8 @@ extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WDrawingSurfac
 extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WDrawingSurfaceInfo_getDepth_stub(stack_item *sp,ExecEnv *)
 { AwtPixelFormat format; awtDisplayPixelFormat(&format); sp[0].i=format.depth; return sp+1; }
 extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WDrawingSurfaceInfo_getHPalette_stub(stack_item *sp,ExecEnv *)
-{ sp[0].i=(long)awtImagePalette(); return sp+1; }
+{
+    DrawingRequest request={NULL,NULL,4,0,NULL};
+    AwtToolkit::GetInstance().Invoke(drawingRequest,&request); sp[0].i=request.result; return sp+1;
+}
 

@@ -387,3 +387,28 @@ Background launches intermittently prevented Sun WindowState115 activation;
 fixture now posts activationnotifications explicitly, retaining realnative
 iconify/restore operations. Actual desktop focus remains in finaldemo gate.
 Independent surface review remains pending; Phase4 is not complete.
+
+Remaining interface checkpoint:
+- Printing, embedded frames and frame icons (a6c9599) passed Debug/Release
+  three-test Sun comparisons and independent review. Print jobs use an owned
+  fixture DC with process-local API interception; real spooler/driver output
+  is not claimed. Reentrant end/disposal while printing a native control has
+  a regression test and retained job/DC lifetime.
+- Clipboard Unicode, CRLF/NUL handling, native ownership callbacks and detached
+  Java-owner GC rooting pass Debug and Release. The fixture intercepts only
+  the child winawt imports; it never changes the desktop clipboard. Rooting
+  uses the toolkit event-loop stack, which the legacy collector scans.
+  Independent review accepted the implementation. Two distinct WClipboard
+  instances replacing one another share the native owner HWND: Sun and ours
+  both omit notification to the displaced first instance. This is retained
+  legacy behavior, confirmed in out/clipboard-review.
+- Drawing-surface review identified unsynchronized lazy palette lookup. The
+  getter now dispatches to the toolkit owner; scoped re-review accepted it.
+  DrawingSurface115, SurfaceLocks115 and Clipboard115 passed 3/3 in each
+  configuration after the correction.
+- Exact 166-export audits pass for Debug and Release. The completed native
+  DLL is now included in the install image; installed-image and demo gates
+  still must pass before Phase 4 is complete.
+- Lifecycle115 repeated 30 times in Release with no failure (49.88 seconds,
+  out/phase4-lifecycle-repeat.log). The earlier sporadic exit timeout was not
+  reproduced; this is stress evidence, not a claimed shutdown defect fix.

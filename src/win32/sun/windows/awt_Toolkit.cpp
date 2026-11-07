@@ -11,6 +11,8 @@ extern "C" {
 #include "awt_Component.h"
 #include "awt_Image.h"
 #include "awt_Menu.h"
+#include "awt_PrintJob.h"
+#include "awt_Clipboard.h"
 
 AwtToolkit &AwtToolkit::GetInstance()
 {
@@ -51,6 +53,22 @@ void AwtToolkit::Invoke(void (*function)(void *), void *argument)
     }
 }
 
+BOOL AwtToolkit::EnsureClipboardRoot()
+{
+    if (clipboardRoot) return TRUE;
+    BOOL ready=FALSE;
+    if (window) SendMessage(window,0x467,0,(LPARAM)&ready);
+    return ready;
+}
+void AwtToolkit::SetClipboardOwner(HObject *owner)
+{
+    if (clipboardRoot) InterlockedExchange((LONG volatile *)clipboardRoot,(LONG)owner);
+}
+HObject *AwtToolkit::TakeClipboardOwner()
+{
+    return clipboardRoot ? (HObject *)InterlockedExchange((LONG volatile *)clipboardRoot,0):NULL;
+}
+
 LRESULT CALLBACK AwtToolkit::WndProc(HWND hwnd, UINT message, WPARAM w, LPARAM l)
 {
     if (message == 0x464) {
@@ -60,6 +78,8 @@ LRESULT CALLBACK AwtToolkit::WndProc(HWND hwnd, UINT message, WPARAM w, LPARAM l
         request->function(request->argument); toolkit.callerThread=previous; return 0;
     }
     if (message == 0x466) { GetInstance().Cleanup(); return 0; }
+    if (message == 0x467) { *(BOOL *)l=GetInstance().clipboardRoot!=NULL; return 0; }
+    if (message == WM_DESTROYCLIPBOARD) { awtClipboardLost(); return 0; }
     return DefWindowProcA(hwnd, message, w, l);
 }
 
@@ -75,6 +95,8 @@ void AwtToolkit::Cleanup()
     if (GetCurrentThreadId() != thread) {
         SendMessageA(window, 0x466, 0, 0); return;
     }
+    SetClipboardOwner(NULL);
+    awtCleanupPrintJobs();
     awtMenuCleanup();
     AwtComponent::Cleanup();
     awtCleanupImagePalette();
@@ -105,6 +127,10 @@ extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WColor_getDefa
 
 void AwtToolkit::EventLoop()
 {
+    /* The legacy collector scans native thread stacks, not DLL static data.
+     * Keep the owning Clipboard strongly rooted for this event loop lifetime. */
+    HObject *volatile clipboardOwner=NULL;
+    clipboardRoot=&clipboardOwner;
     MSG message;
     sysAtexit(awtAtExit);
     while (!quit) {
@@ -117,6 +143,7 @@ void AwtToolkit::EventLoop()
             }
         }
     }
+    clipboardRoot=NULL;
     PostQuitMessage(exitCode);
 }
 

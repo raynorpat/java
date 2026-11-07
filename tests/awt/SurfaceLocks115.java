@@ -11,6 +11,7 @@ public class SurfaceLocks115 {
             DrawingSurfaceInfo info=((DrawingSurface)image).getDrawingSurfaceInfo();
             Win32DrawingSurface surface=(Win32DrawingSurface)info.getSurface();
             if(surface.getHBitmap()==0) throw new RuntimeException("unlocked bitmap missing");
+            int palette=surface.getHPalette();
             info.lock();
             if(WinAwtProbe.surfacePixel(surface.getHDC(),-1)!=0xff0000) throw new RuntimeException("surface is not image DC");
             if(WinAwtProbe.surfacePixel(surface.getHDC(),0xff)!=0xff) throw new RuntimeException("native surface drawing");
@@ -24,6 +25,7 @@ public class SurfaceLocks115 {
             for(int i=0;!started && failure==null && i<200;i++) Thread.sleep(10);
             Thread.sleep(100); System.gc();
             if(!started || done || failure!=null) throw new RuntimeException("native surface exclusion "+started+"/"+done+"/"+failure);
+            if(surface.getHPalette()!=palette) throw new RuntimeException("palette identity while drawing waits");
             // The locking thread may reenter drawing while another caller waits.
             Graphics nested=image.getGraphics(); nested.setColor(Color.red);
             nested.fillRect(0,0,12,10); nested.dispose();

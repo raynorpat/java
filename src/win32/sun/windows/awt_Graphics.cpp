@@ -3,6 +3,7 @@
 #include "awt_Graphics.h"
 #include "awt_Font.h"
 #include "awt_Image.h"
+#include "awt_PrintJob.h"
 extern "C" {
 #include "java_awt_Color.h"
 }
@@ -147,7 +148,10 @@ static void graphicsRequest(void *argument)
     if (!g) return;
     long ox = unhand(r->peer)->originX, oy = unhand(r->peer)->originY;
     switch (r->operation) {
-    case DESTROY: unhand(r->peer)->pData = 0; delete g; return;
+    case DESTROY:
+        awtClosePrintGraphics(r->peer);
+        if (getGraphics(r->peer)==g) { unhand(r->peer)->pData = 0; delete g; }
+        return;
     case COLOR: g->color = RGB((r->v[0] >> 16)&255,(r->v[0] >> 8)&255,r->v[0]&255); return;
     case FONT: g->font = *(LOGFONTW *)r->object; return;
     case PAINT: g->xormode = FALSE; return;

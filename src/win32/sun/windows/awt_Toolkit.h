@@ -17,13 +17,17 @@ public:
     HWND GetHWnd() const { return window; }
     DWORD MainThread() const { return thread; }
     DWORD CallerThread() const { return callerThread ? callerThread:thread; }
+    BOOL EnsureClipboardRoot();
+    void SetClipboardOwner(HObject *owner);
+    HObject *TakeClipboardOwner();
 private:
-    AwtToolkit() : thread(0), callerThread(0), window(NULL), hook(NULL), quit(FALSE), exitCode(0) {}
+    AwtToolkit() : thread(0), callerThread(0), window(NULL), hook(NULL), clipboardRoot(NULL), quit(FALSE), exitCode(0) {}
     static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
     static LRESULT CALLBACK GetMessageHook(int, WPARAM, LPARAM);
     DWORD thread, callerThread;
     HWND window;
     HHOOK hook;
+    HObject *volatile *clipboardRoot;
     BOOL quit;
     int exitCode;
 };
