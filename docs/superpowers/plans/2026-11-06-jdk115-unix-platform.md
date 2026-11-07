@@ -51,19 +51,19 @@ writing them. Keep the shared VM and its established bug fixes intact.
   timeout and interrupted waits. Observe failing cases before implementation.
   Implement the recovered condvar path, clearly separating OS mocks from real
   platform validation. Keep Linux pthread selection as the default.
-- [ ] Reconstruct thread bootstrap, allocation, create/exit, attachment, priority,
+- [x] Reconstruct thread bootstrap, allocation, create/exit, attachment, priority,
   enumeration and suspend/resume, including partial-failure cleanup. Verify
   queue ownership, Java back pointers and stack/register roots with native
   probes and existing thread/GC/JNI tests. Commit the verified slice.
-- [ ] Reconstruct monitor recursion, ownership, entry/wait queues, timeout and
+- [x] Reconstruct monitor recursion, ownership, entry/wait queues, timeout and
   interrupt reacquisition. Compare recovered control flow with the binary and
   run monitor, interruption, stop/close and contention regressions. Preserve
   established Java-visible bug fixes with explicit evidence. Commit the slice.
-- [ ] Audit remaining Unix OS services against Rhapsody: memory reservation,
+- [x] Audit remaining Unix OS services against Rhapsody: memory reservation,
   commit/decommit, loader symbol resolution, clocks and process/file paths.
   Add only binary-supported differences and necessary host adaptations, each
   with its own failing regression or exact ABI/layout check before changes.
-- [ ] Run Windows/Linux Release/Debug full suites and installed-image checks.
+- [x] Run Windows/Linux Release/Debug full suites and installed-image checks.
   Review the complete branch independently. Record SDK compilation and actual
   DR2 execution separately; never claim either from Linux-only results.
 
@@ -158,3 +158,18 @@ external SDK headers and Windows Debug/Release. Full Windows112/112; Linux100
 passed plus audio skip. No profiler recurrence. Remaining Task3 items are
 breakpoint/system-thread support and the integration audit; production Mach
 selection remains disabled pending the monitor/runtime work.
+
+Tasks 3-6 complete. The selectable cthreads backend now integrates with the
+shared VM, including monitors, cache locks, JNI attachment, interrupt/stop
+handling, Mach heap operations, dyld loading and the retained process-class
+adapter. Linux defaults to pthreads. Independent whole-branch review found
+two concurrency defects; native-lock recursion and polling-gap notification
+regressions failed before the fixes and pass afterward. No review findings
+remain open. Full post-fix Windows Debug/Release114/114 each; Linux
+Debug/Release108 passed plus one expected audio-device skip each (109 total).
+All four installed images pass the native library/tool/resource checks.
+The complete VM object target also compiles against external Mach SDK headers
+with the documented test-only libc/jump-buffer compatibility setup. Actual
+DR2 execution and native packaging remain Phase7, not a Phase3 validation claim.
+See 2026-11-06-jdk115-phase3-completion.md and the evidence ledger for the
+exact limits, deviations, review fixes and log paths.
