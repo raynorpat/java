@@ -6,6 +6,7 @@
 #include "java_awt_Component.h"
 #include "java_awt_Insets.h"
 #include <X11/Shell.h>
+#include <X11/Xatom.h>
 #include <Xm/DrawingA.h>
 #include <Xm/Form.h>
 #include <Xm/Protocols.h>
@@ -13,6 +14,44 @@
 #include <Xm/TextF.h>
 #include <Xm/XmIm.h>
 #include <stdlib.h>
+#include <unistd.h>
+
+/* Obtain insets before Window.pack lays out its children. JDK 1.1.5 has no
+ * later isPacked field used by Solaris 1.1.8's reparenting correction. */
+static void initial_extents(AwtPeer *data,Classjava_awt_Insets *insets)
+{
+    XEvent request={0};
+    Atom actual,atom=XInternAtom(awt_display,"_NET_REQUEST_FRAME_EXTENTS",False);
+    unsigned long count,after,*values=NULL,i;
+    int format,supported=0,attempt;
+    Window root=RootWindow(awt_display,awt_screen);
+    XGetWindowProperty(awt_display,root,XInternAtom(awt_display,"_NET_SUPPORTED",False),
+        0,1024,False,XA_ATOM,&actual,&format,&count,&after,(unsigned char **)&values);
+    if(actual==XA_ATOM && format==32)
+        for(i=0;i<count;i++) if(values[i]==atom) supported=1;
+    if(values) XFree(values);
+    if(!supported) return;
+    XtRealizeWidget(data->shell);
+    request.xclient.type=ClientMessage; request.xclient.display=awt_display;
+    request.xclient.window=XtWindow(data->shell); request.xclient.message_type=atom;
+    request.xclient.format=32;
+    XSendEvent(awt_display,root,False,SubstructureRedirectMask|SubstructureNotifyMask,&request);
+    XFlush(awt_display);
+    for(attempt=0;attempt<20;attempt++) {
+        values=NULL;
+        XGetWindowProperty(awt_display,XtWindow(data->shell),
+            XInternAtom(awt_display,"_NET_FRAME_EXTENTS",False),0,4,False,XA_CARDINAL,
+            &actual,&format,&count,&after,(unsigned char **)&values);
+        if(actual==XA_CARDINAL && format==32 && count==4 &&
+            values[0]<128 && values[1]<128 && values[2]<128 && values[3]<128) {
+            insets->left=data->decorLeft=values[0]; insets->right=data->decorRight=values[1];
+            insets->top=data->decorTop=values[2]; insets->bottom=data->decorBottom=values[3];
+            XFree(values); return;
+        }
+        if(values) XFree(values);
+        usleep(5000);
+    }
+}
 
 static void free_icon(AwtPeer *data)
 {
@@ -155,10 +194,44 @@ static void shell_event(Widget widget,XtPointer closure,XEvent *event,Boolean *d
 {
     Hsun_awt_motif_MFramePeer *peer=(Hsun_awt_motif_MFramePeer *)closure;
     Hjava_awt_Component *target=unhand(peer)->target;
+    AwtPeer *data=awt118_peer((Hsun_awt_motif_MComponentPeer *)peer);
+    if (!data) return;
+    /* Solaris shellEH 5e814 corrects guessed insets on reparenting. Modern
+     * Linux WMs publish all four extents, avoiding legacy WM-specific guesses. */
+    if (event->type==PropertyNotify || event->type==ReparentNotify || event->type==MapNotify) {
+        Atom actual;
+        int format;
+        unsigned long count,after,*values=NULL;
+        if (XGetWindowProperty(awt_display,XtWindow(widget),
+            XInternAtom(awt_display,"_NET_FRAME_EXTENTS",False),0,4,False,XA_CARDINAL,
+            &actual,&format,&count,&after,(unsigned char **)&values)==Success &&
+            actual==XA_CARDINAL && format==32 && count==4 &&
+            values[0]<128 && values[1]<128 && values[2]<128 && values[3]<128) {
+            if (data->decorLeft!=values[0] || data->decorRight!=values[1] ||
+                data->decorTop!=values[2] || data->decorBottom!=values[3]) {
+                Classjava_awt_Insets *insets=unhand(unhand(peer)->insets);
+                int width,height;
+                data->decorLeft=values[0]; data->decorRight=values[1];
+                data->decorTop=values[2]; data->decorBottom=values[3];
+                insets->left=data->decorLeft; insets->right=data->decorRight;
+                insets->top=data->decorTop+data->menuHeight;
+                insets->bottom=data->decorBottom+data->imHeight;
+                width=unhand(target)->width-data->decorLeft-data->decorRight;
+                height=unhand(target)->height-data->decorTop-data->decorBottom;
+                XtVaSetValues(widget,XtNwidth,width>0 ? width : 1,
+                    XtNheight,height>0 ? height : 1,NULL);
+                execute_java_dynamic_method(EE(),(HObject *)peer,"handleResize","(II)V",
+                    unhand(target)->width,unhand(target)->height);
+            }
+        }
+        if (values) XFree(values);
+    }
     if (event->type==ConfigureNotify) {
-        unhand(target)->width=event->xconfigure.width;
-        unhand(target)->height=event->xconfigure.height;
-        execute_java_dynamic_method(EE(),(HObject *)peer,"handleResize","(II)V",event->xconfigure.width,event->xconfigure.height);
+        int width=event->xconfigure.width+data->decorLeft+data->decorRight;
+        int height=event->xconfigure.height+data->decorTop+data->decorBottom;
+        unhand(target)->width=width;
+        unhand(target)->height=height;
+        execute_java_dynamic_method(EE(),(HObject *)peer,"handleResize","(II)V",width,height);
     } else if (event->type==FocusIn || event->type==FocusOut) {
         execute_java_dynamic_method(EE(),(HObject *)peer,event->type==FocusIn ? "handleActivate" : "handleDeactivate","()V");
     }
@@ -234,7 +307,8 @@ void sun_awt_motif_MFramePeer_create(Hsun_awt_motif_MFramePeer *self,Hsun_awt_mo
             XmNleftAttachment,XmATTACH_FORM,XmNrightAttachment,XmATTACH_FORM,NULL);
         close=XmInternAtom(awt_display,"WM_DELETE_WINDOW",False);
         XmAddWMProtocolCallback(data->shell,close,close_window,self);
-        XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask,False,shell_event,self);
+        XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask|PropertyChangeMask,False,shell_event,self);
+        initial_extents(data,bounds);
     }
     AWT_UNLOCK();
 }
@@ -268,8 +342,12 @@ void sun_awt_motif_MFramePeer_pReshape(Hsun_awt_motif_MFramePeer *self,long x,lo
 {
     AwtPeer *data;
     AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
-    if (data && data->shell) XtVaSetValues(data->shell,XtNx,x,XtNy,y,XtNwidth,width>0 ? width : 1,
-        XtNheight,height>0 ? height : 1,NULL);
+    if (data && data->shell) {
+        width-=data->decorLeft+data->decorRight;
+        height-=data->decorTop+data->decorBottom;
+        XtVaSetValues(data->shell,XtNx,x,XtNy,y,XtNwidth,width>0 ? width : 1,
+            XtNheight,height>0 ? height : 1,NULL);
+    }
     AWT_UNLOCK();
 }
 void sun_awt_motif_MFramePeer_pDispose(Hsun_awt_motif_MFramePeer *self)
@@ -277,7 +355,7 @@ void sun_awt_motif_MFramePeer_pDispose(Hsun_awt_motif_MFramePeer *self)
     AwtPeer *data;
     AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
     if (data && data->shell) {
-        XtRemoveEventHandler(data->shell,StructureNotifyMask|FocusChangeMask,False,shell_event,self);
+        XtRemoveEventHandler(data->shell,StructureNotifyMask|FocusChangeMask|PropertyChangeMask,False,shell_event,self);
         XmRemoveWMProtocolCallback(data->shell,XmInternAtom(awt_display,"WM_DELETE_WINDOW",False),close_window,self);
     }
     awt118_dispose_peer((Hsun_awt_motif_MComponentPeer *)self);

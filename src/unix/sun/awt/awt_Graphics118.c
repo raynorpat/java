@@ -39,7 +39,11 @@ void sun_awt_motif_X11Graphics_createFromComponent(Hsun_awt_motif_X11Graphics *s
     if (!data) SignalError(EE(),"java/lang/OutOfMemoryError",NULL);
     else {
         data->peer=awt118_peer(peer);
-        if (data->peer) data->peer->references++;
+        if (data->peer) {
+            data->peer->references++;
+            unhand(self)->originX=-data->peer->decorLeft;
+            unhand(self)->originY=-data->peer->decorTop-data->peer->menuHeight;
+        }
         unhand(self)->pData=(long)data;
     }
     AWT_UNLOCK();

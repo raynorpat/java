@@ -462,3 +462,22 @@ producer conversion, offscreen delivery and repeated flush/GC checks. The 24-bit
 toolkit/raster/image tests plus both visual tests pass together (5/5, 12.02 seconds).
 
 Installed image: the default Unix JNI and tool classpaths include lib/motif-peers.zip when present; explicit java -classpath still overrides the default. CMake installs reconstructed libawt, the separate peer archive, Solaris font properties and notices. Installed115 compiles/runs using installed javac/java with CLASSPATH, JAVA_HOME and LD_LIBRARY_PATH unset. RED missing MToolkit -> GREEN motif118-installed (19.30s). Demo and full regression gates remain open.
+
+Decorated geometry and demo layout: Solaris debug shellEH 5e814 and reshape_0
+6210c establish outer bounds versus client bounds; Linux queries EWMH frame
+extents, including a bounded pre-map request so 1.1.5 Window.pack (without the
+later isPacked field) retains preferred content dimensions. Non-EWMH window
+managers still need a separate fallback/validation gate. Insets, child positions,
+frame graphics/expose/input origins and resized content are covered by Decorated115
+under Openbox. RED zero insets, frame raster origin and packed 198x75 content
+instead of 200x100 -> GREEN.
+
+Unchanged applet startup exposed an Xt double free in MChoicePeer.pReshape.
+GDB traced it through XtSetValues into _XmRCAdaptToSize. Solaris awt_util_reshape
+unmanages/re-manages children around geometry changes; restoring that sequence
+eliminated the observed Choice crashes. The same missing sequence made oversized
+nested applet panels remain 1x1 because Motif rejected parent geometry negotiation.
+LatePanel115 reproduces this independently (RED -> GREEN). The previously crashing
+DrawTest/CardTest/DitherTest/symbol demos survive the bounded rerun; complete demo
+interaction and visual acceptance remain open. Focused Debug suite: 38/38 passed,
+141.99 seconds. Full Debug/Release must be rerun after these changes.

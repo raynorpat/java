@@ -305,6 +305,17 @@ JAVA_PUBLIC_API(stack_item *) Java_Window115_pixel_stub(stack_item *p,struct exe
     return p+1;
 }
 
+JAVA_PUBLIC_API(stack_item *) Java_LatePanel115_sizeMatches_stub(stack_item *p,struct execenv *ee)
+{
+    Hjava_awt_Component *target=p[0].p;
+    Widget w;
+    Dimension width=0,height=0;
+    AWT_LOCK(); w=widget(target);
+    if(w) XtVaGetValues(w,XtNwidth,&width,XtNheight,&height,NULL);
+    p[0].i=w && width==unhand(target)->width && height==unhand(target)->height;
+    AWT_UNLOCK(); return p+1;
+}
+
 JAVA_PUBLIC_API(stack_item *) Java_Raster115_pixels_stub(stack_item *p,struct execenv *ee)
 {
     XImage *image;

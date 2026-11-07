@@ -9,6 +9,11 @@ public class Choice115 {
     public static void main(String[] args) throws Exception {
         System.getProperties().put("awt.toolkit", "sun.awt.motif.MToolkit");
         Toolkit.getDefaultToolkit(); System.loadLibrary("motif118xprobe");
+        Frame live=new Frame("Late choice");
+        Panel panel=new Panel(); live.add(panel); live.setSize(200,120); live.show();
+        Choice late=new Choice(); late.add("Lines"); late.add("Points");
+        panel.add(late); live.validate();
+        Thread.sleep(100); live.dispose();
         for (int cycle=0;cycle<6;cycle++) {
             Frame frame=new Frame("Choice");
             Choice choice=new Choice();
@@ -16,8 +21,12 @@ public class Choice115 {
             choice.addItemListener(new ItemListener() {
                 public void itemStateChanged(ItemEvent event) { changes++; }
             });
-            frame.setLayout(null); choice.setBounds(10,10,130,30); frame.add(choice);
+            frame.setLayout(null); frame.add(choice);
+            frame.addNotify();
+            choice.setBounds(10,10,130,30);
             frame.setSize(170,100); frame.show(); Toolkit.getDefaultToolkit().sync();
+            choice.setBounds(0,0,0,0);
+            choice.setBounds(10,10,130,30);
             choice.select(1);
             if (selected(choice)!=1 || itemCount(choice)!=3) throw new RuntimeException("choice select");
             choice.remove(0);

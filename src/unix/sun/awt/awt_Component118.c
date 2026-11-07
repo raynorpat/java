@@ -8,6 +8,7 @@
 #include <X11/Shell.h>
 #include <Xm/DrawingA.h>
 #include <Xm/ScrollBar.h>
+#include <Xm/ScrolledW.h>
 #include <stdlib.h>
 
 static const EventMask peer_events=ExposureMask|FocusChangeMask|KeyPressMask|KeyReleaseMask|
@@ -51,8 +52,11 @@ static void canvas_event(Widget widget,XtPointer closure,XEvent *event,Boolean *
     Hsun_awt_motif_MComponentPeer *peer=(Hsun_awt_motif_MComponentPeer *)closure;
     if (event->type==FocusIn || event->type==FocusOut) awt118_focus_event(peer,event);
     if (event->type==Expose) {
+        AwtPeer *data=awt118_peer(peer);
         execute_java_dynamic_method(EE(),(HObject *)peer,"handleExpose","(IIII)V",
-            event->xexpose.x,event->xexpose.y,event->xexpose.width,event->xexpose.height);
+            event->xexpose.x+(data ? data->decorLeft : 0),
+            event->xexpose.y+(data ? data->decorTop+data->menuHeight : 0),
+            event->xexpose.width,event->xexpose.height);
         awt118_callback_done();
     }
 }
@@ -138,9 +142,18 @@ void sun_awt_motif_MComponentPeer_pReshape(Hsun_awt_motif_MComponentPeer *self,l
     Hjava_awt_Component *target=unhand(self)->target;
     AWT_LOCK(); data=awt118_peer(self);
     if (unhand(target)->parent) parent=awt118_peer((Hsun_awt_motif_MComponentPeer *)unhand((Hjava_awt_Component *)unhand(target)->parent)->peer);
-    if (parent) y-=parent->menuHeight;
-    if (data && data->widget) XtVaSetValues(data->widget,XmNx,x,XmNy,y,
-        XmNwidth,width>0 ? width : 1,XmNheight,height>0 ? height : 1,NULL);
+    if (parent) { x-=parent->decorLeft; y-=parent->menuHeight+parent->decorTop; }
+    if (data && data->widget) {
+        Widget owner=XtParent(data->widget);
+        int unmanage=XtIsManaged(data->widget) &&
+            !(owner && XtParent(owner) && XmIsScrolledWindow(XtParent(owner)));
+        /* Solaris awt_util_reshape: bypass parent geometry negotiation. Java
+         * may deliberately place a child beyond the parent's clipping bounds. */
+        if (unmanage) XtUnmanageChild(data->widget);
+        XtVaSetValues(data->widget,XmNx,x,XmNy,y,
+            XmNwidth,width>0 ? width : 1,XmNheight,height>0 ? height : 1,NULL);
+        if (unmanage) XtManageChild(data->widget);
+    }
     AWT_UNLOCK();
 }
 void sun_awt_motif_MComponentPeer_pDispose(Hsun_awt_motif_MComponentPeer *self)
@@ -157,6 +170,7 @@ struct Hjava_awt_Point *sun_awt_motif_MComponentPeer_pGetLocationOnScreen(Hsun_a
     else if (!XtIsRealized(data->widget)) SignalError(EE(),"java/lang/InternalError","Widget not visible");
     else {
         XtTranslateCoords(data->shell ? data->shell : data->widget,0,0,&x,&y);
+        if (data->shell) { x-=data->decorLeft; y-=data->decorTop; }
         point=(struct Hjava_awt_Point *)execute_java_constructor(EE(),"java/awt/Point",NULL,"(II)",x,y);
     }
     AWT_UNLOCK();

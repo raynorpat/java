@@ -12,7 +12,7 @@ public class Window115 {
         }
     }
     static native void click(Component component);
-    static native int pixel(Canvas canvas, int x, int y);
+    static native int pixel(Component canvas, int x, int y);
     public static void main(String[] args) throws Exception {
         System.getProperties().put("awt.toolkit", "sun.awt.motif.MToolkit");
         Toolkit.getDefaultToolkit();

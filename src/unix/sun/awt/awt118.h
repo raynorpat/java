@@ -26,6 +26,7 @@ typedef struct AwtPeer {
     int references;
     int imHeight;
     int menuHeight;
+    int decorLeft, decorRight, decorTop, decorBottom;
     int modalActive;
     struct AwtPeer *modalPrevious;
     Hsun_awt_motif_MComponentPeer *javaPeer;

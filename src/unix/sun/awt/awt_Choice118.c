@@ -154,9 +154,16 @@ void sun_awt_motif_MChoicePeer_pReshape(Hsun_awt_motif_MChoicePeer *self,long x,
     AwtChoice *data;
     AWT_LOCK(); data=choice(self);
     if (data) {
+        Widget button=XmOptionButtonGadget(data->peer.widget);
+        /* Solaris awt_util_reshape temporarily unmanages each child. Avoid
+         * re-entering RowColumn's geometry manager while resizing its gadget. */
+        XtUnmanageChild(data->peer.widget);
         XtVaSetValues(data->peer.widget,XmNx,x,XmNy,y,XmNwidth,width>0 ? width : 1,XmNheight,height>0 ? height : 1,NULL);
-        XtVaSetValues(XmOptionButtonGadget(data->peer.widget),XmNx,0,XmNy,0,
+        XtManageChild(data->peer.widget);
+        XtUnmanageChild(button);
+        XtVaSetValues(button,XmNx,0,XmNy,0,
             XmNwidth,width>0 ? width : 1,XmNheight,height>0 ? height : 1,NULL);
+        XtManageChild(button);
         XFlush(awt_display);
     }
     AWT_UNLOCK();
