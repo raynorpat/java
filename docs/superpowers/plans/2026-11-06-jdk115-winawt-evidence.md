@@ -679,7 +679,7 @@ eventmodel HTML, ImageMap, both JumpingBox pages, and standalone Click0..3.
 The final replay retains environment failures when WindowFromPoint identifies
 PickerHost's Shell_SystemDim overlay even after the owned window is raised.
 
-## Latest checkpoint and remaining gate
+## Pre-dismissal checkpoint and remaining gate
 
 Commits0b96f13 and6a3f1ba contain the verified validation/lifetime correction
 and the complete demo/installed-image harness. The final demo aggregate has
@@ -736,3 +736,48 @@ The direct cursor ownership result therefore keeps the gate blocked; ordinary
 top-level enumeration was insufficient evidence that the interception ended.
 The pilot sent no foreign input and did not overwrite the final aggregate.
 Artifacts: out/phase4-hover-unblocked-pilot.log and its per-case input trace.
+
+## Phase4 completion
+
+The user dismissed the firewall prompt. The unchanged helper and runtime then
+passed all20 previously blocked physical-input launches, with no startup/input
+errors. All52 WindowFromPoint samples resolve to the intended owned target or
+owned descendant; no foreign window received input. The refreshed aggregate
+contains162 unique, accepted records:81 per runtime, comprising146 captured
+launches and16 explicitly bounded plain-Frame cleanups. The two legacy
+JumpingBox records retain their narrow knownShippedParserPending qualification,
+now backed by actual box motion. Neither parsing completion nor normal exit is
+claimed where the shipped demo does not provide it.
+
+Final interaction review confirms:
+
+- ImageMap displays the expected overlapping highlight and Hi status on both
+  runtimes; the entire522x489 after-image is pixel-identical.
+- Both JumpingBox versions relocate their outlined boxes after mouse motion.
+  Coordinates vary as the shipped paint method chooses random positions.
+- Both Animator href variants display the expected version/instruction status
+  on mouse entry. One initial Sun1.1 caption capture was blank; a fresh bounded
+  Sun replay produces the same footer as reconstruction, confirming the callback
+  with a capture-timing qualification. No URL navigation was performed.
+- Eventmodel HTML and standalone Click0..3 receive owned input and exhibit
+  matching qualitative motion/highlights/trails. Random stack heights, clipped
+  HTML pucks and differing paint trails preclude exact final-position claims;
+  shooting was not part of the hover profile.
+
+Logs: out/phase4-demos-hover-dismissed.log (20/20),
+out/phase4-demos-review-complete.log (162/162), and
+out/phase4-animator-hover-confirm.log (supplementary Sun1.1 check).
+The final gallery and96-row contact sheets are under out/phase4-demos-final.
+Independent closure review verified all162 records,52 owned cursor samples,
+runtime provenance and the visual dispositions, and accepted Phase4 with no
+remaining blocker. Production/helper sources and binaries were unchanged
+during this closure, so the verified Windows167-test/configuration checkpoint,
+Linux108 passes plus one expected skip/configuration, exact166 exports and
+both installed-image gates remain applicable.
+
+Phase4 is complete on build/jdk115-winawt. Existing qualifications remain:
+the approximately two-pixel i18n caption offset, nonreused16-bit menu command
+IDs, original startup/event timing, the explicitly bounded legacy-demo policies,
+and fixture-only coverage for unavailable historical display/printer features.
+The original vendor files remain unchanged. No merge, push or next-phase
+implementation is included in this completion checkpoint.
