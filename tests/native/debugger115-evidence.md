@@ -81,3 +81,57 @@ stopped sessions passed on Linux and on both reconstructed/Sun Windows VMs.
 Unix installed-image tests use a fresh directory on the host temporary filesystem
 and record the path in installed-image.txt. This avoids WSL mounted-drive metadata
 latency without changing the real cmake installation or runtime checks.
+
+## Integration decisions and limits
+
+- Launcher recovery was committed separately from agent recovery; that first
+  checkpoint alone did not claim working sessions. Subsequent checks cover them.
+- Full debugging is a Debug-configuration feature, as in Sun's libraries.
+  Release tests require the original non-debugging-VM rejection. CTest uses
+  add_test CONFIGURATIONS to enforce that distinction.
+- Paused exit means client quit with a paused target. The remaining target is
+  harness-owned and terminated; same-VM reconnection and target shutdown are not
+  claimed. Repetitions use fresh processes.
+- ODBC preserves the original bound-buffer lifetime, including the documented
+  forced-GC hazard between bind and execute. See ../odbc/PROVENANCE.md.
+- Native equivalence claims cover the documented probes and real local driver,
+  not every malformed argument, optional catalog/output-parameter path or driver.
+- Unix installation probes use temporary host directories and record their
+  locations; Windows probes use fresh build-output directories.
+- High-address heap-profiler hashes intentionally use unsigned arithmetic. This
+  changes the original broken high-address case while preserving low-address
+  behavior; profiler115-evidence.md records the failing and passing evidence.
+
+A fresh whole-branch review found no additional concrete implementation defect.
+Its pending test gates are closed only by the final matrix recorded below. There
+were no deferred minor code findings. Regression execution additionally found
+and corrected three AWT fixture synchronization/performance issues and the heap
+profiler high-address defect; none was waived to obtain a passing run.
+
+## Phase 5 completion matrix
+
+Final full builds and serial CTest runs on 2026-11-07, after the profiler fix:
+
+| Platform | Configuration | Passed | Skipped | Failed |
+| --- | --- | ---: | ---: | ---: |
+| Windows | Debug | 196 | 0 | 0 |
+| Windows | Release | 191 | 0 | 0 |
+| Linux (WSL Ubuntu 26.04) | Debug | 124 | 1 | 0 |
+| Linux (WSL Ubuntu 26.04) | Release | 119 | 1 | 0 |
+
+The Linux skip is mmedia115-device because no audio device is available. The
+full suites include exact 47-entry agent export checks, Windows 69-entry ODBC
+export checks, native parity probes, debugger sessions, JNI callbacks, VM and
+self-hosted javac regressions, and the applicable AWT/tool suites. Local logs are
+out/phase5-final-{debug,release,linux-debug,linux-release}-tests.log.
+
+Fresh installed Windows Debug/Release images each contain ten DLLs whose hashes
+match the build and pass jdb fixtures and the real original/rebuilt ODBC tests.
+Fresh installed Linux images each contain eight shared libraries matching the
+build bytes after only CMake RUNPATH relocation. Installed Debug performs a full
+automatic-launch debugger session; installed Release reproduces Sun's rejection.
+The final full Debug suites also exercise a newly installed image on each host.
+
+Normal and paused-client-exit sessions were repeated three times per platform,
+including the Sun Windows counterparts. The profiler regression separately passed
+ten repetitions per Linux configuration. Phase 5 has no remaining unchecked gate.

@@ -79,14 +79,19 @@ jdb launcher and reconstructed agent. Every process must be owned and bounded.
 
 - [x] Verify installed images contain reconstructed agent/jdb on both platforms
   and JdbcOdbc on Windows; run real debug sessions and bridge tests from images.
-- [ ] Run relevant VM regressions and complete platform suites in both configs.
-- [ ] Audit all exports and evidence, obtain branch review, resolve findings,
+- [x] Run relevant VM regressions and complete platform suites in both configs.
+- [x] Audit all exports and evidence, obtain branch review, resolve findings,
   and mark completion only when all Phase 5 gates pass.
 
-Status: Tasks 1-4 complete. ODBC implementation and installed-image evidence
+Status: Phase 5 complete. ODBC implementation and installed-image evidence
 are committed as f0ff16e and 2a47ef6; native agent recovery is 0662a2c and JNI
 exception callbacks are a3b8839. Debugger sessions and installed-image checks
-pass on Windows and Linux. Final complete regression gates remain in progress.
+pass on Windows and Linux. Final Windows suites pass 196/196 Debug and 191/191
+Release; Linux passes 124 Debug and 119 Release tests, with one unavailable
+audio-device test skipped in each configuration. The full branch review found
+no additional must-fix implementation issue. Integration regression fixes are
+recorded in the debugger evidence; the high-address profiler adaptation is
+committed as 4e793e2 and covered by ProfilerHeap115.
 Native recovery evidence is in tests/native/agent115-evidence.md,
 tests/native/debugger115-evidence.md, and tests/odbc/PROVENANCE.md. Phase 5 began
 from merged Phase 4 commit 0d97dea.
