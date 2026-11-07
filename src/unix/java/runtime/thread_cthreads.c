@@ -6,6 +6,7 @@
 #include <string.h>
 #include <mach/mach.h>
 #include <mach/thread_info.h>
+#include <mach/thread_status.h>
 #include "sys_api.h"
 #include "cthreads/threads_md.h"
 #include "cthreads/monitor_md.h"
@@ -182,6 +183,96 @@ static thread_t mach_thread(sys_thread_t *t)
     thread_t port;
     memcpy(&port, (char *)t->cthread + 4, sizeof(port));
     return port;
+}
+
+/* GC callers hold _queue_lock across Single, root scanning and Multi.
+ * Side storage preserves the original 192-byte thread ABI and its exception
+ * jump buffer. Allocate before suspending anyone: malloc may need their locks.
+ */
+struct gc_thread_snapshot {
+    sys_thread_t *thread;
+    void *registers[i386_THREAD_STATE_COUNT];
+};
+static struct gc_thread_snapshot *gc_snapshots;
+static int gc_stopped;
+
+/* 5C145440, with rollback and register capture required by the shared GC. */
+int sysThreadSingle(void)
+{
+    sys_thread_t *self = sysThreadSelf(), *t;
+    i386_thread_state_t state;
+    unsigned int count;
+    int n = 0, result = SYS_OK;
+    sysMonitorEnter(_queue_lock);
+    for (t = threads; t != NULL; t = t->next) if (t != self) ++n;
+    if (n != 0) {
+        gc_snapshots = (struct gc_thread_snapshot *)calloc(n, sizeof(*gc_snapshots));
+        if (gc_snapshots == NULL) {
+            sysMonitorExit(_queue_lock);
+            return SYS_NOMEM;
+        }
+    }
+    for (t = threads; t != NULL; t = t->next) {
+        if (t == self) continue;
+        if (thread_suspend(mach_thread(t)) != 0) { result = SYS_ERR; break; }
+        gc_snapshots[gc_stopped].thread = t;
+        ++gc_stopped; /* Include this thread in rollback if capture fails. */
+        count = i386_THREAD_STATE_COUNT;
+        if (thread_get_state(mach_thread(t), i386_THREAD_STATE,
+                             (thread_state_t)&state, &count) != 0 ||
+            count != i386_THREAD_STATE_COUNT) {
+            result = SYS_ERR;
+            break;
+        }
+        memcpy(gc_snapshots[gc_stopped-1].registers, &state, sizeof(state));
+    }
+    sysMonitorExit(_queue_lock);
+    if (result != SYS_OK) sysThreadMulti();
+    return result;
+}
+
+/* 5C1454B0 stopped on the first error. Always attempt every owned suspension;
+ * a resume failure cannot safely return to a VM with stranded threads. */
+void sysThreadMulti(void)
+{
+    int i, failed = 0;
+    if (gc_snapshots == NULL) return;
+    sysMonitorEnter(_queue_lock);
+    for (i = 0; i < gc_stopped; ++i) {
+        if (thread_resume(mach_thread(gc_snapshots[i].thread)) != 0) failed = 1;
+    }
+    sysMonitorExit(_queue_lock);
+    if (failed) {
+        sysAbort();
+        abort(); /* A user-supplied JNI abort hook is allowed to return. */
+    }
+    free(gc_snapshots);
+    gc_snapshots = NULL;
+    gc_stopped = 0;
+}
+
+void **sysThreadRegisters(sys_thread_t *t, int *count)
+{
+    int i;
+    *count = 0;
+    for (i = 0; i < gc_stopped; ++i) {
+        if (gc_snapshots[i].thread == t) {
+            *count = i386_THREAD_STATE_COUNT;
+            return gc_snapshots[i].registers;
+        }
+    }
+    return NULL;
+}
+
+void *sysThreadStackPointer(sys_thread_t *t)
+{
+    void **registers;
+    int count;
+    /* Preserve the original sentinel: shared gc.c replaces self's SP with
+     * its own frame, and gc_locked spills self's registers using setjmp. */
+    if (t == sysThreadSelf()) return (void *)1;
+    registers = sysThreadRegisters(t, &count);
+    return registers != NULL ? registers[7] : NULL; /* i386 esp */
 }
 
 /* 5C145020. These states are hints (see the original threads_md.h).

@@ -10,6 +10,7 @@
 #include "monitor_cache.h"
 #include <mach/mach.h>
 #include <mach/thread_info.h>
+#include <mach/thread_status.h>
 
 #define CHECK(x) do { if (!(x)) { fprintf(stderr,"line %d: %s\n",__LINE__,#x); exit(1); } } while (0)
 static struct sys_mon queue;
@@ -37,6 +38,10 @@ static int exited;
 static int controlling, control_error, suspend_calls, resume_calls, priority_calls;
 static sys_thread_t control_thread;
 static native_thread_state_t control_state;
+static int gc_mode, gc_oom, gc_fail_suspend, gc_fail_state, gc_short_state;
+static int gc_fail_resume, gc_resume_calls, gc_free_calls, gc_abort_seen;
+static int gc_depth[3], gc_expected_resumes;
+static void *gc_allocation;
 static sys_thread_t *pending;
 static void *(*child_entry)(void *);
 extern int sysThreadEnumerateOver_unlocked(int (*)(sys_thread_t *, void *), void *);
@@ -54,6 +59,7 @@ int sysMonitorEnter(sys_mon_t *m)
         CHECK(!locked && !join_locked && deleted == (saved_ee != NULL));
         join_locked = 1; return 0;
     }
+    if (gc_mode) { CHECK(m == &queue); ++locked; ++enters; return 0; }
     CHECK(m == &queue && !locked);
     if (dying && dying->cookie) {
         Hjava_lang_Thread *h = (Hjava_lang_Thread *)dying->cookie;
@@ -68,6 +74,7 @@ int sysMonitorExit(sys_mon_t *m)
         CHECK(join_locked); join_locked = 0; return 0;
     }
     CHECK(m == &queue && locked);
+    if (gc_mode) { --locked; return 0; }
     locked = 0;
     return 0;
 }
@@ -104,6 +111,10 @@ static int check_removed(sys_thread_t *t, void *arg)
 static void mach_test_free(void *p)
 {
     int count = 0;
+    if (p == gc_allocation) {
+        CHECK(gc_mode && gc_depth[1] == 1 && gc_depth[2] == 0);
+        ++gc_free_calls; gc_allocation = NULL; free(p); return;
+    }
     if (creating) {
         CHECK(p == pending && ActiveThreadCount == 0 && UserThreadCount == 0);
         CHECK(!child.data && !detached && (!fail_suspend || joined));
@@ -144,6 +155,11 @@ void cthread_yield(void)
 }
 kern_return_t thread_suspend(thread_t thread)
 {
+    if (gc_mode) {
+        CHECK(locked >= 1 && thread >= 101 && thread <= 102);
+        if ((int)thread == gc_fail_suspend) return 5;
+        ++gc_depth[thread-100]; return 0;
+    }
     if (controlling) {
         CHECK(thread == 97 && !control_thread.mutex.lock);
         CHECK(control_thread.state == control_state);
@@ -156,9 +172,46 @@ kern_return_t thread_suspend(thread_t thread)
 }
 kern_return_t thread_resume(thread_t thread)
 {
+    if (gc_mode) {
+        CHECK(locked >= 1 && thread >= 101 && thread <= 102);
+        ++gc_resume_calls;
+        if ((int)thread == gc_fail_resume) return 5;
+        --gc_depth[thread-100]; return 0;
+    }
     CHECK(controlling && thread == 97 && !control_thread.mutex.lock);
     CHECK(control_thread.state == control_state);
     ++resume_calls; return control_error;
+}
+kern_return_t thread_get_state(thread_t thread, int flavor, thread_state_t state,
+                               unsigned int *count)
+{
+    unsigned int i;
+    CHECK(gc_mode && locked >= 1 && flavor == -1 && *count == 16);
+    CHECK(thread >= 101 && thread <= 102 && gc_depth[thread-100] > 0);
+    if ((int)thread == gc_fail_state) return 5;
+    for (i = 0; i < 16; ++i) state[i] = thread*1000+i;
+    if (gc_short_state) *count = 15;
+    return 0;
+}
+static void *mach_test_calloc(size_t count, size_t size)
+{
+    CHECK(gc_mode && locked >= 1 && count == 2 && size >= 16*sizeof(void *));
+    CHECK(gc_depth[1] == 1 && gc_depth[2] == 0 && !gc_allocation);
+    if (gc_oom) return NULL;
+    gc_allocation = calloc(count, size);
+    CHECK(gc_allocation != NULL); return gc_allocation;
+}
+void sysAbort(void)
+{
+    CHECK(gc_mode && gc_fail_resume && gc_resume_calls == gc_expected_resumes);
+    CHECK(gc_allocation != NULL); ++gc_abort_seen;
+    /* JNI abort hooks are allowed to return: the GC path must still stop. */
+}
+static void mach_test_abort(void)
+{
+    CHECK(gc_abort_seen == 1);
+    puts("GC resume failure stopped after attempting all owned suspensions");
+    exit(0);
 }
 kern_return_t thread_info(thread_t thread, int flavor, thread_info_t info,
                           unsigned int *count)
@@ -270,7 +323,81 @@ static int visit(sys_thread_t *t, void *arg)
     ++visits;
     return visits == stop_after ? 37 : 0;
 }
-int main(void)
+static void test_gc(int fatal_mode)
+{
+    sys_thread_t *t[3];
+    void **regs, **other;
+    int i, n, prior;
+    CHECK(sizeof(i386_thread_state_t) == 64);
+    CHECK(offsetof(i386_thread_state_t, esp) == 28);
+    controlling = 0; fail_alloc = 0;
+    for (i = 0; i < 3; ++i) {
+        native[i].real_thread = 100+i;
+        current.incarnation = (cthread_t)&native[i];
+        CHECK(sysThreadAlloc(&t[i], (void *)0x700000, NULL) == SYS_OK);
+        if (i == 0) {
+            gc_mode = 1; locked = 1;
+            CHECK(sysThreadSingle() == SYS_OK && locked == 1);
+            sysThreadMulti();
+            CHECK(!gc_allocation && !gc_resume_calls && locked == 1);
+            locked = 0; gc_mode = 0;
+        }
+    }
+    current.incarnation = (cthread_t)&native[0];
+    t[1]->state = SUSPENDED; t[1]->cpending_suspend = TRUE;
+    t[2]->state = MONITOR_WAIT;
+    gc_mode = 1; gc_depth[1] = 1; locked = 1; /* Caller holds queue lock. */
+    CHECK(sysThreadStackPointer(t[1]) == NULL);
+    n = -1; CHECK(sysThreadRegisters(t[1], &n) == NULL && n == 0);
+    gc_oom = 1;
+    CHECK(sysThreadSingle() == SYS_NOMEM && locked == 1);
+    sysThreadMulti(); CHECK(!gc_resume_calls && !gc_allocation);
+    gc_oom = 0; gc_fail_suspend = 102;
+    CHECK(sysThreadSingle() == SYS_ERR && !gc_resume_calls && locked == 1);
+    gc_fail_suspend = 101;
+    if (fatal_mode == 2) {
+        gc_fail_resume = 102; gc_expected_resumes = 1;
+        sysThreadSingle(); CHECK(0);
+    }
+    CHECK(sysThreadSingle() == SYS_ERR && gc_resume_calls == 1 && locked == 1);
+    prior = gc_resume_calls; sysThreadMulti(); CHECK(gc_resume_calls == prior);
+    gc_fail_suspend = 0; gc_fail_state = 101;
+    CHECK(sysThreadSingle() == SYS_ERR && gc_resume_calls == prior+2);
+    gc_fail_state = 0; gc_short_state = 1; prior = gc_resume_calls;
+    CHECK(sysThreadSingle() == SYS_ERR && gc_resume_calls == prior+1);
+    gc_short_state = 0;
+    CHECK(sysThreadSingle() == SYS_OK && locked == 1);
+    CHECK(gc_depth[1] == 2 && gc_depth[2] == 1);
+    CHECK(sysThreadStackPointer(t[0]) == (void *)1);
+    CHECK(sysThreadStackPointer(t[1]) == (void *)101007);
+    CHECK(sysThreadStackPointer(t[2]) == (void *)102007);
+    regs = sysThreadRegisters(t[1], &n); CHECK(n == 16 && regs != NULL);
+    other = sysThreadRegisters(t[2], &n); CHECK(n == 16 && other != regs);
+    for (i = 0; i < 16; ++i) {
+        CHECK(regs[i] == (void *)(101000+i));
+        CHECK(other[i] == (void *)(102000+i));
+    }
+    CHECK(sysThreadRegisters(t[0], &n) == NULL && n == 0);
+    gc_resume_calls = 0;
+    if (fatal_mode == 1) { gc_fail_resume = 102; gc_expected_resumes = 2; }
+    sysThreadMulti(); CHECK(!fatal_mode);
+    CHECK(gc_resume_calls == 2 && !gc_allocation && locked == 1);
+    CHECK(gc_depth[1] == 1 && gc_depth[2] == 0 && gc_free_calls == 5);
+    CHECK(t[1]->state == SUSPENDED && t[1]->cpending_suspend);
+    CHECK(t[2]->state == MONITOR_WAIT);
+    CHECK(sysThreadStackPointer(t[1]) == NULL);
+    CHECK(sysThreadRegisters(t[2], &n) == NULL && n == 0);
+    sysThreadMulti(); CHECK(gc_resume_calls == 2);
+    locked = 0; gc_mode = 0;
+    for (i = 0; i < 3; ++i) {
+        current.incarnation = (cthread_t)&native[i];
+        dying = t[i]; saved_ee = NULL;
+        CHECK(sysThreadFree(t[i]) == SYS_OK);
+        dying = NULL;
+    }
+}
+
+int main(int argc, char **argv)
 {
     sys_thread_t *t[3], *out;
     struct sys_thread initial;
@@ -400,6 +527,7 @@ int main(void)
     dying = NULL;
     CHECK(exited == 1 && !sysThreadSelf() && !ActiveThreadCount && !UserThreadCount);
     test_control();
+    test_gc(argc == 1 ? 0 : strcmp(argv[1], "--gc-resume-error") == 0 ? 1 : 2);
     puts("Mach thread lifecycle/control contracts passed");
     return 0;
 }
@@ -408,4 +536,6 @@ int main(void)
  * linkage on Windows or adding an allocator hook to production code. */
 #define malloc mach_test_malloc
 #define free mach_test_free
+#define calloc mach_test_calloc
+#define abort mach_test_abort
 #include "../../src/unix/java/runtime/thread_cthreads.c"

@@ -399,3 +399,53 @@ suspensions, and Multi may leave later threads suspended. Reconstruction
 must preserve the existing GC-root fixes and add partial-failure recovery
 before enabling this backend. InitializeSigquitHandler (5C136B40) installs
 signal3's handler; it is not an empty initialization stub.
+
+## Task 3: GC roots and stop-the-world recovery
+
+Implemented Single/Multi and stack/register access around the recovered Mach
+thread operations. Shared gc.c holds _queue_lock across Single, scanning and
+Multi; the reconstructed functions retain their internal recursive queue-lock
+operations. Snapshot storage is allocated before suspending any peer, avoiding
+allocation while a stopped thread could own the C allocator's locks. Each
+successful suspension is recorded before querying its registers, so capture
+failure also resumes that thread. Only GC-owned suspend counts are removed;
+Java suspension counts and state hints are unchanged.
+
+Ruling: keep captured state in separately allocated per-GC records, preserving
+the original192-byte sys_thread ABI and the exception jump buffer. The SDK
+confirms i386_THREAD_STATE=-1,16 words, and ESP at byte28. All16 words are
+exposed to the existing conservative register scanner via stable per-thread
+arrays. StackPointer uses captured ESP; self retains sentinel1 because shared
+gc.c substitutes its own frame and gc_locked spills registers with setjmp.
+Queries for peers outside a GC snapshot return NULL/zero count. Cost: any
+future debugger requiring live native registers needs a separate safe capture
+path; the existing shared callers of these accessors are GC callers.
+
+Ruling: allocation, suspension, failed register queries, or short state replies
+prevent collection. Rollback resumes every successfully stopped peer before
+returning an error. Multi is harmless after rollback or repeated release.
+Resume failures are different: all owned suspensions are attempted before
+sysAbort, followed by abort if a JNI abort hook returns. Continuing with a
+stranded thread could deadlock or corrupt the VM; the void Multi API cannot
+report a recoverable result. Cost: an unrecoverable Mach resume error terminates
+the process rather than silently leaving peers suspended. Snapshot records
+remain intact until termination on this path.
+
+RED: missing Single/Multi/StackPointer/Registers implementations. GREEN:
+the native probe checks the self-only case, OOM before suspension, first/later
+suspension failure, capture failure, short replies, persistent register-only
+root values, independent snapshots, ESP selection, pre-existing Java suspension,
+and snapshot lifetime. Dedicated processes test resume failure during ordinary
+release and rollback, including a returning abort hook and attempts to release
+all owned suspensions. The SDK build caught duplicate declarations from directly
+including its unguarded i386 header; the guarded mach/thread_status.h wrapper
+is now used. This validates declarations/layouts, not real Mach execution.
+
+Verification: optimized strict C89/i386 normal and fatal-path probes passed;
+external SDK GNU89/i386 normal/fatal probes passed; Windows Debug/Release
+focused3/3 passed. Full Windows Debug112/112; Linux Release100 passed plus the
+expected audio-device skip. Final added state-preservation assertions also
+passed in focused Windows Debug and strict C89 probes. No profiler failure in
+this run. Logs: out/phase3-gc-{win,linux}-{build,tests}.log. Production still
+selects pthreads. Task3 remains open for breakpoint/system-thread support and
+its final integration audit; Mach monitor reconstruction is still Task4.

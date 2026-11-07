@@ -148,3 +148,13 @@ checks pass. Full Windows110/110, Linux98 passed plus audio skip. Evidence and
 logs are recorded above/in the evidence document. Remaining Task3 work:
 GC stack/register roots and Single/Multi rollback, breakpoint/system-thread
 support and final integration audit. Mach production selection is still off.
+
+Task 3, GC slice: Single/Multi now capture peer register/stack roots in storage
+allocated before suspension, roll back all successful stops on failure, and
+preserve Java-owned suspend counts. Resume errors attempt all releases and
+terminate rather than return to a partially suspended VM, including when a
+JNI abort hook returns. ABI/layout and failure probes pass on strict i386,
+external SDK headers and Windows Debug/Release. Full Windows112/112; Linux100
+passed plus audio skip. No profiler recurrence. Remaining Task3 items are
+breakpoint/system-thread support and the integration audit; production Mach
+selection remains disabled pending the monitor/runtime work.
