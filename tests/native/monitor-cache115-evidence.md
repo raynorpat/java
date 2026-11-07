@@ -88,3 +88,18 @@ Integration verification after implementation:
 - Both monitor.h and monitor_cache.h were byte-compared equal to vendor originals.
 
 Full four-configuration aggregate gates remain coordinated by the root task.
+
+Phase 6 Animator concurrency regression: GDB found a free-list monitor with
+key zero still owned by an image-fetch thread inside native callback class
+resolution. A concurrent synthetic callback also entered monitor key zero.
+Rhapsody `_ResolveClassConstant` at 5c108f2c explicitly calls the resolver without
+monitorEnter/Exit when the current frame has no Java method. Such temporary
+constant pools belong to that callback's stack. The reconstruction incorrectly
+locked obj_monitor(NULL), colliding with the cache's zero sentinel.
+
+The native cache test now invokes String.length through the legacy callback and
+asserts that it does not create a zero-key cache entry. RED `!zero_key` -> GREEN
+with the recovered no-owner path restored. Full Linux Debug: 156 passed, one
+audio-device skip (190.37s). The unchanged Animator example3, which reproduced
+under GDB, then survived three installed-runtime interactive reruns. No monitor
+cache algorithm or pthread synchronization change was needed.

@@ -6,10 +6,12 @@
 #include "interpreter.h"
 #include "monitor.h"
 #include "monitor_cache.h"
+#include "javaString.h"
 #ifdef SUN_ORACLE
 #include <windows.h>
 #else
 extern int monCount;
+extern monitor_t **monHashTable;
 extern void expandMonCache(int);
 #endif
 #define CHECK(c) do { if (!(c)) { fprintf(stderr, "monitor cache check line %d: %s\n", __LINE__, #c); return 1; } } while (0)
@@ -49,6 +51,17 @@ int main(int argc, char **argv)
     CHECK(create(&vm, &env, &args) == 0);
     CHECK(*capacity == 128);
 #ifndef SUN_ORACLE
+    {
+        monitor_t *entry;
+        int zero_key=0;
+        Hjava_lang_String *value=makeJavaString("cache",5);
+        CHECK(execute_java_dynamic_method(EE(),(HObject *)value,"length","()I")==5);
+        CACHE_LOCK();
+        for(entry=monHashTable[0];entry;entry=entry->next)
+            if(entry->key==0) zero_key=1;
+        CACHE_UNLOCK();
+        CHECK(!zero_key); /* private native-call pools must not lock sentinel 0 */
+    }
     CACHE_LOCK(); CACHE_LOCK();
     CHECK(CACHE_LOCKED());
     CACHE_UNLOCK(); CHECK(CACHE_LOCKED());

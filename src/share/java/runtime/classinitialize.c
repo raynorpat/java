@@ -160,6 +160,10 @@ ResolveClassConstant(cp_item_type *constant_pool, unsigned int index,
 	(ee && ee->current_frame && ee->current_frame->current_method) ?
 	    fieldclass(&ee->current_frame->current_method->fb) : 0;
 
+    /* Rhapsody _ResolveClassConstant 5c108f2c: native callback pools are
+     * private to the synthetic frame. Zero is the monitor-cache sentinel. */
+    if (!class)
+	return Locked_ResolveClassConstant(class, constant_pool, index, ee, mask);
     monitorEnter(obj_monitor(class));
     ret = Locked_ResolveClassConstant(class, constant_pool, index, ee, mask);
     monitorExit(obj_monitor(class));
