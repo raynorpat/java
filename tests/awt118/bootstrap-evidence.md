@@ -371,3 +371,16 @@ use the existing reference-managed pixmap storage.
 Surface115 failed at missing lock, then passed four cycles of window/image
 access, repeated lock, resize and disposal. Surface, audit/package, window and
 image tests pass together (5/5); implemented generated bindings rise to 196.
+
+## Frame icon checkpoint
+
+Release 0x2d1dc and 0x2d43c define WM_ICON_SIZE negotiation and icon window/pixmap
+publication. Existing icon geometry wins; otherwise use a matching increment
+or the recovered min/max fallback. Linux copies the source pixmap into an owned
+icon resource, preserving WM access when the Java image is flushed. Replacement
+and frame/widget cleanup release the old resources.
+
+Icon115 failed at missing pGetIconImageSize, then passed four cycles of 17x19
+input negotiated to 16x16, replacement from 3x3, WM_HINTS pixel/geometry reads,
+source flush/GC and frame disposal. All 29 focused Linux Debug tests pass
+(114.01 seconds); 198 of 207 generated bindings are implemented.

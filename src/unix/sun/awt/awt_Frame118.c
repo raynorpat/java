@@ -1,5 +1,6 @@
 /* Solaris libawt_g.so MFramePeer.create 5f220 and shell peer contracts. */
 #include "awt118.h"
+#include "awt_Image118.h"
 #include "sun_awt_motif_MFramePeer.h"
 #include "java_awt_Component.h"
 #include "java_awt_Insets.h"
@@ -11,6 +12,79 @@
 #include <Xm/TextF.h>
 #include <Xm/XmIm.h>
 #include <stdlib.h>
+
+static void free_icon(AwtPeer *data)
+{
+    if (data->iconWindow) XDestroyWindow(awt_display,data->iconWindow);
+    if (data->iconPixmap) XFreePixmap(awt_display,data->iconPixmap);
+    data->iconWindow=None; data->iconPixmap=None;
+}
+
+/* Release 2d1dc: honor existing icon geometry, otherwise WM_ICON_SIZE ranges. */
+struct Hjava_awt_Dimension *sun_awt_motif_MFramePeer_pGetIconImageSize(Hsun_awt_motif_MFramePeer *self,long width,long height)
+{
+    AwtPeer *data;
+    XIconSize *sizes=NULL;
+    int count=0,i,x,y,found=0;
+    unsigned w=0,h=0,border,depth;
+    unsigned long long best=~0ULL;
+    Window root;
+    struct Hjava_awt_Dimension *result=NULL;
+    AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
+    if (!data || !data->shell) SignalError(EE(),"java/lang/NullPointerException",NULL);
+    else if (data->iconWindow) XGetGeometry(awt_display,data->iconWindow,&root,&x,&y,&w,&h,&border,&depth);
+    else if (XGetIconSizes(awt_display,RootWindow(awt_display,awt_screen),&sizes,&count) && count>0) {
+        for (i=0;i<count;i++) {
+            XIconSize *size=sizes+i;
+            if (width>=size->min_width && width<=size->max_width && height>=size->min_height && height<=size->max_height) {
+                unsigned cw=width-(width-size->min_width)%(size->width_inc>0 ? size->width_inc : 1);
+                unsigned ch=height-(height-size->min_height)%(size->height_inc>0 ? size->height_inc : 1);
+                unsigned long long distance=(unsigned long long)cw*cw+(unsigned long long)ch*ch;
+                found=1;
+                if (cw==width && ch==height) { w=cw; h=ch; break; }
+                if (distance<best) { best=distance; w=cw; h=ch; }
+            }
+        }
+        if (!found) {
+            if (width>=sizes->max_width && height>=sizes->max_height) { w=sizes->max_width; h=sizes->max_height; }
+            else if (width<sizes->min_width || height<sizes->min_height) {
+                w=(sizes->min_width+sizes->max_width)/2; h=(sizes->min_height+sizes->max_height)/2;
+            } else { w=sizes->min_width; h=sizes->min_height; }
+        }
+    }
+    if (sizes) XFree(sizes);
+    if (w && h) result=(struct Hjava_awt_Dimension *)execute_java_constructor(EE(),"java/awt/Dimension",NULL,"(II)",w,h);
+    AWT_UNLOCK(); return result;
+}
+
+/* Release 2d43c: publish both an icon window and pixmap through WM_HINTS.
+ * Own a copy so flushing the Java image cannot invalidate a WM's drawable. */
+void sun_awt_motif_MFramePeer_pSetIconImage(Hsun_awt_motif_MFramePeer *self,Hsun_awt_image_ImageRepresentation *rep)
+{
+    AwtPeer *data;
+    AwtImage *image;
+    Pixmap pixmap;
+    GC gc;
+    XSetWindowAttributes attributes;
+    AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
+    image=rep ? awt118_image(rep,NULL) : NULL;
+    if (!data || !data->shell || !image) SignalError(EE(),"java/lang/NullPointerException",NULL);
+    else {
+        pixmap=XCreatePixmap(awt_display,RootWindow(awt_display,awt_screen),image->width,image->height,awt_visInfo.depth);
+        gc=XCreateGC(awt_display,pixmap,0,NULL);
+        XCopyArea(awt_display,image->pixmap,pixmap,gc,0,0,image->width,image->height,0,0); XFreeGC(awt_display,gc);
+        if (!data->iconWindow) {
+            attributes.border_pixel=awt118_pixel(0); attributes.colormap=awt_cmap;
+            data->iconWindow=XCreateWindow(awt_display,RootWindow(awt_display,awt_screen),0,0,image->width,image->height,
+                0,awt_visInfo.depth,InputOutput,awt_visInfo.visual,CWBorderPixel|CWColormap,&attributes);
+        }
+        XtVaSetValues(data->shell,XtNiconWindow,data->iconWindow,XtNiconPixmap,pixmap,NULL);
+        XSetWindowBackgroundPixmap(awt_display,data->iconWindow,pixmap); XClearWindow(awt_display,data->iconWindow);
+        if (data->iconPixmap) XFreePixmap(awt_display,data->iconPixmap);
+        data->iconPixmap=pixmap; XFlush(awt_display);
+    }
+    AWT_UNLOCK();
+}
 
 static void close_window(Widget widget,XtPointer closure,XtPointer call)
 {
@@ -93,6 +167,7 @@ void sun_awt_motif_MFramePeer_create(Hsun_awt_motif_MFramePeer *self,Hsun_awt_mo
     AWT_LOCK();
     data=awt118_new_peer((Hsun_awt_motif_MComponentPeer *)self);
     if (data) {
+        data->cleanup=free_icon;
         unhand(self)->insets=(Hjava_awt_Insets *)insets;
         bounds=unhand(unhand(self)->insets);
         if (bounds->top<0) bounds->top=0;

@@ -21,6 +21,8 @@ XFontStruct *awt118_segment_font(struct Hjava_awt_Font *font, struct Hsun_awt_Fo
 typedef struct AwtPeer {
     Widget widget, shell, content, container, menuBar;
     Cursor cursor;
+    Window iconWindow;
+    Pixmap iconPixmap;
     int references;
     int imHeight;
     int menuHeight;

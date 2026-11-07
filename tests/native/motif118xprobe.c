@@ -287,3 +287,31 @@ JAVA_PUBLIC_API(stack_item *) Java_Raster115_singleFont_stub(stack_item *p,struc
     sun_awt_motif_X11Graphics_drawSFChars(p[0].p,p[1].p,p[2].i,p[3].i,p[4].i,p[5].i);
     return p;
 }
+
+JAVA_PUBLIC_API(stack_item *) Java_Icon115_sizes_stub(stack_item *p,struct execenv *ee)
+{
+    XIconSize size={8,8,32,32,8,8};
+    AWT_LOCK(); XSetIconSizes(awt_display,RootWindow(awt_display,awt_screen),&size,1); AWT_UNLOCK();
+    return p;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Icon115_pixel_stub(stack_item *p,struct execenv *ee)
+{
+    Widget w;
+    XWMHints *hints;
+    Window root;
+    int x,y;
+    unsigned width,height,border,depth;
+    XImage *image=NULL;
+    long pixel=0;
+    AWT_LOCK(); w=widget(p[0].p);
+    while(XtParent(w)) w=XtParent(w);
+    hints=XGetWMHints(awt_display,XtWindow(w));
+    if(!hints || !(hints->flags&IconPixmapHint) || !(hints->flags&IconWindowHint))
+        SignalError(ee,"java/lang/RuntimeException","missing icon hints");
+    else if(!XGetGeometry(awt_display,hints->icon_pixmap,&root,&x,&y,&width,&height,&border,&depth) || width!=16 || height!=16)
+        SignalError(ee,"java/lang/RuntimeException","icon size");
+    else image=XGetImage(awt_display,hints->icon_pixmap,0,0,1,1,AllPlanes,ZPixmap);
+    if(image) { pixel=XGetPixel(image,0,0); XDestroyImage(image); }
+    if(hints) XFree(hints);
+    AWT_UNLOCK(); p[0].i=pixel; return p+1;
+}
