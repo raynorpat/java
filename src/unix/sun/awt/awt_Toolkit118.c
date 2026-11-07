@@ -1,6 +1,7 @@
 /* Reconstructed from Solaris libawt_g.so 416ac/42b94 and libawt.so
  * 22894/23174/23530..23694. See tests/awt118/bootstrap-evidence.md. */
 #include "awt118.h"
+#include "sun_awt_motif_InputThread.h"
 #include <X11/Shell.h>
 #include <Xm/DrawingA.h>
 #include <Xm/PushB.h>
@@ -18,6 +19,23 @@ XVisualInfo awt_visInfo;
 Colormap awt_cmap;
 int awt_screen;
 Hsun_awt_motif_MToolkit *awt_lock;
+static int inputReady;
+
+/* Release 22d78: optional input waiter notifies the dispatch loop, then waits
+ * until that loop drains the pending Xt work. Dispatch remains on MToolkit. */
+void sun_awt_motif_InputThread_run(Hsun_awt_motif_InputThread *self)
+{
+    struct pollfd fd;
+    AWT_LOCK();
+    for(;;) {
+        while(!XtAppPending(awt_appContext)) {
+            fd.fd=ConnectionNumber(awt_display); fd.events=POLLIN;
+            AWT_UNLOCK(); poll(&fd,1,250); AWT_LOCK();
+        }
+        inputReady=1; monitorNotifyAll((unsigned int)awt_lock);
+        while(inputReady) monitorWait((unsigned int)awt_lock,-1);
+    }
+}
 
 void sun_awt_motif_MToolkit_init(Hsun_awt_motif_MToolkit *self)
 {
@@ -69,10 +87,11 @@ void sun_awt_motif_MToolkit_run(Hsun_awt_motif_MToolkit *self)
             pending=XtAppPending(awt_appContext);
             if (pending&XtIMXEvent) {
                 XtAppNextEvent(awt_appContext,&event);
-                if (!awt118_filter_input(&event)) XtDispatchEvent(&event);
+                if (!awt118_xim_event(&event) && !awt118_filter_input(&event)) XtDispatchEvent(&event);
             } else if (pending) XtAppProcessEvent(awt_appContext,pending);
         }
         XFlush(awt_display);
+        inputReady=0;
         monitorNotifyAll((unsigned int)awt_lock);
         fd.fd = ConnectionNumber(awt_display);
         fd.events = POLLIN;

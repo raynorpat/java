@@ -6,6 +6,7 @@
 #include "sun_awt_motif_X11Graphics.h"
 #include <X11/extensions/XTest.h>
 #include <X11/keysym.h>
+#include <X11/Shell.h>
 #include <Xm/ToggleB.h>
 #include <Xm/TextF.h>
 #include <Xm/Text.h>
@@ -20,6 +21,24 @@ static Widget widget(Hjava_awt_Component *target)
     AwtPeer *data=peer ? awt118_peer(peer) : NULL;
     return data ? (data->content ? data->content : data->widget) : NULL;
 }
+
+static int embedded_retired;
+static void embedded_destroyed(Widget widget,XtPointer closure,XtPointer call)
+{ embedded_retired++; }
+JAVA_PUBLIC_API(stack_item *) Java_Embedded115_host_stub(stack_item *p,struct execenv *ee)
+{
+    Widget shell;
+    AWT_LOCK();
+    shell=XtVaAppCreateShell("EmbeddedHost","XApplication",vendorShellWidgetClass,awt_display,
+        XtNvisual,awt_visInfo.visual,XtNdepth,awt_visInfo.depth,XtNcolormap,awt_cmap,
+        XtNwidth,160,XtNheight,100,XtNallowShellResize,True,XtNmappedWhenManaged,False,NULL);
+    XtAddCallback(shell,XtNdestroyCallback,embedded_destroyed,NULL);
+    AWT_UNLOCK(); p[0].i=(long)shell; return p+1;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Embedded115_retired_stub(stack_item *p,struct execenv *ee)
+{ p[0].i=embedded_retired; return p+1; }
+JAVA_PUBLIC_API(stack_item *) Java_Embedded115_destroyHost_stub(stack_item *p,struct execenv *ee)
+{ AWT_LOCK(); XtDestroyWidget((Widget)p[0].i); AWT_UNLOCK(); return p; }
 JAVA_PUBLIC_API(stack_item *) Java_Menus115_click_stub(stack_item *p,struct execenv *ee)
 {
     Widget item;
@@ -124,6 +143,25 @@ JAVA_PUBLIC_API(stack_item *) Java_Input115_key_stub(stack_item *p,struct execen
     XFlush(awt_display);
     AWT_UNLOCK();
     return p;
+}
+
+JAVA_PUBLIC_API(stack_item *) Java_InputMethod115_compose_stub(stack_item *p,struct execenv *ee)
+{
+    int minimum,maximum,i;
+    KeySym symbol=XK_Multi_key, sequence[2]={XK_apostrophe,XK_e};
+    XMappingEvent mapping;
+    AWT_LOCK(); XDisplayKeycodes(awt_display,&minimum,&maximum);
+    XChangeKeyboardMapping(awt_display,maximum,1,&symbol,1); XSync(awt_display,False);
+    memset(&mapping,0,sizeof(mapping)); mapping.display=awt_display; mapping.request=MappingKeyboard;
+    mapping.first_keycode=maximum; mapping.count=1; XRefreshKeyboardMapping(&mapping);
+    XTestFakeKeyEvent(awt_display,maximum,True,CurrentTime);
+    XTestFakeKeyEvent(awt_display,maximum,False,CurrentTime);
+    for(i=0;i<2;i++) {
+        KeyCode key=XKeysymToKeycode(awt_display,sequence[i]);
+        XTestFakeKeyEvent(awt_display,key,True,CurrentTime);
+        XTestFakeKeyEvent(awt_display,key,False,CurrentTime);
+    }
+    XFlush(awt_display); AWT_UNLOCK(); return p;
 }
 
 JAVA_PUBLIC_API(stack_item *) Java_Widgets115_state_stub(stack_item *p,struct execenv *ee)

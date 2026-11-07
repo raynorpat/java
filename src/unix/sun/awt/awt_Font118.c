@@ -46,13 +46,25 @@ static XFontStruct *load_font(const char *name, int size)
     return XLoadQueryFont(awt_display,"-*-helvetica-*-*-*-*-*-*-12-*-*-*-iso8859-1");
 }
 
+static XFontStruct *load_descriptor(Hjava_awt_Font *font,Hsun_awt_FontDescriptor *descriptor)
+{
+    char name[1024],pattern[1200],*slot;
+    javaString2CString(unhand(descriptor)->nativeName,name,sizeof(name));
+    slot=strstr(name,"%d");
+    if(slot) {
+        *slot=0;
+        snprintf(pattern,sizeof(pattern),"%s%ld%s",name,unhand(font)->size*10,slot+2);
+    } else strcpy(pattern,name);
+    return load_font(pattern,unhand(font)->size);
+}
+
 static AwtFont *font_data(Hjava_awt_Font *font)
 {
     Hsun_awt_motif_MFontPeer *peer;
     AwtFont *data;
     char name[256], pattern[1024];
     const char *family="helvetica", *foundry="adobe", *style;
-    int count;
+    int count,i;
     if (!font || !unhand(font)->peer) {
         SignalError(EE(),"java/lang/NullPointerException",NULL); return NULL;
     }
@@ -66,6 +78,17 @@ static AwtFont *font_data(Hjava_awt_Font *font)
         data->count=count;
         data->fonts=(XFontStruct **)calloc(count,sizeof(XFontStruct *));
         if (!data->fonts) { free(data); SignalError(EE(),"java/lang/OutOfMemoryError",NULL); return NULL; }
+        /* Release 21b54 uses the first Latin-1 descriptor for byte metrics.
+         * Choosing a separate family fallback disagrees with string segments
+         * when the host has additional scalable fonts installed. */
+        for(i=0;i<count && !data->base;i++) {
+            Hsun_awt_FontDescriptor *descriptor=(Hsun_awt_FontDescriptor *)unhand(unhand(peer)->componentFonts)->body[i];
+            Hjava_lang_String *encoding=(Hjava_lang_String *)execute_java_dynamic_method(EE(),
+                (HObject *)unhand(descriptor)->fontCharset,"getCharacterEncoding","()Ljava/lang/String;");
+            if(exceptionOccurred(EE())) { free(data->fonts); free(data); return NULL; }
+            javaString2CString(encoding,name,sizeof(name));
+            if(strstr(name,"8859_1")) data->base=data->fonts[i]=load_descriptor(font,descriptor);
+        }
     }
     javaString2CString(unhand(font)->name,name,sizeof(name));
     if (!strcmp(name,"Serif") || !strcmp(name,"TimesRoman")) family="times";
@@ -75,7 +98,7 @@ static AwtFont *font_data(Hjava_awt_Font *font)
     style=unhand(font)->style==1 ? "bold-r" : unhand(font)->style==2 ? "medium-i" :
         unhand(font)->style==3 ? "bold-i" : "medium-r";
     snprintf(pattern,sizeof(pattern),"-%s-%s-%s-*-*-%ld-*-*-*-*-*-iso8859-1",foundry,family,style,unhand(font)->size);
-    data->base=load_font(pattern,unhand(font)->size);
+    if (!data->base) data->base=load_font(pattern,unhand(font)->size);
     if (!data->base) {
         free(data->fonts); free(data);
         SignalError(EE(),"java/io/FileNotFoundException","X11 font"); return NULL;
@@ -91,19 +114,12 @@ XFontStruct *awt118_segment_font(Hjava_awt_Font *font,Hsun_awt_FontDescriptor *d
 {
     AwtFont *data=font_data(font);
     Hsun_awt_motif_MFontPeer *peer;
-    char name[1024], pattern[1024], *slot;
     int i;
     if (!data) return NULL;
     peer=(Hsun_awt_motif_MFontPeer *)unhand(font)->peer;
     for (i=0;i<data->count;i++) if ((HObject *)descriptor==unhand(unhand(peer)->componentFonts)->body[i]) {
         if (!data->fonts[i]) {
-            javaString2CString(unhand(descriptor)->nativeName,name,sizeof(name));
-            slot=strstr(name,"%d");
-            if (slot) {
-                *slot=0;
-                snprintf(pattern,sizeof(pattern),"%s%ld%s",name,unhand(font)->size*10,slot+2);
-            } else { strcpy(pattern,name); }
-            data->fonts[i]=load_font(pattern,unhand(font)->size);
+            data->fonts[i]=load_descriptor(font,descriptor);
         }
         return data->fonts[i];
     }
@@ -117,7 +133,7 @@ void sun_awt_motif_MFontPeer_dispose(Hsun_awt_motif_MFontPeer *self)
     AWT_LOCK();
     data=(AwtFont *)unhand(self)->pData;
     if (data) {
-        for (i=0;i<data->count;i++) if (data->fonts[i]) XFreeFont(awt_display,data->fonts[i]);
+        for (i=0;i<data->count;i++) if (data->fonts[i] && data->fonts[i]!=data->base) XFreeFont(awt_display,data->fonts[i]);
         XFreeFont(awt_display,data->base);
         free(data->fonts); free(data); unhand(self)->pData=0;
     }
@@ -138,7 +154,11 @@ void sun_awt_motif_X11FontMetrics_init(Hsun_awt_motif_X11FontMetrics *self)
         metrics->maxAdvance=font->max_bounds.width;
         metrics->height=metrics->ascent+metrics->descent+1;
         metrics->maxHeight=metrics->maxAscent+metrics->maxDescent+1;
-        metrics->widths=(HArrayOfInt *)ArrayAlloc(T_INT,256);
+        {
+            HArrayOfInt *widths=(HArrayOfInt *)ArrayAlloc(T_INT,256);
+            metrics=unhand(self);
+            metrics->widths=widths;
+        }
         if (!metrics->widths) SignalError(EE(),"java/lang/OutOfMemoryError",NULL);
         else for (i=0;i<256;i++) {
             unhand(metrics->widths)->body[i]=i<font->min_char_or_byte2 || i>font->max_char_or_byte2 ? 0 :

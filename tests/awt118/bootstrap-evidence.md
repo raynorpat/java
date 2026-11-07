@@ -400,3 +400,44 @@ renders both pages; the checker validates page size, exact color positions and
 text coverage. A PNG preview was visually inspected. The dialog output also
 passes Ghostscript's nullpage interpreter. motif118-print passes (2.95 seconds).
 Ghostscript is a Linux test dependency. No external print spooler was invoked.
+
+## Remaining native entries and font consistency
+
+Release 0x2a710..0x2ac4c supplies XIM open/close, XIC creation/focus/reset/disposal,
+and committed-text lookup. Native contexts track owner/focus widget destruction;
+callbacks stop using the XIC when either widget retires. InputMethod115 first
+failed at openXIM, then passed ASCII delivery, Compose-apostrophe-e yielding U+00E9,
+deactivation restoring ordinary key delivery, reset/reactivation, owner-first
+retirement and repeated disposal over four cycles. Native input is restricted
+to the focused client and respects modality. A stale incremental probe object
+required rebuilding after a source timestamp collision; the final test uses the
+rebuilt compose entry.
+
+Release 0x2deb8 adopts the caller's Xt shell for embedded frames. Entry 0x2e130
+is a genuine binary no-op because Java invokes NEFcreate instead. The baseline
+EmbeddedFrame.setPeer entry (0x3ee6c) is a manual export outside the 207 count.
+Embedded115 first failed at NEFcreate. Its host-first destruction test then
+crashed in XtSetValues through a stale shell pointer; the shell destroy callback
+now clears that pointer before later Java reshape/dispose. Four cycles cover
+native-host adoption, zero insets, real button callbacks, hide/show and both
+retirement orders. A null shell handle now reports NullPointerException instead
+of dereferencing a null Xt shell.
+
+Release 0x22d78 supplies the optional InputThread poll/notify/wait handshake.
+MToolkit remains the dispatcher and clears readiness after draining events.
+InputThread115 failed at run, then passed repeated paint/show/hide while both
+threads remain alive.
+
+Installing Ghostscript added fonts and exposed an existing mismatch: Helvetica
+byte width 21 versus string width 28. Release awt_GetFontData (0x21b54) chooses
+the first Latin-1 component descriptor as the base font; the reconstruction now
+does the same, sharing ownership without double-free. Metrics initialization
+also refreshes the Java body after ArrayAlloc. The original font check now passes
+with the expanded host font inventory.
+
+All 207 generated entries are implemented; manual GIF and EmbeddedFrame exports
+are additional. Full focused Linux Debug results are recorded in the ledger.
+This does not close the visual, full locale/window, installed-demo, cross-platform
+or final-review gates.
+
+All 33 focused Linux Debug tests pass (125.31 seconds).

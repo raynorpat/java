@@ -1,6 +1,9 @@
 import java.awt.*;
 public class Fonts115 {
     public static void main(String[] args) {
+        try { run(); } catch(Throwable error) { error.printStackTrace(); System.exit(1); }
+    }
+    static void run() {
         System.getProperties().put("awt.toolkit", "sun.awt.motif.MToolkit");
         Toolkit toolkit = Toolkit.getDefaultToolkit();
         String[] names = { "Dialog", "Helvetica", "TimesRoman", "Courier", "DialogInput" };
@@ -13,7 +16,7 @@ public class Fonts115 {
                 throw new RuntimeException("height");
             byte[] bytes = {65, 66, 67};
             if (metrics.bytesWidth(bytes,0,3) != metrics.stringWidth("ABC"))
-                throw new RuntimeException("width");
+                throw new RuntimeException("width "+font+" bytes="+metrics.bytesWidth(bytes,0,3)+" string="+metrics.stringWidth("ABC"));
             if (metrics.bytesWidth(bytes,3,0) != 0) throw new RuntimeException("empty width");
             try { metrics.bytesWidth(bytes,2,2); throw new RuntimeException("bounds accepted"); }
             catch (ArrayIndexOutOfBoundsException expected) {}

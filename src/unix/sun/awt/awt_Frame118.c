@@ -2,6 +2,7 @@
 #include "awt118.h"
 #include "awt_Image118.h"
 #include "sun_awt_motif_MFramePeer.h"
+#include "sun_awt_motif_MEmbeddedFramePeer.h"
 #include "java_awt_Component.h"
 #include "java_awt_Insets.h"
 #include <X11/Shell.h>
@@ -18,6 +19,11 @@ static void free_icon(AwtPeer *data)
     if (data->iconWindow) XDestroyWindow(awt_display,data->iconWindow);
     if (data->iconPixmap) XFreePixmap(awt_display,data->iconPixmap);
     data->iconWindow=None; data->iconPixmap=None;
+}
+static void frame_shell_destroyed(Widget widget,XtPointer closure,XtPointer call)
+{
+    AwtPeer *data=(AwtPeer *)closure;
+    data->shell=NULL; data->container=NULL; data->menuBar=NULL;
 }
 
 /* Release 2d1dc: honor existing icon geometry, otherwise WM_ICON_SIZE ranges. */
@@ -158,6 +164,45 @@ static void shell_event(Widget widget,XtPointer closure,XEvent *event,Boolean *d
     }
     awt118_callback_done();
 }
+
+/* Release 2deb8 adopts the browser-supplied Xt shell; ordinary create at
+ * 2e130 intentionally does nothing because Java uses EFcreate/NEFcreate. */
+void sun_awt_motif_MEmbeddedFramePeer_create(Hsun_awt_motif_MEmbeddedFramePeer *self,
+    Hsun_awt_motif_MComponentPeer *parent,struct Hjava_lang_Object *insets)
+{}
+void sun_awt_motif_MEmbeddedFramePeer_NEFcreate(Hsun_awt_motif_MEmbeddedFramePeer *self,
+    Hsun_awt_motif_MComponentPeer *parent,struct Hjava_lang_Object *insets,long handle)
+{
+    AwtPeer *data;
+    Hjava_awt_Insets *bounds=(Hjava_awt_Insets *)insets;
+    AWT_LOCK();
+    if(!handle || !unhand(self)->target || !bounds) SignalError(EE(),"java/lang/NullPointerException","embedded shell");
+    else {
+        data=awt118_new_peer((Hsun_awt_motif_MComponentPeer *)self);
+        if(data) {
+            unhand(self)->insets=bounds;
+            unhand(bounds)->top=unhand(bounds)->left=unhand(bounds)->bottom=unhand(bounds)->right=0;
+            data->shell=(Widget)handle; data->cleanup=free_icon;
+            XtAddCallback(data->shell,XtNdestroyCallback,frame_shell_destroyed,data);
+            data->container=XtVaCreateManagedWidget("main",xmFormWidgetClass,data->shell,
+                XmNmarginWidth,0,XmNmarginHeight,0,XmNresizePolicy,XmRESIZE_NONE,NULL);
+            data->widget=XtVaCreateManagedWidget("frame",xmDrawingAreaWidgetClass,data->container,
+                XmNmarginWidth,0,XmNmarginHeight,0,XmNresizePolicy,XmRESIZE_NONE,
+                XmNtopAttachment,XmATTACH_FORM,XmNbottomAttachment,XmATTACH_FORM,
+                XmNleftAttachment,XmATTACH_FORM,XmNrightAttachment,XmATTACH_FORM,NULL);
+            XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask,False,shell_event,self);
+            XFlush(awt_display);
+        }
+    }
+    AWT_UNLOCK();
+}
+/* Release 3ee6c; baseline sun.awt.EmbeddedFrame is outside the peer inventory. */
+JAVA_PUBLIC_API(stack_item *) Java_sun_awt_EmbeddedFrame_setPeer_stub(stack_item *p,struct execenv *ee)
+{
+    unhand((Hjava_awt_Component *)p[0].p)->peer=p[1].p;
+    return p;
+}
+
 void sun_awt_motif_MFramePeer_create(Hsun_awt_motif_MFramePeer *self,Hsun_awt_motif_MComponentPeer *parent,struct Hjava_lang_Object *insets)
 {
     AwtPeer *data;
@@ -180,6 +225,7 @@ void sun_awt_motif_MFramePeer_create(Hsun_awt_motif_MFramePeer *self,Hsun_awt_mo
             XtNwidth,unhand(target)->width>0 ? unhand(target)->width : 1,
             XtNheight,unhand(target)->height>0 ? unhand(target)->height : 1,
             XtNallowShellResize,True,XtNmappedWhenManaged,False,XmNdeleteResponse,XmDO_NOTHING,NULL);
+        XtAddCallback(data->shell,XtNdestroyCallback,frame_shell_destroyed,data);
         data->container=XtVaCreateManagedWidget("main",xmFormWidgetClass,data->shell,
             XmNmarginWidth,0,XmNmarginHeight,0,XmNresizePolicy,XmRESIZE_NONE,NULL);
         data->widget=XtVaCreateManagedWidget("frame",xmDrawingAreaWidgetClass,data->container,

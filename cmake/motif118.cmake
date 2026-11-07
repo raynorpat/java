@@ -65,7 +65,7 @@ if(UNIX AND NOT APPLE)
     src/unix/sun/awt/awt_ScrollPane118.c src/unix/sun/awt/awt_Image118.c
     src/unix/sun/awt/awt_Menu118.c src/unix/sun/awt/awt_Window118.c
     src/unix/sun/awt/awt_Dialog118.c src/unix/sun/awt/awt_FileDialog118.c
-    src/unix/sun/awt/awt_Selection118.c src/unix/sun/awt/awt_Surface118.c
+    src/unix/sun/awt/awt_Selection118.c src/unix/sun/awt/awt_Surface118.c src/unix/sun/awt/awt_InputMethod118.c
     src/share/sun/awt/gifdecoder.c ${toolkit_stubs})
   target_include_directories(awt BEFORE PRIVATE "${motif118_out}/generated")
   target_link_libraries(awt javai Xm Xt X11)
@@ -212,6 +212,20 @@ if(UNIX AND NOT APPLE)
     "-DLIBDIR=$<TARGET_FILE_DIR:awt>" "-DCLASS=Print115"
     -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
   set_tests_properties(motif118-print PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+  add_test(NAME motif118-input-method COMMAND ${CMAKE_COMMAND}
+    "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
+    "-DJAVA=$<TARGET_FILE:java>" "-DJAVAC=$<TARGET_FILE:javac>"
+    "-DLIBDIR=$<TARGET_FILE_DIR:awt>" "-DCLASS=InputMethod115"
+    -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
+  set_tests_properties(motif118-input-method PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+  foreach(peer Embedded115 InputThread115)
+    add_test(NAME motif118-${peer} COMMAND ${CMAKE_COMMAND}
+      "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
+      "-DJAVA=$<TARGET_FILE:java>" "-DJAVAC=$<TARGET_FILE:javac>"
+      "-DLIBDIR=$<TARGET_FILE_DIR:awt>" "-DCLASS=${peer}"
+      -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
+    set_tests_properties(motif118-${peer} PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+  endforeach()
   foreach(codec DecoderImages115 GifRaster115)
     add_test(NAME motif118-${codec} COMMAND ${CMAKE_COMMAND}
       "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
