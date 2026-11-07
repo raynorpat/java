@@ -416,6 +416,13 @@ add_test(NAME dates COMMAND java -classpath "${test_cp}" Dates)
 set_tests_properties(dates PROPERTIES PASS_REGULAR_EXPRESSION "dates ok")
 add_test(NAME props COMMAND java -classpath "${test_cp}" Props)
 if(WIN32)
+  add_library(localeproperties115probe SHARED tests/native/localeproperties115probe.c)
+  target_link_libraries(localeproperties115probe javai)
+  add_test(NAME vm-LocaleProperties115 COMMAND ${CMAKE_COMMAND}
+    -DROOT=${CMAKE_SOURCE_DIR} -DJAVA=$<TARGET_FILE:java> -DJAVAC=$<TARGET_FILE:javac>
+    -DJDK=${JDK115_DIR} -DLIBDIR=$<TARGET_FILE_DIR:javai>
+    -DOUT=${CMAKE_BINARY_DIR}/locale-properties115/$<CONFIG>
+    -P ${CMAKE_SOURCE_DIR}/tests/tools/locale-properties115.cmake)
   set(props_sep "\\\\")
   set(props_os "Windows (NT|95)/[0-9]+\\.[0-9]+")
 else()
