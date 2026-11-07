@@ -358,3 +358,16 @@ All 27 focused Linux Debug tests pass (137.48 seconds). JPEG is now a dependency
 of the Motif test build. The manual GIF entry is outside the 207 generated-peer
 binding count; that count remains 189 implemented. Other visual, font, printing,
 input/window and installed-demo completion gates remain open.
+
+## Native drawing surface checkpoint
+
+Release 0x30944..0x30a4c supplies seven MDrawingSurfaceInfo bindings: lock/state
+tracking, unlock/flush, display, drawable, depth, visual and colormap. The lock
+holds the AWT monitor across the caller's native drawing interval. Window
+resizes increment the Java surface state; disposed peers raise the recovered
+NullPointerException instead of returning a stale drawable. Image surfaces
+use the existing reference-managed pixmap storage.
+
+Surface115 failed at missing lock, then passed four cycles of window/image
+access, repeated lock, resize and disposal. Surface, audit/package, window and
+image tests pass together (5/5); implemented generated bindings rise to 196.
