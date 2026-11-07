@@ -1,5 +1,6 @@
 /* Frame creation recovered from winawt_g 10011561 -> 10010C30. */
 #include "awt_Window.h"
+#include "awt_Menu.h"
 /* Activation/focus restoration: 10010FA4. Defer Java work until the
  * activating SendMessage/ShowWindow caller has released its monitors. */
 LRESULT AwtFrame::WindowProc(UINT message,WPARAM w,LPARAM l)
@@ -44,7 +45,11 @@ extern "C" void sun_awt_windows_WFramePeer_create(Hsun_awt_windows_WFramePeer *p
     AwtToolkit::GetInstance().Invoke(createFrame,&r);
     if (r.failed) SignalError(NULL,"java/lang/InternalError","cannot create frame");
 }
-/* Menu and image stubs join this file with their owning subsystems. */
+extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WFramePeer_setMenuBar0_stub(stack_item *sp,struct execenv *)
+{
+    awtSetMenuBar((Hsun_awt_windows_WComponentPeer *)sp[0].p,(HObject *)sp[1].p);
+    return sp;
+}
 extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WFramePeer_create_stub(stack_item *sp,struct execenv *)
 {
     sun_awt_windows_WFramePeer_create((Hsun_awt_windows_WFramePeer *)sp[0].p,
