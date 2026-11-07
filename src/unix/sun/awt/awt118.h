@@ -22,6 +22,8 @@ typedef struct AwtPeer {
     Widget widget, shell;
     Cursor cursor;
     int references;
+    Hsun_awt_motif_MComponentPeer *javaPeer;
+    struct AwtPeer *next;
 } AwtPeer;
 AwtPeer *awt118_peer(Hsun_awt_motif_MComponentPeer *peer);
 AwtPeer *awt118_new_peer(Hsun_awt_motif_MComponentPeer *peer);
@@ -30,6 +32,10 @@ void awt118_dispose_peer(Hsun_awt_motif_MComponentPeer *peer);
 void awt118_register_widget(Hsun_awt_motif_MComponentPeer *peer);
 void awt118_callback_done(void);
 unsigned long awt118_pixel(unsigned long rgb);
+void awt118_register_input(AwtPeer *peer);
+void awt118_forget_input(AwtPeer *peer);
+int awt118_filter_input(XEvent *event);
+int awt118_dispatch_putback(void);
 #define AWT_LOCK() monitorEnter((unsigned int)awt_lock)
 #define AWT_UNLOCK() monitorExit((unsigned int)awt_lock)
 #endif

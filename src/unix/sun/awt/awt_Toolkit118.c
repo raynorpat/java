@@ -61,9 +61,17 @@ void sun_awt_motif_MToolkit_init(Hsun_awt_motif_MToolkit *self)
 void sun_awt_motif_MToolkit_run(Hsun_awt_motif_MToolkit *self)
 {
     struct pollfd fd;
+    XEvent event;
+    XtInputMask pending;
     AWT_LOCK();
     for (;;) {
-        while (XtAppPending(awt_appContext)) XtAppProcessEvent(awt_appContext, XtIMAll);
+        while (awt118_dispatch_putback() || (pending=XtAppPending(awt_appContext))!=0) {
+            pending=XtAppPending(awt_appContext);
+            if (pending&XtIMXEvent) {
+                XtAppNextEvent(awt_appContext,&event);
+                if (!awt118_filter_input(&event)) XtDispatchEvent(&event);
+            } else if (pending) XtAppProcessEvent(awt_appContext,pending);
+        }
         XFlush(awt_display);
         monitorNotifyAll((unsigned int)awt_lock);
         fd.fd = ConnectionNumber(awt_display);

@@ -78,3 +78,24 @@ and timestamps. Neither issue was hidden by an X error handler.
 Still open: original input filtering/put-back queue, window-manager behavior,
 remaining widgets, complete graphics/font/image contracts, installed demos and
 the full regression matrix. Tasks 3 through 6 remain open.
+
+## Mouse dispatch checkpoint
+
+Release 0x22fd8 filters input before Xt dispatch; 0x23174 drains the put-back
+queue before normal events. Debug `awt_post_java_mouse_event` at 0x82f2c creates
+MouseEvent and calls the peer's postEvent method. `nativeHandleEvent` returns
+unconsumed events to the Motif loop; it does not invoke Xt on the Java event
+thread. Modifier/click tracking is anchored by debug 0x80fc8 and release 0x3d0a4.
+
+Input115 first failed with mouse counts 0/0/0 despite one button action. It now
+checks press/release/click delivery, coordinates/time, consumed events suppressing
+the action, and disposal from mousePressed preventing subsequent native replay.
+All ten focused Linux Debug tests pass (the expanded input test was rerun after
+correcting its use of a post-1.1 Java API).
+
+Linux lifetime adaptation: Java event `data` contains an opaque token instead of
+a raw XEvent pointer. Native records are retired when their widget is disposed;
+a later Java callback safely finds no pending token. This avoids retaining a
+native allocation when disposal removes Component.peer before Java dispatch.
+Queued replay occurs only on the Motif loop and is canceled with its owner.
+Keyboard, focus, modal/menu filtering and child-widget routing are still open.

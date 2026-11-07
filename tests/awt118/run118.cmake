@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.0...3.10)
 file(MAKE_DIRECTORY "${OUT}/tests")
 set(cp "${JDK}/lib/classes.zip:${OUT}/tests:${OUT}/motif-peers.zip")
-execute_process(COMMAND "${JAVAC}" -classpath "${cp}" -d "${OUT}/tests" "${CLASS}.java"
+set(sources "${CLASS}.java")
+if(CLASS STREQUAL "Input115")
+  list(APPEND sources Window115.java)
+endif()
+execute_process(COMMAND "${JAVAC}" -classpath "${cp}" -d "${OUT}/tests" ${sources}
   WORKING_DIRECTORY "${ROOT}/tests/awt118" RESULT_VARIABLE result
   OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 30)
 if(NOT "${result}" STREQUAL "0")
@@ -19,6 +23,8 @@ else()
     set(expected "font metrics and byte bounds passed")
   elseif(CLASS STREQUAL "Window115")
     set(expected "window paint, click, event dispatch and disposal passed")
+  elseif(CLASS STREQUAL "Input115")
+    set(expected "mouse delivery and consumption passed")
   endif()
 endif()
 execute_process(COMMAND ${command} RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 20)

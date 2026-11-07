@@ -15,7 +15,7 @@ AwtPeer *awt118_new_peer(Hsun_awt_motif_MComponentPeer *peer)
 {
     AwtPeer *data=(AwtPeer *)calloc(1,sizeof(*data));
     if (!data) SignalError(EE(),"java/lang/OutOfMemoryError",NULL);
-    else { data->references=1; unhand(peer)->pData=(long)data; }
+    else { data->references=1; data->javaPeer=peer; unhand(peer)->pData=(long)data; }
     return data;
 }
 void awt118_release_peer(AwtPeer *data)
@@ -29,6 +29,7 @@ void awt118_callback_done(void)
 static void destroyed(Widget widget,XtPointer closure,XtPointer call)
 {
     AwtPeer *data=(AwtPeer *)closure;
+    awt118_forget_input(data);
     data->widget=NULL;
 }
 
@@ -45,6 +46,7 @@ static void canvas_event(Widget widget,XtPointer closure,XEvent *event,Boolean *
 void awt118_register_widget(Hsun_awt_motif_MComponentPeer *peer)
 {
     AwtPeer *data=awt118_peer(peer);
+    awt118_register_input(data);
     XtAddCallback(data->widget,XmNdestroyCallback,destroyed,data);
     XtAddEventHandler(data->widget,ExposureMask,False,canvas_event,peer);
 }
@@ -54,6 +56,7 @@ void awt118_dispose_peer(Hsun_awt_motif_MComponentPeer *peer)
     AwtPeer *data=awt118_peer(peer);
     if (!data) return;
     unhand(peer)->pData=0;
+    awt118_forget_input(data);
     if (data->widget) {
         XtRemoveEventHandler(data->widget,ExposureMask,False,canvas_event,peer);
         if (XtHasCallbacks(data->widget,XmNactivateCallback)!=XtCallbackNoList)
@@ -165,18 +168,6 @@ void sun_awt_motif_MComponentPeer_pMakeCursorVisible(Hsun_awt_motif_MComponentPe
     if (data && data->widget && XtIsRealized(data->widget)) XDefineCursor(awt_display,XtWindow(data->widget),data->cursor);
     AWT_UNLOCK();
 }
-void sun_awt_motif_MComponentPeer_nativeHandleEvent(Hsun_awt_motif_MComponentPeer *self,Hjava_awt_AWTEvent *event)
-{
-    XEvent *native;
-    if (!event) return;
-    AWT_LOCK(); native=(XEvent *)unhand(event)->data;
-    if (native) {
-        if (!unhand(event)->consumed && XtWindowToWidget(awt_display,native->xany.window)) XtDispatchEvent(native);
-        free(native); unhand(event)->data=0;
-    }
-    AWT_UNLOCK();
-}
-
 void sun_awt_motif_MCanvasPeer_create(Hsun_awt_motif_MComponentPeer *self,Hsun_awt_motif_MComponentPeer *parent)
 {
     AwtPeer *data,*owner;
