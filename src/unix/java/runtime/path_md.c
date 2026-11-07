@@ -21,7 +21,7 @@
  * Machine dependent path name and file name manipulation code
  */
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && !defined(JDK115_CTHREADS)
 #include <mach-o/dyld.h>	/* _NSGetExecutablePath */
 #endif
 #include <unistd.h>
@@ -47,11 +47,11 @@ sysJavaHome(void)
     char *p;
 
     if (home[0] == 0) {
-#if defined(__APPLE__)
+#if defined(__APPLE__) && !defined(JDK115_CTHREADS)
 	uint32_t size = sizeof home;
 	if (_NSGetExecutablePath(home, &size) != 0)
 	    home[0] = 0;
-#elif defined(__linux__)
+#elif defined(__linux__) && !defined(JDK115_CTHREADS)
 	ssize_t n = readlink("/proc/self/exe", home, sizeof home - 1);
 	home[n > 0 ? n : 0] = 0;
 #endif

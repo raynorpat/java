@@ -28,6 +28,32 @@ int systemIsMP;
 cache_lock_t _moncache_lock;
 
 #ifndef XP_PC
+#ifdef JDK115_CTHREADS
+void sysCacheLockInit(void)
+{
+    memset(&_moncache_lock, 0, sizeof(_moncache_lock));
+}
+int sysCacheLocked(void)
+{
+    return _moncache_lock.entry_count > 0 && _moncache_lock.owner == cthread_self();
+}
+void sysCacheLock(void)
+{
+    if (!sysCacheLocked()) {
+        if (!mutex_try_lock(&_moncache_lock.mutex)) mutex_wait_lock(&_moncache_lock.mutex);
+        _moncache_lock.owner = cthread_self();
+    }
+    ++_moncache_lock.entry_count;
+}
+void sysCacheUnlock(void)
+{
+    sysAssert(sysCacheLocked());
+    if (--_moncache_lock.entry_count == 0) {
+        _moncache_lock.owner = NULL;
+        _moncache_lock.mutex.lock = 0;
+    }
+}
+#else
 void sysCacheLockInit(void)
 {
     pthread_mutexattr_t attr;
@@ -54,6 +80,7 @@ void sysCacheUnlock(void)
     --_moncache_lock.entry_count;
     pthread_mutex_unlock(&_moncache_lock.mutex);
 }
+#endif
 #endif
 
 /* Primary 100370ED. Caller must not hold the cache lock. */

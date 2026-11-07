@@ -52,6 +52,10 @@ int condition_wait_timeout(condition_t c, mutex_t m, unsigned int millisecs)
             if (received != 0) {
                 jio_fprintf(stderr, "condition_wait_timeout(): msg_receive failure with exit code %d", received);
                 result = -1;
+                /* The original leaves this cproc queued on receive failure.
+                 * A later wait reuses it and can corrupt the condition queue. */
+                spin_lock(&c->lock);
+                goto remove_waiter;
             } else {
                 p->state = 0;
                 result = 0;
@@ -65,6 +69,8 @@ int condition_wait_timeout(condition_t c, mutex_t m, unsigned int millisecs)
             c->lock = 0;
             continue;
         }
+        result = -3;
+remove_waiter:
         item = (struct condition_cproc *)c->queue.head;
         c->queue.head = c->queue.tail = NULL;
         while (item) {
@@ -72,7 +78,6 @@ int condition_wait_timeout(condition_t c, mutex_t m, unsigned int millisecs)
             if (item != p) enqueue(c, item);
             item = next;
         }
-        result = -3;
         p->state = 0;
         c->lock = 0;
         break;

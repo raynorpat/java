@@ -12,10 +12,14 @@
 #include <io.h>
 #else
 #include <unistd.h>
+#ifdef JDK115_CTHREADS
+#include "cthreads/process.h"
+#else
 #include <spawn.h>
+#endif
 #include <sys/wait.h>
 #include <signal.h>
-#include <pthread.h>
+#include "host_mutex.h"
 #endif
 #include "tree.h"
 #include "interpreter.h"
@@ -154,7 +158,7 @@ Hjava_lang_Process *java_lang_Runtime_execInternal(Hjava_lang_Runtime *self,
 typedef struct {
     pid_t pid;
     int exited, status;
-    pthread_mutex_t lock;
+    host_mutex_t lock;
 } process_state;
 
 static int process_status(process_state *state)
@@ -176,10 +180,10 @@ long java_lang_Win32Process_exitValue(Hjava_lang_Win32Process *self)
     int exited, status;
     state = (process_state *)unhand(self)->handle;
     if (state == NULL) return -1;
-    pthread_mutex_lock(&state->lock);
+    host_mutex_lock(&state->lock);
     exited = process_status(state);
     status = state->status;
-    pthread_mutex_unlock(&state->lock);
+    host_mutex_unlock(&state->lock);
     if (!exited) {
         SignalError(0, "java/lang/IllegalThreadStateException", "process has not exited");
         return -1;
@@ -194,10 +198,10 @@ long java_lang_Win32Process_waitFor(Hjava_lang_Win32Process *self)
     state = (process_state *)unhand(self)->handle;
     if (state == NULL) return -1;
     do {
-        pthread_mutex_lock(&state->lock);
+        host_mutex_lock(&state->lock);
         exited = process_status(state);
         status = state->status;
-        pthread_mutex_unlock(&state->lock);
+        host_mutex_unlock(&state->lock);
         if (!exited) usleep(10000);
     } while (!exited);
     return status;
@@ -208,9 +212,9 @@ void java_lang_Win32Process_destroy(Hjava_lang_Win32Process *self)
     process_state *state;
     state = (process_state *)unhand(self)->handle;
     if (state == NULL) return;
-    pthread_mutex_lock(&state->lock);
+    host_mutex_lock(&state->lock);
     if (!process_status(state)) kill(state->pid, SIGTERM);
-    pthread_mutex_unlock(&state->lock);
+    host_mutex_unlock(&state->lock);
 }
 
 static void *reap_process(void *arg)
@@ -219,7 +223,7 @@ static void *reap_process(void *arg)
     int status;
     state = (process_state *)arg;
     while (waitpid(state->pid, &status, 0) < 0 && errno == EINTR) {}
-    pthread_mutex_destroy(&state->lock);
+    host_mutex_destroy(&state->lock);
     sysFree(state);
     return NULL;
 }
@@ -227,15 +231,25 @@ static void *reap_process(void *arg)
 void java_lang_Win32Process_close(Hjava_lang_Win32Process *self)
 {
     process_state *state;
+#ifdef JDK115_CTHREADS
+    cthread_t reaper;
+#else
     pthread_t reaper;
+#endif
     state = (process_state *)unhand(self)->handle;
     if (state == NULL) return;
     unhand(self)->handle = 0;
     if (process_status(state)) {
-        pthread_mutex_destroy(&state->lock);
+        host_mutex_destroy(&state->lock);
         sysFree(state);
-    } else if (pthread_create(&reaper, NULL, reap_process, state) == 0) {
+    }
+#ifdef JDK115_CTHREADS
+    else if ((reaper = cthread_fork(reap_process, state)) != NULL) {
+        cthread_detach(reaper);
+#else
+    else if (pthread_create(&reaper, NULL, reap_process, state) == 0) {
         pthread_detach(reaper);
+#endif
     }
 }
 
@@ -290,7 +304,9 @@ Hjava_lang_Process *java_lang_Runtime_execInternal(Hjava_lang_Runtime *unused,
     HObject *stream;
     ClassClass *clazz;
     process_state *state;
+#ifndef JDK115_CTHREADS
     posix_spawn_file_actions_t actions;
+#endif
     int pipes[6], i, error;
     char **argv, **envp;
     if (args == NULL) {
@@ -325,13 +341,16 @@ Hjava_lang_Process *java_lang_Runtime_execInternal(Hjava_lang_Runtime *unused,
         SignalError(0, "java/lang/OutOfMemoryError", NULL);
         return NULL;
     }
-    pthread_mutex_init(&state->lock, NULL);
+    host_mutex_init(&state->lock);
     for (i = 0; i < 6; ++i) pipes[i] = -1;
     for (i = 0; i < 6; i += 2) {
         if (pipe(pipes + i) != 0) goto failed;
         if (fcntl(pipes[i], F_SETFD, FD_CLOEXEC) < 0 ||
             fcntl(pipes[i + 1], F_SETFD, FD_CLOEXEC) < 0) goto failed;
     }
+#ifdef JDK115_CTHREADS
+    error = mach115_spawn(&state->pid, argv, envp, pipes);
+#else
     error = posix_spawn_file_actions_init(&actions);
     if (error != 0) { errno = error; goto failed; }
     error = posix_spawn_file_actions_adddup2(&actions, pipes[0], 0);
@@ -343,6 +362,7 @@ Hjava_lang_Process *java_lang_Runtime_execInternal(Hjava_lang_Runtime *unused,
         error = posix_spawnp(&state->pid, argv[0], &actions, NULL, argv,
                             envp == NULL ? environ : envp);
     posix_spawn_file_actions_destroy(&actions);
+#endif
     if (error != 0) { errno = error; goto failed; }
     close(pipes[0]); close(pipes[3]); close(pipes[5]);
     free_strings(argv); free_strings(envp);
@@ -382,7 +402,7 @@ Hjava_lang_Process *java_lang_Runtime_execInternal(Hjava_lang_Runtime *unused,
 failed:
     error = errno;
     for (i = 0; i < 6; ++i) if (pipes[i] != -1) close(pipes[i]);
-    pthread_mutex_destroy(&state->lock);
+    host_mutex_destroy(&state->lock);
     sysFree(state);
     free_strings(argv); free_strings(envp);
     SignalError(0, "java/io/IOException", strerror(error));

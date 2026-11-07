@@ -121,7 +121,7 @@ int main(void)
     reset(4); CHECK(wait_for_condition(&cv,&mutex,timeout)==0 && receives==2);
     CHECK(sends==1 && !cv.queue.head && mutex.lock);
     reset(5); CHECK(wait_for_condition(&cv,&mutex,timeout)==-1);
-    CHECK(errors==1 && mutex.lock); /* Original error path leaves the waiter queued. */
+    CHECK(errors==1 && mutex.lock && !cv.queue.head && !cv.queue.tail && self.state==0);
     reset(6); condition_signal_timeout(&cv); CHECK(!sends && !cv.lock);
     enqueue(&first); enqueue(&last); condition_signal_timeout(&cv);
     CHECK(sends==1 && sent[0]==22 && first.state==3 && last.state==0);

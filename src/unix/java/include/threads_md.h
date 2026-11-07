@@ -1,6 +1,13 @@
 #ifndef sun_java_threads_md_h___
 #define sun_java_threads_md_h___
 
+#ifdef JDK115_CTHREADS
+#include "cthreads/threads_md.h"
+#include "cthreads/runtime.h"
+extern void intrInit(void);
+extern void InitializeAsyncIO(void);
+extern void InitializeMem(void);
+#else
 #include <pthread.h>
 #include <signal.h>
 
@@ -36,4 +43,5 @@ extern void InitializeMem(void);
 /* sysMonitorWait's half of the Thread.stop() handshake (thread_md.c). */
 extern int sysThreadSetWaitingOn(struct sys_thread *t, struct sys_mon *mon);
 
+#endif /* JDK115_CTHREADS */
 #endif /* sun_java_threads_md_h___ */

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
+#include <signal.h>
 #include "sys_api.h"
 #include "cthreads/threads_md.h"
 #include "cthreads/monitor_md.h"
@@ -42,6 +43,27 @@ static int gc_mode, gc_oom, gc_fail_suspend, gc_fail_state, gc_short_state;
 static int gc_fail_resume, gc_resume_calls, gc_free_calls, gc_abort_seen;
 static int gc_depth[3], gc_expected_resumes;
 static void *gc_allocation;
+static int finalizers, dumps, region_error, port_freed;
+static void *mapped_stack_top;
+int task_self_ = 1;
+void cthread_init(void) { }
+void InitializeFinalizerThread(void) { ++finalizers; }
+void DumpThreads(void) { ++dumps; }
+void DumpMonitors(void) { ++dumps; }
+int sysMonitorWait(sys_mon_t *m, int timeout, bool_t clear)
+{ (void)m; (void)timeout; (void)clear; CHECK(0); return 0; }
+kern_return_t vm_region(unsigned int task, vm_address_t *addr, vm_size_t *size,
+                       vm_prot_t *prot, vm_prot_t *maxprot, vm_inherit_t *inherit,
+                       boolean_t *shared, memory_object_name_t *object, vm_offset_t *offset)
+{
+    CHECK(task == 1);
+    if (region_error) return 5;
+    *addr &= ~4095U; *size = 8192; *prot = *maxprot = 3; *inherit = 0;
+    *shared = 0; *object = 7; *offset = 0;
+    mapped_stack_top = (void *)(*addr + *size); return 0;
+}
+kern_return_t port_deallocate(unsigned int task, int port)
+{ CHECK(task == 1 && port == 7); ++port_freed; return 0; }
 static sys_thread_t *pending;
 static void *(*child_entry)(void *);
 extern int sysThreadEnumerateOver_unlocked(int (*)(sys_thread_t *, void *), void *);
@@ -323,6 +345,59 @@ static int visit(sys_thread_t *t, void *arg)
     ++visits;
     return visits == stop_after ? 37 : 0;
 }
+static void test_attachment(void)
+{
+    sys_thread_t *t, *out;
+    Classjava_lang_Thread object;
+    Hjava_lang_Thread handle;
+    ExecEnv ee;
+    int i;
+    native_thread_state_t breakpoint[8] = { RUNNING_AT_BREAKPOINT, RUNNING_AT_BREAKPOINT,
+        SUSPENDED_AT_BREAKPOINT, MONITOR_WAIT, CONDVAR_WAIT, MONITOR_SUSPENDED,
+        RUNNING_AT_BREAKPOINT, SUSPENDED_AT_BREAKPOINT };
+    memset(&object, 0, sizeof(object)); memset(&handle, 0, sizeof(handle));
+    memset(&ee, 0, sizeof(ee)); handle.obj = &object;
+    current.incarnation = (cthread_t)&native[0];
+    intrInit(); t = sysThreadSelf();
+    CHECK(t && ActiveThreadCount == 0 && UserThreadCount == 0);
+    intrInit(); CHECK(sysThreadSelf() == t);
+#ifdef SIGPIPE
+    raise(SIGPIPE); /* network write errors must not terminate the VM */
+#endif
+    sysThreadSetBackPtr(t, &handle); object.PrivateInfo = (long)t;
+    CHECK(sysThreadBootstrap(&out, &handle) == SYS_OK && out == t);
+    CHECK(object.PrivateInfo == (long)t && ActiveThreadCount == 1 && t->primordial_thread);
+    sysThreadInitializeSystemThreads(); CHECK(finalizers == 1);
+#ifdef SIGQUIT
+    raise(SIGQUIT); CHECK(dumps == 2);
+#endif
+    sysThreadInterrupt(t);
+    CHECK(sysThreadIsInterrupted(t, FALSE) == 1 && sysThreadIsInterrupted(t, TRUE) == 1);
+    CHECK(sysThreadIsInterrupted(t, FALSE) == 0);
+    object.eetop = (long)&ee;
+    CHECK(!sysThreadHasPendingException(t));
+    sysThreadPostException(t, &handle);
+    CHECK(sysThreadHasPendingException(t) && ee.exception.exc == (JHandle *)&handle);
+    object.eetop = 0;
+    for (i = 0; i < 8; ++i) {
+        t->state = (native_thread_state_t)i; sysThreadSetAtBreakpoint(t);
+        CHECK(t->state == breakpoint[i] && !t->mutex.lock);
+    }
+    dying = t; saved_ee = NULL; deleted = 0;
+    CHECK(sysThreadFree(t) == SYS_OK); dying = NULL;
+    region_error = 1; out = &control_thread;
+    CHECK(jni_AttachHostThread(&out) == SYS_ERR && out == &control_thread);
+    CHECK(!sysThreadSelf() && !ActiveThreadCount);
+    region_error = 0;
+    CHECK(jni_AttachHostThread(&out) == SYS_OK && out == sysThreadSelf());
+    CHECK(out->stack_base == mapped_stack_top && port_freed == 1 && ActiveThreadCount == 1);
+    CHECK(jni_AttachHostThread(&t) == SYS_OK && t == out && port_freed == 1);
+    dying = t; jni_DetachHostThread(); dying = NULL;
+    CHECK(!sysThreadSelf() && !ActiveThreadCount);
+    current.incarnation = NULL;
+    CHECK(jni_AttachHostThread(&out) == SYS_NORESOURCE && !sysThreadSelf());
+}
+
 static void test_gc(int fatal_mode)
 {
     sys_thread_t *t[3];
@@ -528,6 +603,7 @@ int main(int argc, char **argv)
     CHECK(exited == 1 && !sysThreadSelf() && !ActiveThreadCount && !UserThreadCount);
     test_control();
     test_gc(argc == 1 ? 0 : strcmp(argv[1], "--gc-resume-error") == 0 ? 1 : 2);
+    test_attachment();
     puts("Mach thread lifecycle/control contracts passed");
     return 0;
 }

@@ -2,12 +2,12 @@
  * Reentrant host lookups for socket_md.c: the resolver's static result is
  * copied into the caller's buffer while a lock is held.
  */
-#include <pthread.h>
+#include "host_mutex.h"
 #include <string.h>
 #include "socket_md.h"
 #include "iomgr.h"
 
-static pthread_mutex_t resolver_lock = PTHREAD_MUTEX_INITIALIZER;
+static host_mutex_t resolver_lock = HOST_MUTEX_INITIALIZER;
 
 /* Copy *hp into result/buf; NULL if buf is too small. */
 static struct hostent *copy_hostent(struct hostent *hp, struct hostent *result,
@@ -47,12 +47,12 @@ struct hostent *sysGethostbyname(const char *name, struct hostent *result,
 {
     struct hostent *hp;
 
-    pthread_mutex_lock(&resolver_lock);
+    host_mutex_lock(&resolver_lock);
     hp = gethostbyname(name);
     *h_errnop = hp ? 0 : h_errno;
     if (hp)
 	hp = copy_hostent(hp, result, buf, buflen);
-    pthread_mutex_unlock(&resolver_lock);
+    host_mutex_unlock(&resolver_lock);
     return hp;
 }
 
@@ -62,11 +62,11 @@ struct hostent *sysGethostbyaddr(const char *addr, int len, int type,
 {
     struct hostent *hp;
 
-    pthread_mutex_lock(&resolver_lock);
+    host_mutex_lock(&resolver_lock);
     hp = gethostbyaddr(addr, len, type);
     *h_errnop = hp ? 0 : h_errno;
     if (hp)
 	hp = copy_hostent(hp, result, buf, buflen);
-    pthread_mutex_unlock(&resolver_lock);
+    host_mutex_unlock(&resolver_lock);
     return hp;
 }

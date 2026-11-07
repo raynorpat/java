@@ -161,7 +161,7 @@ threadCreate(TID tid, unsigned int flags, size_t stack_size, void *(*func)(void 
     err = sysThreadCreate(stack_size, flags,
 			(void * (*)(void *)) func, &t, (void *) tid);
     
-    if ((err == SYS_ERR) || (err == SYS_NORESOURCE)) {
+    if (err != SYS_OK) {
         return 1;
     }
 

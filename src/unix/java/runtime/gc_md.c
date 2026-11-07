@@ -18,6 +18,34 @@
 /************************************************************************/
 /* Heap memory: reserve address space, then commit as the heap grows.   */
 
+#ifdef JDK115_CTHREADS
+#include <mach/mach.h>
+
+/* DR2 5C1357C0-5C1358D4: Mach allocates accessible demand-zero pages;
+ * commit/decommit are accounting operations. Keep the shared collector's
+ * exact address/length contract rather than Sun's page-rounded return. */
+void *sysMapMem(long size, long *mappedSize)
+{
+    vm_address_t address;
+    vm_size_t rounded = (size + vm_page_size - 1) & ~(vm_page_size - 1);
+    *mappedSize = 0;
+    if (vm_allocate(task_self(), &address, rounded, TRUE) != 0) return NULL;
+    *mappedSize = rounded;
+    return (void *)address;
+}
+void *sysUnmapMem(void *address, long size, long *unmappedSize)
+{
+    vm_size_t rounded = (size + vm_page_size - 1) & ~(vm_page_size - 1);
+    *unmappedSize = 0;
+    if (vm_deallocate(task_self(), (vm_address_t)address, rounded) != 0) return NULL;
+    *unmappedSize = rounded;
+    return address;
+}
+void *sysCommitMem(void *address, long size, long *committedSize)
+{ *committedSize = size; return address; }
+void *sysUncommitMem(void *address, long size, long *uncommittedSize)
+{ *uncommittedSize = size; return address; }
+#else
 void *sysMapMem(long requestedSize, long *mappedSize)
 {
     void *p = mmap(NULL, (size_t) requestedSize, PROT_NONE,
@@ -72,6 +100,7 @@ void *sysUncommitMem(void *addr, long size, long *uncommittedSize)
     *uncommittedSize = size;
     return addr;
 }
+#endif
 
 /************************************************************************/
 

@@ -1,9 +1,10 @@
 /* Reconstructed from Rhapsody DR2 libjava.A.dylib.
  * Allocation: 5C144970; init: 5C144CFC; self/enumeration: 5C1451FC-5C14529C.
- * This backend is not selected for the VM until its lifecycle is complete.
+ * Selected explicitly with JDK115_UNIX_THREADS=cthreads.
  */
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <mach/mach.h>
 #include <mach/thread_info.h>
 #include <mach/thread_status.h>
@@ -12,6 +13,8 @@
 #include "cthreads/monitor_md.h"
 #include "java_lang_Thread.h"
 #include "monitor_cache.h"
+#include "finalize.h"
+#include "cthreads/runtime.h"
 
 /* Shared VM thread-queue state, declared in threads.h. */
 extern sys_mon_t *_queue_lock;
@@ -19,6 +22,17 @@ extern int ActiveThreadCount;
 extern int UserThreadCount;
 extern stackp_t mainstktop;
 static sys_thread_t *threads;
+static sys_thread_t *primordial_pending;
+long ProcStackSize;
+
+static void register_thread(sys_thread_t *t)
+{
+    sysMonitorEnter(_queue_lock);
+    ++ActiveThreadCount;
+    t->next = threads; threads = t;
+    if (!t->system_thread) ++UserThreadCount;
+    sysMonitorExit(_queue_lock);
+}
 
 /* 5C144B78: the child cannot enter Java until the creator releases this gate. */
 static void *thread_start_func(void *arg)
@@ -72,12 +86,7 @@ int sysThreadCreate(long size, unsigned int flags, void *(*func)(void *),
     t->start_mutex.lock = 0;
     memcpy((char *)t->cthread + 124, &objc_thread, sizeof(objc_thread));
     memcpy((char *)t->cthread + 116, &t, sizeof(t));
-    sysMonitorEnter(_queue_lock);
-    ++ActiveThreadCount;
-    t->next = threads;
-    threads = t;
-    if (!t->system_thread) ++UserThreadCount;
-    sysMonitorExit(_queue_lock);
+    register_thread(t);
     cthread_detach(t->cthread);
     *result = t;
     return SYS_OK;
@@ -99,12 +108,7 @@ int sysThreadAlloc(sys_thread_t **result, stackp_t base, void *cookie)
      */
     memcpy((char *)t->cthread + 116, &t, sizeof(t));
 
-    sysMonitorEnter(_queue_lock);
-    ++ActiveThreadCount;
-    t->next = threads;
-    threads = t;
-    if (!t->system_thread) ++UserThreadCount;
-    sysMonitorExit(_queue_lock);
+    register_thread(t);
     *result = t;
     return SYS_OK;
 }
@@ -113,7 +117,14 @@ int sysThreadAlloc(sys_thread_t **result, stackp_t base, void *cookie)
  * later AppKit integration, not this Sun VM's C platform backend. */
 int sysThreadBootstrap(sys_thread_t **result, void *cookie)
 {
-    int status = sysThreadAlloc(result, mainstktop, cookie);
+    int status;
+    if (primordial_pending != NULL && primordial_pending == sysThreadSelf()) {
+        *result = primordial_pending; primordial_pending = NULL;
+        (*result)->cookie = cookie;
+        (*result)->stack_base = mainstktop;
+        register_thread(*result);
+        status = SYS_OK;
+    } else status = sysThreadAlloc(result, mainstktop, cookie);
     if (status == SYS_OK) (*result)->primordial_thread = TRUE;
     return status;
 }
@@ -121,7 +132,9 @@ int sysThreadBootstrap(sys_thread_t **result, void *cookie)
 sys_thread_t *sysThreadSelf(void)
 {
     sys_thread_t *t;
-    memcpy(&t, (char *)cthread_self() + 116, sizeof(t));
+    ur_cthread_t proc = ur_cthread_self();
+    if (proc == NULL || proc->incarnation == NULL) return NULL;
+    memcpy(&t, (char *)proc->incarnation + 116, sizeof(t));
     return t;
 }
 
@@ -137,11 +150,13 @@ int sysThreadFree(sys_thread_t *t)
     sys_thread_t *empty = NULL;
     monitor_t *mon;
 
+    if (!mutex_try_lock(&t->mutex)) mutex_wait_lock(&t->mutex);
     if (h != NULL) {
         ee = (ExecEnv *)unhand(h)->eetop;
         unhand(h)->PrivateInfo = 0;
         unhand(h)->eetop = 0;
     }
+    t->mutex.lock = 0;
     sysMonitorEnter(_queue_lock);
     --ActiveThreadCount;
     if (!t->system_thread) {
@@ -387,4 +402,143 @@ void sysThreadSetStackBase(sys_thread_t *t, stackp_t base)
 void *sysThreadGetBackPtr(sys_thread_t *t)
 {
     return t->cookie;
+}
+
+/* The shared Sun bootstrap needs TLS before it creates the Java Thread.
+ * Do not replace that provisional record later: PrivateInfo already names it. */
+void intrInit(void)
+{
+    sys_thread_t *t;
+#ifdef SIGPIPE
+    signal(SIGPIPE, SIG_IGN);
+#endif
+    if (ur_cthread_self() == NULL) cthread_init();
+    if (sysThreadSelf() != NULL) return;
+    t = (sys_thread_t *)malloc(sizeof(*t));
+    if (t == NULL || ur_cthread_self() == NULL || cthread_self() == NULL) {
+        sysAbort(); abort();
+    }
+    memset(t, 0, sizeof(*t));
+    t->cthread = cthread_self(); t->stack_base = mainstktop;
+    t->run_static_initializers = TRUE;
+    memcpy((char *)t->cthread + 116, &t, sizeof(t));
+    primordial_pending = t;
+}
+
+bool_t threadsInitialized(void) { return threads != NULL; }
+void sysThreadSetBackPtr(sys_thread_t *t, void *cookie) { t->cookie = cookie; }
+void sysThreadYield(void) { cthread_yield(); }
+int sysThreadCheckStack(void) { return 1; }
+int sysInterruptsPending(void) { return 0; }
+int sysThreadVMSuspend(sys_thread_t *t, sys_thread_t *self) { (void)t; (void)self; return 0; }
+int sysThreadVMUnsuspend(sys_thread_t *t) { (void)t; return 0; }
+void sysThreadVMSuspendMe(void) { }
+
+void sysThreadSetAtBreakpoint(sys_thread_t *t)
+{
+    if (!mutex_try_lock(&t->mutex)) mutex_wait_lock(&t->mutex);
+    if (t->state == RUNNABLE || t->state == RUNNING) t->state = RUNNING_AT_BREAKPOINT;
+    else if (t->state == SUSPENDED) t->state = SUSPENDED_AT_BREAKPOINT;
+    t->mutex.lock = 0;
+}
+
+void sysThreadInterrupt(sys_thread_t *t)
+{
+    if (!mutex_try_lock(&t->mutex)) mutex_wait_lock(&t->mutex);
+    t->interrupted = TRUE;
+    t->mutex.lock = 0;
+}
+
+int sysThreadIsInterrupted(sys_thread_t *t, long clear)
+{
+    int result;
+    if (!mutex_try_lock(&t->mutex)) mutex_wait_lock(&t->mutex);
+    result = t->interrupted;
+    if (clear == TRUE) t->interrupted = FALSE;
+    t->mutex.lock = 0;
+    return result;
+}
+
+int sysThreadHasPendingException(sys_thread_t *t)
+{
+    Hjava_lang_Thread *h;
+    ExecEnv *ee;
+    int result;
+    if (!mutex_try_lock(&t->mutex)) mutex_wait_lock(&t->mutex);
+    h = (Hjava_lang_Thread *)t->cookie;
+    ee = h ? (ExecEnv *)unhand(h)->eetop : NULL;
+    result = ee != NULL && exceptionOccurred(ee);
+    t->mutex.lock = 0;
+    return result;
+}
+
+void sysThreadPostException(sys_thread_t *t, void *exc)
+{
+    Hjava_lang_Thread *h;
+    ExecEnv *ee;
+    if (!mutex_try_lock(&t->mutex)) mutex_wait_lock(&t->mutex);
+    h = (Hjava_lang_Thread *)t->cookie;
+    ee = h ? (ExecEnv *)unhand(h)->eetop : NULL;
+    if (ee) { exceptionThrow(ee, (JHandle *)exc); }
+    t->mutex.lock = 0;
+    /* Preserve the shared VM's deferred stop checks. The monitor's bounded
+     * waits observe this without overwriting a suspended native PC. */
+}
+
+/* Query the public VM-region API rather than guess private cproc stack fields.
+ * Registration precedes Java allocation, retaining the JNI GC-root fix. */
+int jni_AttachHostThread(sys_thread_t **result)
+{
+    vm_address_t address = (vm_address_t)&address, marker = address;
+    vm_size_t size;
+    vm_prot_t protection, max_protection;
+    vm_inherit_t inheritance;
+    boolean_t shared;
+    memory_object_name_t object;
+    vm_offset_t offset;
+    if (sysThreadSelf() != NULL) { *result = sysThreadSelf(); return SYS_OK; }
+    if (ur_cthread_self() == NULL || cthread_self() == NULL) return SYS_NORESOURCE;
+    if (vm_region(task_self(), &address, &size, &protection, &max_protection,
+                  &inheritance, &shared, &object, &offset) != 0) return SYS_ERR;
+    if (object != 0) port_deallocate(task_self(), object);
+    if (address > marker || size == 0 || marker - address >= size || !(protection & 1))
+        return SYS_ERR;
+    return sysThreadAlloc(result, (stackp_t)(address + size), NULL);
+}
+void jni_DetachHostThread(void) { sysThreadFree(sysThreadSelf()); }
+
+static struct mutex attach_lock;
+void sysAttachThreadLock(void)
+{ if (!mutex_try_lock(&attach_lock)) mutex_wait_lock(&attach_lock); }
+void sysAttachThreadUnlock(void) { attach_lock.lock = 0; }
+
+void WaitToDie(void)
+{
+    sys_thread_t *self = sysThreadSelf();
+    sysMonitorEnter(_queue_lock);
+    while (UserThreadCount > (self->system_thread ? 0 : 1))
+        sysMonitorWait(_queue_lock, -1, FALSE);
+    sysMonitorExit(_queue_lock);
+}
+
+#ifdef SIGQUIT
+extern void DumpMonitors(void);
+static void sigquit_handler(int sig)
+{
+    (void)sig;
+    DumpThreads(); DumpMonitors();
+}
+#endif
+void sysThreadInitializeSystemThreads(void)
+{
+    InitializeFinalizerThread();
+#ifdef SIGQUIT
+    signal(SIGQUIT, sigquit_handler);
+#endif
+}
+
+void sysThreadDumpInfo(sys_thread_t *t)
+{
+    fprintf(stderr, "native thread %u, stack base %p, state %d\n",
+            (unsigned int)mach_thread(t), t->stack_base, (int)t->state);
 }

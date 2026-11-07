@@ -449,3 +449,143 @@ passed in focused Windows Debug and strict C89 probes. No profiler failure in
 this run. Logs: out/phase3-gc-{win,linux}-{build,tests}.log. Production still
 selects pthreads. Task3 remains open for breakpoint/system-thread support and
 its final integration audit; Mach monitor reconstruction is still Task4.
+
+## Task 3 integration and Task 4 monitors
+
+The cthreads backend now supplies provisional primordial TLS before the shared
+VM constructs its Java Thread, then reuses that record during Bootstrap.
+Replacing it would leave the shared PrivateInfo pointer stale. JNI attachment
+queries the public vm_region API for the current stack mapping and releases
+the returned object port; it does not guess the private cproc stack offsets.
+Tests cover mapping failure, repeat attachment, Java back pointers, detachment,
+interrupt read/clear, pending stop exceptions and breakpoint state hints.
+System setup starts the shared finalizer, installs the original SIGQUIT dump
+behavior and ignores SIGPIPE. Optional VM suspension methods are genuine DR2
+no-ops at 5C145000/5C14500C/5C145014; Java suspend and GC use separate methods.
+
+Ruling: preserve deferred Thread.stop handling instead of rewriting a Mach
+thread's PC. Protect exception publication/teardown with the thread mutex and
+poll blocked Java waits at most every 50ms. Cost: blocked stop/interrupt delivery
+may take one polling interval; no claim is made about AppKit/Objective-C threads.
+
+The monitor uses the recovered 68-byte record, recursive logical ownership,
+separate entering/waiting queues and saved recursion depth during wait.
+Ownership errors, busy destruction, timeout, interrupt, stop, native wait
+failure and entry contention are covered. Reacquisition preserves the original
+wait result instead of replacing it with an entry-wait result. Native entry
+failure terminates rather than pretending to own another thread's monitor.
+The Mach receive-error path now removes its waiter before returning; its new
+queue-cleanliness assertion failed before the fix and passed afterward.
+
+Verification provenance: the initial monitor implementation preceded its
+deterministic test (a deviation from the planned RED-first sequence). Subsequent
+failure regressions were observed RED then GREEN. Do not infer a RED-first
+history for every initial monitor branch from the later passing suite.
+The concurrent Linux probe runs real monitor/condvar/thread logic with
+pthread-backed OS doubles: 8,000 recursive critical sections, notify-all,
+interruption, deferred stop and timeout reacquisition. It is not a Mach run.
+
+Integration found shared threadCreate accepted SYS_NOMEM and published the
+failed output pointer. thread-create115 reproduces that failure with -5 and
+now verifies all failed creation statuses leave PrivateInfo unchanged.
+
+## Task 5 OS service audit
+
+DR2 evidence recovered directly from libjava.A.dylib:
+
+| Service | Address | Recovered behavior / implementation decision |
+|---|---|---|
+| InitializeMem | 5C135788 | Uses vm_page_size; read it directly in the heap backend |
+| MapMem | 5C1357C0 | Round size, vm_allocate(task_self, anywhere) |
+| UnmapMem | 5C13580C | Round size, vm_deallocate |
+| CommitMem / DecommitMem | 5C135860 / 5C135898 | Accounting only; no Mach protection/deallocation call |
+| BuildLibName | 5C1355B0 | libNAME.dylib, optional directory prefix |
+| InitializeLinker | 5C13567C | DYLD_LIBRARY_PATH plus DR2 library/framework directories |
+| AddDLSegment | 5C1356FC | Create object image, link bundle; inappropriate image falls back to NSAddLibrary |
+| DynamicLink | 5C135758 | NSIsSymbolNameDefined, NSLookupAndBindSymbol, NSAddressOfSymbol |
+| GetMilliTicks / TimeMillis | 5C135BD0 / 5C135C28 | gettimeofday, 32-bit wrapping ticks / 64-bit epoch milliseconds |
+| CanonicalPath | 5C1358D4 | realpath of existing prefix, append nonexistent suffix |
+| UNIXProcess forkAndExec | 5C13733C | pipes, vfork, dup2, execve/execv, descriptor-plus-one encoding |
+
+Ruling: Mach commit/decommit retain the shared collector's exact pointer/length
+contract rather than returning Sun's rounded pointer. Allocation failures
+report zero completed bytes. Cost: decommit remains accounting-only as in DR2,
+so it does not reclaim physical pages until unmap. The Linux mmap path stays.
+The heap contract test failed against the old mmap implementation and passes
+with Mach API doubles, including allocation/deallocation failure.
+
+Ruling: the dyld implementation adds the Mach-O underscore because current
+shared VM/JNI callers supply C names. Retain an allocated linker path owned by
+the caller and include the reconstructed JDK's lib directory before the DR2
+defaults. Cost: lookup path ordering differs from Sun's framework-only image.
+DR2's SDK explicitly marks NSDestroyObjectFileImage unimplemented, so no modern
+dyld teardown call was invented. Tests exercise missing symbols, bundle load
+failure, library fallback, suffix, empty directory and bounded output. They
+failed against the prior dlopen/.so backend and pass with dyld doubles.
+
+Ruling: retain the shipped Win32Process Java-class adapter on both Unix
+backends. DR2 uses the recovered pipe/exec APIs through a small fork helper,
+with PATH resolution before fork and a close-on-exec error pipe; the child
+only performs descriptor/exec/_exit operations. Cost: this is not Sun's
+UNIXProcess class layout or its vfork/reaper design. The helper test initially
+failed to compile because it was absent; it now exercises actual Linux pipes,
+custom environment, stdout/stderr, exit status and failed-exec reaping.
+Host service mutexes and detached reapers select cthreads when requested;
+the default Linux backend retains pthreads and posix_spawn.
+
+Clocks already match the recovered gettimeofday calculations. POSIX open,
+read/write, seek, close, directory and path operations remain host adaptations;
+no second speculative file implementation was added. Canonical-path and
+process Java suites remain regression gates. The Mach Java-home fallback uses
+JAVA_HOME (or the existing current-directory fallback), not Linux /proc or the
+later Apple _NSGetExecutablePath API. Native framework image layout/toolchain
+packaging remains Phase 7. No vendor class archive was changed.
+
+## Backend selection and SDK compilation
+
+CMake defaults JDK115_UNIX_THREADS to pthreads. Explicit cthreads selection
+chooses reconstructed threads, monitors, conditions, dyld and process adapter,
+and does not link pthread/dl into the production VM target. Existing Linux
+behavior and record layout stay behind the default branch. Mach compilation
+uses the original records and a cthreads recursive monitor-cache mutex.
+
+The complete javai_core object target compiles in i386 Release mode against
+the available external Mach headers. This is a mixed-header compilation check:
+Linux supplies libc headers/compiler, the external SDK supplies Mach/dyld, and
+a test-only setjmp overlay uses the SDK's 18-word i386 jump buffer while
+renaming its conflicting sigcontext tag. The compiler compatibility definition
+__private_extern__=extern is also required. This does NOT validate the full DR2
+libc ABI, native link, or kernel execution; the known cthread data-offset
+mismatch (SDK124 versus binary116) remains explicit.
+
+Reproduction (WSL, SDK outside the repository): configure out/mach115-sdk with
+JDK115_UNIX_THREADS=cthreads, CMAKE_BUILD_TYPE=Release and C flags
+`-m32 -isystem /usr/include/x86_64-linux-gnu -isystem /mnt/d/RhapsodiOS/tmp/terminal-sdk/include/System -I/mnt/d/raynorpat/java/out/mach115-sdk-overlay -DMACH115_SDK_SETJMP -D__private_extern__=extern`.
+The overlay contains only tests/native/mach115-hpi/setjmp.h; do not add the
+fake sys_api.h to this target. Build `--target javai_core -j8`.
+Logs: out/phase3-sdk-{config,build}.log.
+
+## Independent final review and corrections
+
+The fresh-context whole-branch reviewer found two blocking concurrency defects.
+Both were fixed in one pass, with failing regressions before each correction:
+
+- GC could freeze a contender holding a monitor's native mutex, then deadlock
+  on logical-owner recursion during Single, enumeration or Multi. Restore the
+  retained pthread backend's owner-only recursive enter/partial-exit paths.
+  mach115-monitor reproduced native-lock reacquisition; mach115-gc-monitor
+  combines the real thread/monitor implementations and simulates a peer frozen
+  in that mutex through Single, root enumeration and Multi. It also fails
+  against a copy with the recursion fix removed, then passes with the fix.
+- A native polling timeout could dequeue a waiter just before notify, losing
+  the notification. Keep a stack-local notification flag for the entire Java
+  wait; select eligible Java waiters under the monitor mutex and broadcast the
+  native condition so a selected sleeper wakes. Waiters remain on the Java
+  queue until reacquisition, preserving monitor liveness. Deterministic notify
+  and notify-all polling-gap tests failed before the fix and pass afterward;
+  selection tests verify notify chooses one still-unnotified waiter at a time.
+
+No additional Critical/Important findings were established. No minor findings
+were deferred. The reviewer explicitly left actual Mach execution/external
+libc behavior, repeated binary disassembly, and final test results to their
+separate evidence gates; those limits are retained rather than silently waived.

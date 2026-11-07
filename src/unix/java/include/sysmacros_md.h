@@ -77,13 +77,22 @@ int sysMonitorCleanup(struct sys_mon *, struct sys_thread *);
 #define sysLocalMonCache(tid, hash) ((tid)->monitorCache[hash])
 
 /* POSIX adaptation of the original recursive monitor-cache mutex. */
-#include <pthread.h>
 #define SYS_TLS_MONCACHE 8
+#ifdef JDK115_CTHREADS
+#include <mach/cthreads.h>
+typedef struct {
+    struct mutex mutex;
+    long entry_count;
+    cthread_t owner;
+} cache_lock_t;
+#else
+#include <pthread.h>
 typedef struct {
     pthread_mutex_t mutex;
     long entry_count;
     pthread_t owner;
 } cache_lock_t;
+#endif
 extern cache_lock_t _moncache_lock;
 void sysCacheLockInit(void);
 void sysCacheLock(void);

@@ -1,6 +1,9 @@
 #ifndef sun_java_monitor_md_h___
 #define sun_java_monitor_md_h___
 
+#ifdef JDK115_CTHREADS
+#include "cthreads/monitor_md.h"
+#else
 #include <pthread.h>
 #include "threads_md.h"
 
@@ -27,4 +30,5 @@ struct sys_mon {
 
 extern int sysMonitorDestroy(struct sys_mon *);
 
+#endif /* JDK115_CTHREADS */
 #endif /* sun_java_monitor_md_h___ */
