@@ -106,3 +106,33 @@ JdbcOdbcAbi115 exercises every one of the 69 entries against the real manager, a
 The Java wrapper passes DEFAULT_IN_PRECISION for binary binding; current Access rejects that large precision for BINARY(4), including with the original Sun library. The direct fixture supplies precision 4 through the original protected native method. This is a test adaptation, not a change to bridge behavior.
 
 The CTest harness compiles the fixtures with the reconstructed 1.1.5 VM/compiler classes, runs original and rebuilt libraries separately, fails on any exception or stderr, and compares stdout. Debug selects the original java_g.exe/JdbcOdbc_g.dll. Export checks separately enforce the exact manifest. Per-run driver inventories and stdout/stderr are retained below the build directory.
+
+## Installed-image verification (2026-11-07)
+
+Both complete configurations were built in `out/phase5-odbc` and installed with
+the actual CMake install rules, without manually assembling an image:
+
+```
+cmake --build out/phase5-odbc --config Release --parallel 4
+cmake --install out/phase5-odbc --config Release --prefix D:/raynorpat/java/out/phase5-odbc-image-release
+cmake --build out/phase5-odbc --config Debug --parallel 4
+cmake --install out/phase5-odbc --config Debug --prefix D:/raynorpat/java/out/phase5-odbc-image-debug
+```
+
+For each configuration, `tests/odbc/odbc115.cmake` ran with `JAVA` pointing to
+the installed `bin/java.exe` and `LIBDIR` to the installed `bin`. All three
+fixtures passed against their original Sun counterparts, with equal output and
+empty stderr. The installed bridge also passed the exact 69-export check.
+Every installed DLL (ten per image) was SHA-256-identical to its corresponding
+configured build target; none matched either original vendor DLL variant.
+
+| Configuration | Installed/built JdbcOdbc.dll SHA-256 |
+|---|---|
+| Release | `4601ab1aac24845aec542ff237ed84af111ee9e9e060606a9655cc789fdffc76` |
+| Debug | `98dc4bc0e327e1a3a25c85abefce26613be5b6718e9ac5b473f6bb9f06a790d1` |
+
+Build and installer logs are `out/phase5-odbc/full-{release,debug}.log` and
+`install-{release,debug}.log`. Per-fixture stdout/stderr, driver inventories and
+all-DLL hash evidence are under `out/phase5-odbc/installed-tests/{Release,Debug}`.
+This verifies the installed ODBC bridge; debugger sessions and the full platform
+regression suites have separate integration gates.
