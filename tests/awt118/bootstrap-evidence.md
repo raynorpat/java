@@ -44,3 +44,37 @@ libx11-dev:i386, libxt-dev:i386 and xvfb (xauth was already present). A standalo
 gcc -m32 probe linked with -lXm -lXt -lX11 successfully created, realized and
 destroyed an XmPushButton under `timeout 15 xvfb-run -a`. This checks the host
 toolchain/display dependencies only; it does not exercise the Java toolkit.
+
+## First live-window checkpoint
+
+The optional Linux target now links reconstructed toolkit, component, frame,
+button, font and graphics units. `motif118-implemented.txt` selects 47 recovered
+bindings from the full generated inventory; `--no-undefined` rejects missing
+implementations. This is a subset, not a claim that all 199 natives are ready.
+
+Additional recovery anchors in debug libawt_g.so are component initialization
+0x3a540, disposal 0x3ba28, canvas creation 0x63050, frame creation 0x5f220 and
+font selection/metrics 0x3f804..0x40b1c. Release graphics anchors are
+0x2e41c/0x2e498 (construction), 0x2e770 (disposal), 0x2eea0 (clipping) and
+0x2f4c4 (rectangle fill). Native records use generated Java field layouts, not
+Solaris offsets. Graphics retain their native peer record after widget disposal
+and reject further drawing when its widget has retired.
+
+Linux Debug verification: all nine `motif118` CTests pass. The toolkit checks
+display failure, screen/color queries and monitor release while idle. Font tests
+exercise 20 family/style combinations plus byte-array bounds. Window115 checks
+actual red X11 pixels, XTest button input, Java event-thread activation, twelve
+show/dispose cycles, disposal from inside action callbacks, and graphics retained
+and cloned across disposal. The runner rejects stderr warnings as well as errors.
+
+The test probe requires libxtst-dev:i386; libawt itself does not link XTest.
+Initialize the toolkit before loading the probe: loading its Xt dependency first
+interposes Xt's vendor shell class ahead of Motif and produces an invalid
+WM_NAME deletion during XmDisplay initialization. Both standalone visual probes
+succeed, and the normal toolkit-first sequence removes this failure. XSendEvent
+alone did not activate the button; XTest supplies server-generated pointer state
+and timestamps. Neither issue was hidden by an X error handler.
+
+Still open: original input filtering/put-back queue, window-manager behavior,
+remaining widgets, complete graphics/font/image contracts, installed demos and
+the full regression matrix. Tasks 3 through 6 remain open.

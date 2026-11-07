@@ -30,6 +30,10 @@ def main():
     if closure["missing_classes"]:
         raise ValueError("Unresolved support classes: " + str(closure["missing_classes"]))
     args.output.mkdir(parents=True, exist_ok=True)
+    home_lib = args.output / "home" / "lib"
+    home_lib.mkdir(parents=True, exist_ok=True)
+    for path in archive.parent.glob("font.properties*"):
+        (home_lib / path.name).write_bytes(path.read_bytes())
     with zipfile.ZipFile(archive) as source:
         files = {name + ".class": source.read(name + ".class") for name in closure["classes"]}
         resources = {name: source.read(name) for name in source.namelist()

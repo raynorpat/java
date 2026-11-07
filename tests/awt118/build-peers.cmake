@@ -28,6 +28,7 @@ file(STRINGS "${OUT}/peer-classes.txt" classes)
 file(STRINGS "${OUT}/native-classes.txt" native_classes)
 execute_process(COMMAND "${JAVAH}" -classpath "${cp}" -d "${OUT}/generated" ${classes}
   java.awt.Component java.awt.Button java.awt.Canvas java.awt.Window java.awt.Frame
+  java.awt.Font sun.awt.FontDescriptor java.awt.Insets java.awt.Color java.awt.Cursor java.awt.AWTEvent
   RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 120)
 require_success("Generate baseline-layout peer headers")
 execute_process(COMMAND "${JAVAH}" -stubs -classpath "${cp}" -d "${OUT}/generated" ${native_classes}
@@ -47,6 +48,10 @@ list(SORT expected)
 if(NOT "${actual}" STREQUAL "${expected}")
   message(FATAL_ERROR "Generated Motif bindings do not match Solaris entries")
 endif()
+execute_process(COMMAND "${PYTHON}" "${ROOT}/tools/motif118-stubs.py"
+  "${ROOT}/tools/motif118-implemented.txt" "${OUT}/generated" "${OUT}/awt-stubs.c"
+  RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 30)
+require_success("Select reconstructed native bindings")
 execute_process(COMMAND "${JAVAC}" -classpath "${cp}" -d "${OUT}/tests"
   PeerLink115.java InputContextTest115.java
   WORKING_DIRECTORY "${ROOT}/tests/awt118"
