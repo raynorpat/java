@@ -206,6 +206,12 @@ if(UNIX AND NOT APPLE)
     "-DLIBDIR=$<TARGET_FILE_DIR:awt>" "-DCLASS=Icon115"
     -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
   set_tests_properties(motif118-icon PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+  add_test(NAME motif118-print COMMAND ${CMAKE_COMMAND}
+    "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
+    "-DJAVA=$<TARGET_FILE:java>" "-DJAVAC=$<TARGET_FILE:javac>"
+    "-DLIBDIR=$<TARGET_FILE_DIR:awt>" "-DCLASS=Print115"
+    -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
+  set_tests_properties(motif118-print PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
   foreach(codec DecoderImages115 GifRaster115)
     add_test(NAME motif118-${codec} COMMAND ${CMAKE_COMMAND}
       "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"

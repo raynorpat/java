@@ -384,3 +384,19 @@ Icon115 failed at missing pGetIconImageSize, then passed four cycles of 17x19
 input negotiated to 16x16, replacement from 3x3, WM_HINTS pixel/geometry reads,
 source flush/GC and frame disposal. All 29 focused Linux Debug tests pass
 (114.01 seconds); 198 of 207 generated bindings are implemented.
+
+## PostScript printing checkpoint
+
+The selected Solaris PSPrintJob/PSPrintStream/PSPrintControl/UPrintDialog classes
+already supply the print implementation without additional native entries.
+Print115 exercises Toolkit.getPrintJob using real XTest Cancel/Print clicks and
+file destination properties. Cancellation creates no file; acceptance writes a
+valid PostScript file. The probe checks map_state to avoid clicking an old hidden
+dialog. Explicit fonts are required by this Java PSGraphics path (a null font
+reaches the metrics cache, confirmed by GDB); the fixture supplies one.
+
+Two additional pages exercise shapes, text and a four-color image. Ghostscript
+renders both pages; the checker validates page size, exact color positions and
+text coverage. A PNG preview was visually inspected. The dialog output also
+passes Ghostscript's nullpage interpreter. motif118-print passes (2.95 seconds).
+Ghostscript is a Linux test dependency. No external print spooler was invoked.

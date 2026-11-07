@@ -73,6 +73,9 @@ else()
     set(expected "drawing surface state, visuals and retirement passed")
   elseif(CLASS STREQUAL "Icon115")
     set(expected "frame icon sizing, replacement and retirement passed")
+  elseif(CLASS STREQUAL "Print115")
+    list(APPEND command "${OUT}/tests/Print115.ps")
+    set(expected "PostScript pages, text and color images passed")
   elseif(CLASS STREQUAL "DecoderImages115")
     list(APPEND command rgb)
     set(expected "decoder 0 16777215\ndecoder 1 -1130146988\ndecoder 2 -1507203232\ndecoder 3 -1130146988\nGIF and baseline, gray, progressive JPEG drawing passed")
@@ -85,4 +88,23 @@ execute_process(COMMAND ${command} RESULT_VARIABLE result OUTPUT_VARIABLE output
 string(STRIP "${output}" output)
 if(NOT "${result}" STREQUAL "0" OR NOT "${output}" STREQUAL "${expected}" OR NOT "${errors}" STREQUAL "")
   message(FATAL_ERROR "${CLASS}: ${result}\n${output}${errors}")
+endif()
+
+if(CLASS STREQUAL "Print115")
+  execute_process(COMMAND gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=ppmraw -r72
+    "-sOutputFile=${OUT}/tests/Print115-%d.ppm" "${OUT}/tests/Print115.ps"
+    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 20)
+  if(NOT "${result}" STREQUAL "0")
+    message(FATAL_ERROR "Render PostScript: ${result}\n${output}${errors}")
+  endif()
+  execute_process(COMMAND python3 "${ROOT}/tests/awt118/check-print.py" "${OUT}/tests"
+    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 10)
+  if(NOT "${result}" STREQUAL "0")
+    message(FATAL_ERROR "Check PostScript: ${result}\n${output}${errors}")
+  endif()
+  execute_process(COMMAND gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=nullpage "${OUT}/tests/Print115.ps.dialog"
+    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 20)
+  if(NOT "${result}" STREQUAL "0")
+    message(FATAL_ERROR "Render toolkit print: ${result}\n${output}${errors}")
+  endif()
 endif()

@@ -11,6 +11,7 @@
 #include <Xm/Text.h>
 #include <Xm/ScrolledW.h>
 #include <Xm/FileSB.h>
+#include <Xm/PushB.h>
 #include <string.h>
 
 static Widget widget(Hjava_awt_Component *target)
@@ -293,6 +294,48 @@ JAVA_PUBLIC_API(stack_item *) Java_Icon115_sizes_stub(stack_item *p,struct exece
     XIconSize size={8,8,32,32,8,8};
     AWT_LOCK(); XSetIconSizes(awt_display,RootWindow(awt_display,awt_screen),&size,1); AWT_UNLOCK();
     return p;
+}
+
+static Widget print_button(Widget widget,const char *wanted)
+{
+    if (XmIsPushButton(widget) && XtIsManaged(widget) && XtIsRealized(widget)) {
+        XmString label; char *text=NULL; int match;
+        XWindowAttributes attributes;
+        if (!XGetWindowAttributes(awt_display,XtWindow(widget),&attributes) || attributes.map_state!=IsViewable) return NULL;
+        XtVaGetValues(widget,XmNlabelString,&label,NULL);
+        XmStringGetLtoR(label,XmFONTLIST_DEFAULT_TAG,&text);
+        match=text && !strcmp(text,wanted);
+        if(text) XtFree(text); XmStringFree(label);
+        if(match) return widget;
+    }
+    if(XtIsComposite(widget)) {
+        WidgetList children; Cardinal count,i;
+        XtVaGetValues(widget,XtNchildren,&children,XtNnumChildren,&count,NULL);
+        for(i=0;i<count;i++) { Widget found=print_button(children[i],wanted); if(found) return found; }
+    }
+    return NULL;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Print115_choose_stub(stack_item *p,struct execenv *ee)
+{
+    Window root,parent,*children=NULL; unsigned count=0,i;
+    Widget button=NULL;
+    const char *label=p[0].i ? "Cancel" : "Print";
+    AWT_LOCK();
+    XQueryTree(awt_display,RootWindow(awt_display,awt_screen),&root,&parent,&children,&count);
+    for(i=0;i<count && !button;i++) {
+        Widget shell=XtWindowToWidget(awt_display,children[i]);
+        if(shell) button=print_button(shell,label);
+    }
+    if(children) XFree(children);
+    if(button) {
+        Position x,y; Dimension width,height;
+        XtVaGetValues(button,XmNwidth,&width,XmNheight,&height,NULL);
+        XtTranslateCoords(button,width/2,height/2,&x,&y);
+        XTestFakeMotionEvent(awt_display,awt_screen,x,y,CurrentTime);
+        XTestFakeButtonEvent(awt_display,Button1,True,CurrentTime);
+        XTestFakeButtonEvent(awt_display,Button1,False,CurrentTime); XFlush(awt_display);
+    }
+    AWT_UNLOCK(); p[0].i=button!=NULL; return p+1;
 }
 JAVA_PUBLIC_API(stack_item *) Java_Icon115_pixel_stub(stack_item *p,struct execenv *ee)
 {
