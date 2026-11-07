@@ -180,6 +180,7 @@ int awt118_filter_input(XEvent *event)
     if (event->type<KeyPress || event->type>LeaveNotify) return 0;
     widget=XtWindowToWidget(awt_display,event->xany.window);
     if (!widget) return 0;
+    if (!awt118_modal_allows(widget)) return 1;
     /* Original event loop dispatches scrollbar tracking directly to Xt. */
     if (XtIsSubclass(widget,xmScrollBarWidgetClass) &&
         (event->type==ButtonPress || event->type==ButtonRelease ||

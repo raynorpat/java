@@ -24,6 +24,8 @@ typedef struct AwtPeer {
     int references;
     int imHeight;
     int menuHeight;
+    int modalActive;
+    struct AwtPeer *modalPrevious;
     Hsun_awt_motif_MComponentPeer *javaPeer;
     struct AwtPeer *next;
     void (*cleanup)(struct AwtPeer *);
@@ -36,6 +38,7 @@ void awt118_register_widget(Hsun_awt_motif_MComponentPeer *peer);
 void awt118_callback_done(void);
 unsigned long awt118_pixel(unsigned long rgb);
 Widget awt118_menu_widget(HObject *peer);
+int awt118_modal_allows(Widget widget);
 void awt118_register_input(AwtPeer *peer);
 void awt118_forget_input(AwtPeer *peer);
 int awt118_filter_input(XEvent *event);

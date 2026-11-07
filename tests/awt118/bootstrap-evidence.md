@@ -295,3 +295,17 @@ position event; native mouse-trigger metadata remains part of the input gate.
 All 21 focused Linux Debug tests pass (95.71 seconds), with 165 bindings.
 Decorated-window geometry, security warning banners and full modal/input
 semantics remain open; the owned-window check uses Xvfb without a window manager.
+
+## Dialog checkpoint
+
+Release 0x25628..0x26130 and awt_MToolkit_modalWait establish nine dialog
+bindings, modal waiting on the AWT monitor and delayed native-state retirement.
+The modal chain filters owner input before Java dispatch and keeps a native
+reference while hide/disposal releases the waiting ModalThread. XmDialogShell
+and XmForm provide the host dialog. Shared frame operations use only the audited
+common component/insets prefix; no Java classes change.
+Dialog115 failed at create, then passed four modal action/disposal cycles,
+owner-input suppression, modeless title/resizability/show/hide and modal hide
+followed by restored owner input. All 22 focused Linux Debug tests pass
+(97.78 seconds), with 174 bindings. Nested modality, decorated insets, input
+methods and event-dispatch-thread modal behavior still need the full input gate.
