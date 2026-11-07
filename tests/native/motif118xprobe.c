@@ -7,6 +7,7 @@
 #include <Xm/ToggleB.h>
 #include <Xm/TextF.h>
 #include <Xm/Text.h>
+#include <Xm/ScrolledW.h>
 #include <string.h>
 
 static Widget widget(Hjava_awt_Component *target)
@@ -33,6 +34,35 @@ JAVA_PUBLIC_API(stack_item *) Java_TextArea115_scrollbars_stub(stack_item *p,str
     XtVaGetValues(widget(p[0].p),XmNscrollHorizontal,&horizontal,XmNscrollVertical,&vertical,NULL);
     p[0].i=(horizontal ? 1 : 0)|(vertical ? 2 : 0);
     AWT_UNLOCK(); return p+1;
+}
+
+JAVA_PUBLIC_API(stack_item *) Java_ScrollPane115_nativePosition_stub(stack_item *p,struct execenv *ee)
+{
+    Widget w,child;
+    WidgetList children;
+    Cardinal count;
+    Position x=0,y=0;
+    AWT_LOCK(); w=widget(p[0].p);
+    if (XmIsScrolledWindow(w)) XtVaGetValues(w,XmNworkWindow,&child,NULL);
+    else {
+        XtVaGetValues(w,XmNchildren,&children,XmNnumChildren,&count,NULL);
+        child=count ? children[0] : NULL;
+    }
+    if (child) XtVaGetValues(child,XmNx,&x,XmNy,&y,NULL);
+    else SignalError(ee,"java/lang/RuntimeException","missing scroll child");
+    p[0].p=execute_java_constructor(ee,"java/awt/Point",NULL,"(II)",-(int)x,-(int)y);
+    AWT_UNLOCK(); return p+1;
+}
+JAVA_PUBLIC_API(stack_item *) Java_ScrollPane115_press_stub(stack_item *p,struct execenv *ee)
+{
+    Widget bar;
+    AWT_LOCK();
+    if (p[2].i) {
+        XtVaGetValues(widget(p[0].p),p[1].i ? XmNverticalScrollBar : XmNhorizontalScrollBar,&bar,NULL);
+        XWarpPointer(awt_display,None,XtWindow(bar),0,0,0,0,7,7);
+    }
+    XTestFakeButtonEvent(awt_display,Button1,p[2].i!=0,CurrentTime);
+    XFlush(awt_display); AWT_UNLOCK(); return p;
 }
 
 JAVA_PUBLIC_API(stack_item *) Java_Input115_key_stub(stack_item *p,struct execenv *ee)

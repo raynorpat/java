@@ -21,6 +21,15 @@ static unsigned long nextToken;
 static Time lastTime;
 static int clickCount, lastX, lastY;
 
+static void scrollbar_destroyed(Widget widget,XtPointer closure,XtPointer call)
+{
+    if (scrollbarGrab==widget) {
+        XtUngrabKeyboard(widget,CurrentTime);
+        XtUngrabPointer(widget,CurrentTime);
+        scrollbarGrab=NULL;
+    }
+}
+
 void awt118_register_input(AwtPeer *peer)
 { peer->next=peers; peers=peer; }
 
@@ -28,11 +37,14 @@ void awt118_forget_input(AwtPeer *peer)
 {
     AwtPeer **link=&peers;
     NativeEvent **event, *old;
+    Widget ancestor=scrollbarGrab;
     /* OpenMotif grabs the keyboard while tracking a scrollbar. Xt retains
      * that widget after destruction unless the grab is explicitly released. */
-    if (scrollbarGrab && (scrollbarGrab==peer->widget || scrollbarGrab==peer->content)) {
+    while (ancestor && ancestor!=peer->widget && ancestor!=peer->shell) ancestor=XtParent(ancestor);
+    if (ancestor) {
         XtUngrabKeyboard(scrollbarGrab,CurrentTime);
         XtUngrabPointer(scrollbarGrab,CurrentTime);
+        XtRemoveCallback(scrollbarGrab,XmNdestroyCallback,scrollbar_destroyed,NULL);
         scrollbarGrab=NULL;
     }
     while (*link && *link!=peer) link=&(*link)->next;
@@ -173,8 +185,14 @@ int awt118_filter_input(XEvent *event)
         (event->type==ButtonPress || event->type==ButtonRelease ||
         (event->type==MotionNotify && (event->xmotion.state==Button1Mask ||
             event->xmotion.state==Button2Mask || event->xmotion.state==Button3Mask)))) {
-        if (event->type==ButtonPress) scrollbarGrab=widget;
-        else if (event->type==ButtonRelease) scrollbarGrab=NULL;
+        if (event->type==ButtonPress) {
+            if (scrollbarGrab) XtRemoveCallback(scrollbarGrab,XmNdestroyCallback,scrollbar_destroyed,NULL);
+            scrollbarGrab=widget;
+            XtAddCallback(widget,XmNdestroyCallback,scrollbar_destroyed,NULL);
+        } else if (event->type==ButtonRelease && scrollbarGrab) {
+            XtRemoveCallback(scrollbarGrab,XmNdestroyCallback,scrollbar_destroyed,NULL);
+            scrollbarGrab=NULL;
+        }
         return 0;
     }
     if (widget && (event->type==KeyPress || event->type==KeyRelease)) {

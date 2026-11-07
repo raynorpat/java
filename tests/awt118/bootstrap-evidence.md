@@ -194,3 +194,15 @@ show/hide/disposal. Fixtures wait for asynchronous Java/native event replay.
 All 16 focused Linux Debug Motif tests pass; 111 native bindings are implemented.
 Multifont/locale conversion, clipboard paste, full input/window semantics and the
 remaining rendering/demo/platform gates are still unfinished.
+
+## Scroll pane checkpoint
+
+Release 0x27464..0x280f4 supplies seven ScrollPane bindings, adjustment reason
+mapping, native insets, scrollbar policy and child positioning. The no-scrollbar
+manager requires XtMoveWidget as in the original; a normal geometry request was
+rejected, leaving the child at the origin. ScrollPane115 failed at missing create,
+then verified all three policies, native positions/limits, arrow callbacks, child
+replacement and disposal while holding an embedded scrollbar. That final case
+reproduced the stale Xt keyboard grab with VertScrollBar in GDB. Grab retirement
+now recognizes ancestor disposal and tracks the scrollbar's destruction callback.
+All 17 focused Linux Debug tests pass, with 118 Motif bindings implemented.
