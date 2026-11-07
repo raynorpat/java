@@ -45,6 +45,8 @@ and the five `demo/i18n` demos.
 **Non-goals**
 - Rebuilding the Java class library from source. Sun's 1.1.5 `lib/classes.zip` is used as-is
   (it contains classes such as `sun.awt.windows.*` that have no source in `src/`).
+  Phase 8 is an explicit later exception: reconstruct the Java changes needed to port
+  audited 1.1.8 fixes and behavior, while preserving both original archives as inputs.
 - 64-bit support (the VM stays 32-bit, as today).
 - JIT compilers, Java 1.2+ features, Swing (beyond what a demo needs, which is none).
 
@@ -82,6 +84,13 @@ All under `C:\Users\raynorpat\Downloads\test\`.
 - IDA databases already exist for several of these libraries.
 
 **Mac OS X Server 1.2v3** (`Frameworks\JavaVM.framework`, PowerPC, JDK 1.1.6) — secondary cross-check only.
+
+**Solaris JDK 1.1.8/16** — `C:\Users\raynorpat\Downloads\solaris-jdk-1.1.8`.
+The `SUNWjvrt` and `SUNWjvdev` packages supply the runtime classes, release/debug
+native libraries, tools and resources. Phase 6 uses the X11/Motif material first;
+Phase 8 audits the full supplied distribution for changes applicable to this tree.
+See the [Solaris intake](../plans/2026-11-06-solaris118-inventory.md) for inventory
+and provenance. Original binaries and archives remain read-only, uncommitted inputs.
 
 **Already in the tree:** Sun's **1.0.2 Windows AWT in C++** (`awt/windows/*.cpp`, unbuilt) is
 the starting point for `winawt`, exactly as the 1.0.2 VM is for `javai`. `classsrc/` (1.0.2
@@ -169,6 +178,44 @@ function by function"; `include/` gives the structure layouts.
 5. **`agent`/`jdb`, `JdbcOdbc`**.
 6. **Motif AWT** for Linux. Milestone: all demos on Linux.
 7. **Rhapsody**: build the tree on DR2, reconstruct AppKit `libawt`. Milestone: demos on DR2.
+8. **Port Solaris JDK 1.1.8 changes and fixes into the reconstructed tree** (owner requested).
+   Audit the supplied 1.1.8 binaries and classes against the reconstructed 1.1.5 baseline,
+   then port applicable changes across the VM, native libraries, Java classes and tools.
+   This follows the existing phases without renumbering them; Phase 6 remains focused
+   on completing Motif AWT. Reconstructing a complete Solaris-targeted JDK remains a
+   separate follow-up from integrating its shared changes into our portable tree.
+
+### Phase 8 scope and completion gates
+
+- Inventory every supplied native library, launcher, class and relevant resource.
+  Compare methods, descriptors, fields, constants and bytecode as well as native
+  control flow. Distinguish version changes from Solaris/Windows platform differences,
+  compiler artifacts and changes already incorporated during Motif reconstruction.
+- Maintain a delta ledger with source hashes, binary addresses or class/method references,
+  observed behavior, affected tree locations and a disposition for each difference:
+  ported, already present, platform-specific, or unresolved. Do not infer an upstream
+  bug fix merely from different disassembly. Unresolved applicable changes block completion.
+- Reconstruct and integrate applicable 1.1.8 changes in small subsystem commits,
+  retaining the tree's existing correctness fixes and portability layers. Cover native
+  and Java changes together where they alter layouts, native signatures or calling
+  conventions. Do not limit the audit to AWT or to previously known bug fixes.
+- For changed Java behavior, add the necessary reconstructed source and reproducible
+  class-image build steps. Keep the original 1.1.5 and Solaris 1.1.8 archives unchanged;
+  do not silently overlay classes with incompatible native or serialization contracts.
+  Record the resulting image's version and compatibility contract explicitly; selected
+  backports alone do not establish complete JDK 1.1.8 compatibility.
+- Add a regression for each observable fix or behavioral change, establish the original
+  behavior using the available 1.1.5 and 1.1.8 oracles, and verify the reconstructed result.
+  Where executing Solaris is necessary, arrange an appropriate oracle environment;
+  structural evidence alone does not close a runtime behavior gate.
+- Finish with the unchanged demo matrix, tools, JNI, serialization and class-library
+  checks, and full Windows/Linux Debug/Release suites. Recheck the Rhapsody build and
+  demos for shared changes introduced after Phase 7. Preserve the source-only repository
+  and ensure no vendor native libraries enter the reconstructed images.
+
+**Milestone:** all inventoried applicable 1.1.8 changes are integrated and verified,
+all platform-specific exclusions are explained, the resulting class/native boundary
+is reproducible, and no unresolved applicable delta or regression remains.
 
 ## Verification
 
