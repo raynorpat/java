@@ -574,7 +574,7 @@ if(WIN32)
   target_link_libraries(winawt115-toolkit user32 gdi32)
   add_test(NAME winawt115-toolkit COMMAND winawt115-toolkit
     "${JDK115_DIR}/bin/winawt$<$<CONFIG:Debug>:_g>.dll")
-  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 WindowState115 Dialog115 FileDialog115 Input115 Focus115 DefaultFocus115 FocusLock115 InputRetire115 MotionLifetime115 InputExit115 DrawingSurface115 SurfaceLocks115 Clipboard115 Menu115 EmbeddedFrame115 FrameIcon115 PrintJob115 Canvas115 Button115 Fonts115 Label115 Checkbox115 Choice115 List115 Scrollbar115 Text115 ScrollPane115 ReentrantPeers115 PaneRace115 RetiredGraphics115 Images115 Raster115 TextRaster115 ImageRaster115 ColorRaster115 ImageBounds115 DecoderImages115 GifRaster115 GraphicsResources115 ProgressiveImages115 GraphicsHDC115 ScaledDelivery115)
+  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 WindowState115 Dialog115 FileDialog115 Input115 Focus115 DefaultFocus115 FocusLock115 Validation115 InputRetire115 MotionLifetime115 InputExit115 DrawingSurface115 SurfaceLocks115 Clipboard115 Menu115 EmbeddedFrame115 FrameIcon115 PrintJob115 Canvas115 Button115 Fonts115 Label115 Checkbox115 Choice115 List115 Scrollbar115 Text115 ScrollPane115 ReentrantPeers115 PaneRace115 RetiredGraphics115 Images115 Raster115 TextRaster115 ImageRaster115 ColorRaster115 ImageBounds115 DecoderImages115 GifRaster115 GraphicsResources115 ProgressiveImages115 GraphicsHDC115 ScaledDelivery115)
   add_test(NAME awt-${awt_test} COMMAND ${CMAKE_COMMAND}
     -DROOT=${CMAKE_SOURCE_DIR} -DJAVA=$<TARGET_FILE:java> -DJAVAC=$<TARGET_FILE:javac>
     -DJDK=${JDK115_DIR} -DLIBDIR=$<TARGET_FILE_DIR:winawt>

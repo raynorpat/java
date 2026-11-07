@@ -309,3 +309,59 @@ __declspec(dllexport) stack_item *Java_WinAwtProbe_inkLeft_stub(stack_item *sp,s
     }
     sp[0].i = left; return sp+1;
 }
+
+/* Validation must not hide/show its HWND or require an explicit repaint.
+ * These observations deliberately never invalidate or update a window. */
+__declspec(dllexport) stack_item *Java_Validation115_visible_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND window=test_window((struct Hjava_lang_String *)sp[0].p);
+    sp[0].i=window && IsWindowVisible(window); return sp+1;
+}
+__declspec(dllexport) stack_item *Java_Validation115_showWindow_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND window=test_window((struct Hjava_lang_String *)sp[0].p);
+    /* Bypass only the hidden process startup show state, as other probes do. */
+    if(window) { ShowWindow(window,SW_SHOW); SetForegroundWindow(window); }
+    return sp;
+}
+__declspec(dllexport) stack_item *Java_Validation115_width_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND window=test_window((struct Hjava_lang_String *)sp[0].p); RECT rect;
+    sp[0].i=window && GetWindowRect(window,&rect) ? rect.right-rect.left : -1; return sp+1;
+}
+__declspec(dllexport) stack_item *Java_Validation115_ink_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND window=test_window((struct Hjava_lang_String *)sp[0].p);
+    struct Hjava_lang_String *label=(struct Hjava_lang_String *)sp[1].p;
+    WCHAR text[256]; struct window_search search; RECT rect; HDC dc,copy;
+    BITMAPINFO info; HBITMAP bitmap; HGDIOBJ old; DWORD *pixels;
+    int length,x,count=0;
+    if(!window || !label || (length=javaStringLength(label))>255) {
+        SignalError(ee,"java/lang/RuntimeException","invalid validation label"); sp[0].i=0; return sp+1;
+    }
+    javaString2unicode(label,(unicode *)text,length); text[length]=0;
+    search.title=text; search.window=NULL; EnumChildWindows(window,find_window,(LPARAM)&search);
+    if(!search.window) SignalError(ee,"java/lang/RuntimeException","validation label not found");
+    else {
+        GetClientRect(search.window,&rect); dc=GetDC(search.window);
+        ZeroMemory(&info,sizeof(info)); info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);
+        info.bmiHeader.biWidth=rect.right; info.bmiHeader.biHeight=-rect.bottom;
+        info.bmiHeader.biPlanes=1; info.bmiHeader.biBitCount=32;
+        copy=dc ? CreateCompatibleDC(dc) : NULL;
+        bitmap=copy ? CreateDIBSection(dc,&info,DIB_RGB_COLORS,(void **)&pixels,NULL,0) : NULL;
+        if(bitmap) {
+            old=SelectObject(copy,bitmap);
+            if(BitBlt(copy,0,0,rect.right,rect.bottom,dc,0,0,SRCCOPY)) {
+                GdiFlush();
+                for(x=0;x<rect.right*rect.bottom && count<=10;x++) {
+                    DWORD pixel=pixels[x];
+                    if((pixel&255)<64 && ((pixel>>8)&255)<64 && ((pixel>>16)&255)<64) count++;
+                }
+            }
+            SelectObject(copy,old); DeleteObject(bitmap);
+        }
+        if(copy) DeleteDC(copy);
+        if(dc) ReleaseDC(search.window,dc);
+    }
+    sp[0].i=count; return sp+1;
+}

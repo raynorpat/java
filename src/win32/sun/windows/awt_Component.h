@@ -38,10 +38,12 @@ public:
     Hjava_awt_Component *GetTarget() const { return (Hjava_awt_Component *)unhand(peer)->target; }
     static AwtComponent *Get(Hsun_awt_windows_WComponentPeer *peer);
     static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+    static LRESULT CALLBACK RetiredWndProc(HWND, UINT, WPARAM, LPARAM);
     COLORREF foreground, background;
     HFONT font;
     HCURSOR cursor;
     BOOL started;
+    HDWP deferredPositions;
     AwtSurface *surface;
     RECT pendingPaint;
     BOOL paintPending;
@@ -55,6 +57,9 @@ protected:
     Hsun_awt_windows_WComponentPeer *peer;
     AwtComponent *next;
     static AwtComponent *components;
+    static AwtComponent *retiredComponents;
+    static int nativeProcedureDepth;
+    static void DrainRetired();
     WNDPROC originalProc;
     UINT controlID;
     static UINT nextControlID;

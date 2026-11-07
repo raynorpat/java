@@ -16,6 +16,8 @@ WCHAR *awtUnicode(Hjava_lang_String *string)
 }
 
 AwtComponent *AwtComponent::components = NULL;
+AwtComponent *AwtComponent::retiredComponents = NULL;
+int AwtComponent::nativeProcedureDepth = 0;
 static struct PeerMutex {
     CRITICAL_SECTION section;
     PeerMutex() { InitializeCriticalSection(&section); }
@@ -26,7 +28,7 @@ void AwtComponent::UnlockPeers() { LeaveCriticalSection(&peerMutex.section); }
 UINT AwtComponent::nextControlID = 1;
 AwtComponent::AwtComponent(Hsun_awt_windows_WComponentPeer *p)
     : foreground(GetSysColor(COLOR_WINDOWTEXT)), background(GetSysColor(COLOR_WINDOW)),
-      font(NULL), cursor(LoadCursor(NULL, IDC_ARROW)), started(FALSE), surface(NULL), paintPending(FALSE), mouseInside(FALSE), mouseDragged(FALSE), suppressTyped(FALSE), lastClick(0), clickCount(0), hwnd(NULL), peer(p), next(NULL), originalProc(NULL), controlID(0), references(1), disposed(FALSE) {}
+      font(NULL), cursor(LoadCursor(NULL, IDC_ARROW)), started(FALSE), deferredPositions(NULL), surface(NULL), paintPending(FALSE), mouseInside(FALSE), mouseDragged(FALSE), suppressTyped(FALSE), lastClick(0), clickCount(0), hwnd(NULL), peer(p), next(NULL), originalProc(NULL), controlID(0), references(1), disposed(FALSE) {}
 AwtComponent::~AwtComponent() { if (font) DeleteObject(font); }
 AwtComponent *AwtComponent::Get(Hsun_awt_windows_WComponentPeer *p)
 { return p ? (AwtComponent *)unhand(p)->pData : NULL; }
@@ -79,11 +81,46 @@ void AwtComponent::Dispose()
     disposed = TRUE; started = FALSE;
     unhand(peer)->pData = 0;
     Unlink();
+    if (nativeProcedureDepth && IsWindow(hwnd))
+        SetWindowLongW(hwnd,GWL_WNDPROC,(LONG)RetiredWndProc);
     ClearInput();
     if (surface) { surface->component = NULL; surface->Release(); surface = NULL; }
+    if (deferredPositions) {
+        HDWP positions = deferredPositions; deferredPositions = NULL;
+        EndDeferWindowPos(positions);
+    }
+    if (nativeProcedureDepth && IsWindow(hwnd)) {
+        /* USER32 may still be painting this control (or a child) after a
+         * Java getter disposes it. Keep its native window alive until that
+         * procedure returns, but permit no further Java callbacks. */
+        next = retiredComponents; retiredComponents = this;
+        return;
+    }
     if (IsWindow(hwnd)) DestroyWindow(hwnd);
     hwnd = NULL;
     Release();
+}
+
+LRESULT CALLBACK AwtComponent::RetiredWndProc(HWND window, UINT message, WPARAM w, LPARAM l)
+{
+    AwtComponent *c = (AwtComponent *)GetWindowLong(window,GWL_USERDATA);
+    LRESULT result = c && c->originalProc ? CallWindowProcW(c->originalProc,window,message,w,l)
+        : DefWindowProcA(window,message,w,l);
+    if (message == WM_NCDESTROY && c) {
+        c->hwnd = NULL; SetWindowLong(window,GWL_USERDATA,0);
+    }
+    return result;
+}
+
+void AwtComponent::DrainRetired()
+{
+    while (retiredComponents) {
+        AwtComponent *c = retiredComponents;
+        retiredComponents = c->next;
+        if (IsWindow(c->hwnd)) DestroyWindow(c->hwnd);
+        c->hwnd = NULL;
+        c->Release();
+    }
 }
 
 LRESULT CALLBACK AwtComponent::WndProc(HWND window, UINT message, WPARAM w, LPARAM l)
@@ -116,21 +153,21 @@ LRESULT AwtComponent::WindowProc(UINT message, WPARAM w, LPARAM l)
     if (awtMenuMessage(this,message,w,l,&menuResult)) return menuResult;
     if ((message == WM_HSCROLL || message == WM_VSCROLL) && l) {
         AwtComponent *child = (AwtComponent *)GetWindowLong((HWND)l,GWL_USERDATA);
-        if (child) { child->Scroll(LOWORD(w),HIWORD(w)); return 0; }
+        if (child && !child->IsDisposed()) { child->Scroll(LOWORD(w),HIWORD(w)); return 0; }
     }
     if (message == WM_MEASUREITEM && l && w) {
         MEASUREITEMSTRUCT *item = (MEASUREITEMSTRUCT *)l;
         for (AwtComponent *child = components; child; child = child->next)
-            if (child->controlID == item->CtlID) { AwtComponentLease lease(child); child->MeasureItem(item); return TRUE; }
+            if (child->controlID == item->CtlID && !child->IsDisposed()) { AwtComponentLease lease(child); child->MeasureItem(item); return TRUE; }
     }
     if (message == WM_COMMAND && l) {
         AwtComponent *child = (AwtComponent *)GetWindowLong((HWND)l,GWL_USERDATA);
-        if (child) { AwtComponentLease lease(child); child->Command(HIWORD(w)); return 0; }
+        if (child && !child->IsDisposed()) { AwtComponentLease lease(child); child->Command(HIWORD(w)); return 0; }
     }
     if (message == WM_DRAWITEM && l) {
         DRAWITEMSTRUCT *item = (DRAWITEMSTRUCT *)l;
         AwtComponent *child = (AwtComponent *)GetWindowLong(item->hwndItem,GWL_USERDATA);
-        if (child) { AwtComponentLease lease(child); child->DrawItem(item); return TRUE; }
+        if (child && !child->IsDisposed()) { AwtComponentLease lease(child); child->DrawItem(item); return TRUE; }
     }
     if (started && (message == WM_SETFOCUS || message == WM_KILLFOCUS)) {
         BOOL temporary = FALSE;
@@ -183,7 +220,13 @@ LRESULT AwtComponent::WindowProc(UINT message, WPARAM w, LPARAM l)
         HBRUSH brush = CreateSolidBrush(background);
         FillRect((HDC)w, &rect, brush); DeleteObject(brush); return TRUE;
     }
-    return originalProc ? CallWindowProcW(originalProc,hwnd,message,w,l) : DefWindowProcA(hwnd,message,w,l);
+    if (originalProc) {
+        ++nativeProcedureDepth;
+        LRESULT result = CallWindowProcW(originalProc,hwnd,message,w,l);
+        if (!--nativeProcedureDepth) DrainRetired();
+        return result;
+    }
+    return DefWindowProcA(hwnd,message,w,l);
 }
 
 enum ComponentOperation { SHOW, HIDE, ENABLE, DISABLE, DISPOSE, RESHAPE,
@@ -216,8 +259,12 @@ static void componentRequest(void *argument)
             RECT outer; POINT origin = {0,0}; GetWindowRect(parent,&outer);
             ClientToScreen(parent,&origin); x -= origin.x-outer.left; y -= origin.y-outer.top;
         }
-        SetWindowPos(window, NULL, x, y, r->values[2], r->values[3],
-                     SWP_NOACTIVATE | SWP_NOZORDER); c->UpdateInsets(NULL); break;
+        UINT flags = SWP_NOCOPYBITS | SWP_NOACTIVATE | SWP_NOZORDER;
+        if (c->deferredPositions)
+            c->deferredPositions = DeferWindowPos(c->deferredPositions,window,NULL,
+                x,y,r->values[2],r->values[3],flags);
+        else SetWindowPos(window,NULL,x,y,r->values[2],r->values[3],flags);
+        if (!c->IsDisposed()) c->UpdateInsets(NULL); break;
     }
     case FOREGROUND:
     case BACKGROUND: {
@@ -248,8 +295,17 @@ static void componentRequest(void *argument)
         SetWindowPos(window, after ? after->GetHWnd() : HWND_TOP, 0,0,0,0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE); break;
     }
-    case BEGIN_VALIDATE: SendMessage(window, WM_SETREDRAW, FALSE, 0); break;
-    case END_VALIDATE: SendMessage(window, WM_SETREDRAW, TRUE, 0); InvalidateRect(window,NULL,TRUE); break;
+    /* Original winawt_g 10009532/10009556 batches this peer's positions.
+     * WM_SETREDRAW changes WS_VISIBLE and loses child/non-client paint. */
+    case BEGIN_VALIDATE:
+        if (!c->deferredPositions) c->deferredPositions = BeginDeferWindowPos(32);
+        break;
+    case END_VALIDATE:
+        if (c->deferredPositions) {
+            HDWP positions = c->deferredPositions; c->deferredPositions = NULL;
+            EndDeferWindowPos(positions);
+        }
+        break;
     case LOCATION: {
         RECT rect; GetWindowRect(window, &rect);
         r->values[0] = rect.left; r->values[1] = rect.top; break;
