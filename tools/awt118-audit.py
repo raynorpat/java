@@ -111,6 +111,42 @@ def has_member(classes, owner, kind, name, descriptor, visited=None):
                for parent in [item["super"]] + item["interfaces"] if parent)
 
 
+def dependencies(item):
+    result = set()
+    for name in item["class_references"]:
+        result.update(re.findall(r"L([^;]+);", name) if name.startswith("[") else [name])
+    for member in item["fields"] + item["methods"] + item["references"]:
+        result.update(re.findall(r"L([^;]+);", member["descriptor"]))
+    return result
+
+
+def check_overlay(base, additions):
+    if base.keys() & additions.keys():
+        raise ValueError("Peer archive must not replace baseline classes")
+    overlay = dict(base, **additions)
+    missing_classes, missing_members = set(), []
+    for name, item in sorted(additions.items()):
+        missing_classes.update(dependencies(item) - overlay.keys())
+        for ref in item["references"]:
+            if ref["owner"].startswith("[") or ref["owner"] not in overlay:
+                continue
+            if not has_member(overlay, ref["owner"], ref["kind"], ref["name"], ref["descriptor"]):
+                missing_members.append(dict(source=name, **ref))
+    return {"classes": sorted(additions), "missing_classes": sorted(missing_classes),
+            "missing_members": missing_members}
+
+
+def peer_closure(base, solaris):
+    selected = {n for n in solaris if n.startswith("sun/awt/motif/")}
+    while True:
+        needed = set().union(*(dependencies(solaris[n]) for n in selected)) - base.keys() - selected
+        available = needed & solaris.keys()
+        if not available:
+            break
+        selected.update(available)
+    return check_overlay(base, {n: solaris[n] for n in selected})
+
+
 def audit(base_path, solaris_path):
     base, solaris = read_archive(base_path), read_archive(solaris_path)
     peers = {n: c for n, c in solaris.items() if n.startswith("sun/awt/motif/")}
@@ -120,13 +156,9 @@ def audit(base_path, solaris_path):
     entries = set(Path(__file__).with_name("solaris118-awt-native-entries.txt").read_text().splitlines())
     missing_classes, missing_members, referenced, natives = set(), [], set(), []
     for owner, peer in sorted(peers.items()):
-        dependencies = set()
-        for name in peer["class_references"]:
-            dependencies.update(re.findall(r"L([^;]+);", name) if name.startswith("[") else [name])
-        for member in peer["fields"] + peer["methods"] + peer["references"]:
-            dependencies.update(re.findall(r"L([^;]+);", member["descriptor"]))
-        referenced.update(dependencies)
-        missing_classes.update(dependencies - overlay.keys())
+        required = dependencies(peer)
+        referenced.update(required)
+        missing_classes.update(required - overlay.keys())
         for ref in peer["references"]:
             # Array clone is a VM-defined member, not an archive declaration.
             if ref["owner"].startswith("["):

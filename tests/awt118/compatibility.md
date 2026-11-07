@@ -59,11 +59,43 @@ recover accesses against those layouts. The audit does not calculate C padding,
 VM field offsets, access-control legality, bytecode verification, reflection,
 dynamic class loading or native callback contracts.
 
-The next step is to resolve the support-class closure and test actual peer loading
-against 1.1.5. Use a separate peer/support archive or minimal reconstructed Java
-adaptations; do not replace java.* classes with Solaris versions. Input-method
-integration and drawing-surface access require particular care before toolkit
-initialization can be claimed compatible.
+## Selected Java peer boundary
+
+The transitive closure adds nine support classes to the 67 Motif classes: the
+seven listed by the initial audit plus InputMethodContext and InputContext.
+The only unresolved member is InputContext's call to
+SunToolkit.getInputMethodAdapter(). The supplied MToolkit already declares that
+method, so the reconstructed InputContext changes just that factory cast/owner
+to MToolkit. Its fields, method descriptors, access flags and callback ordering
+match the original class. No baseline class is replaced. The remaining 75 class
+files are byte-for-byte copies, with the two print dialog properties resources
+and the supplied LICENSE/COPYRIGHT retained in the separate archive.
+
+Configure with SOLARIS118_DIR pointing to the extracted package root and build
+motif118probe. The build prepares the closure, compiles InputContext, validates
+all structural references, generates headers against the 1.1.5 baseline, and
+compares all 199 generated Motif stubs with the native-entry inventory. Outputs
+remain under the build tree's motif118 directory; nothing is installed yet.
+
+PeerLink115 defines all 76 classes and resolves the button/component peer
+hierarchy, inherited target descriptor and ButtonPeer interface. Resolving every
+class would execute static initializers on both original and rebuilt VMs and
+require the unfinished native toolkit. This test deliberately does not claim
+full toolkit initialization.
+
+The native probe crosses the real legacy-stub boundary to read/write the
+generated MButtonPeer target field, checking both directions through JNI field
+access. JNI references are opaque indices, not legacy VM handles. Input-context
+tests inject a test input method and verify focus activation/deactivation,
+dispatch/disposal ordering and cached factory failure against both original and
+adapted InputContext. Actual XIM factory creation remains a native toolkit gate.
+Sun's Windows debug loader requires a test-only _g DLL copy, including when
+System.load receives an absolute path.
+
+Windows Debug/Release each pass the eight peer checks (including Sun oracles)
+and four existing JNI/javah regressions. Linux Debug/Release pass the five peer
+checks and the same four regressions. The full platform suites and visual demo
+gates remain Task 6; these focused checks establish the Java boundary only.
 
 ## Reproduction and checks
 
@@ -74,7 +106,7 @@ python tests/awt118/audit-test.py vendor/jdk1.1.5/lib/classes.zip C:/Users/rayno
 python tools/awt118-audit.py vendor/jdk1.1.5/lib/classes.zip C:/Users/raynorpat/Downloads/solaris-jdk-1.1.8/SUNWjvrt/reloc/usr/java1.1/lib/classes.zip --output out/solaris118-awt/compatibility.json
 ```
 
-Three tests check original native descriptors, inherited/absent members and
+Four audit tests check original native descriptors, inherited/absent members and
 non-inherited constructors, and the pinned archive's complete audit inventory.
 The initial run failed because the audit tool was absent; all pass with the
 implementation. Both archives are read-only inputs, and their hashes are included
