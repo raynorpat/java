@@ -2403,7 +2403,8 @@ profHandles(FILE *fp) {
 	switch (obj_flags(hp)) {
 	  case T_NORMAL_OBJECT:
 	    cb = obj_classblock(hp);
-	    p = &tab[(((long)cb) >> 2) % MAX_CLASS_HASH];
+	    /* deviation: host heaps can place Class handles above 2 GB. */
+	    p = &tab[(((unsigned long)cb) >> 2) % MAX_CLASS_HASH];
 	    while ((p->cb != 0) && (p->cb != cb)) {
 		if (p-- == tab) {
 		    p = &tab[MAX_CLASS_HASH - 1];
@@ -2417,7 +2418,7 @@ profHandles(FILE *fp) {
 
 	  case T_CLASS:
 	    cb = ((ClassClass **)unhand((HArrayOfObject*)hp)->body)[obj_length(hp)];
-	    p = &tab[(((long)cb) >> 2) % MAX_CLASS_HASH];
+	    p = &tab[(((unsigned long)cb) >> 2) % MAX_CLASS_HASH];
 	    while ((p->cb != 0) && (p->cb != cb)) {
 		if (p-- == tab) {
 		    p = &tab[MAX_CLASS_HASH - 1];

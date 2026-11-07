@@ -350,6 +350,7 @@ java_test(NAME vm-VMReserve115 CLASS VMReserve115 VM_ARGS -ms1m -mx4m -mr256k -m
 java_test(NAME vm-Intern115 CLASS Intern115)
 java_test(NAME vm-FileExtras115 CLASS FileExtras115)
 java_test(NAME vm-Profiler115 CLASS Profiler115)
+java_test(NAME vm-ProfilerHeap115 CLASS ProfilerHeap115)
 add_library(jnihello SHARED tests/native/jnihello.c)
 add_library(jniabi SHARED tests/native/jniabi.c)
 add_library(debug115 SHARED tests/native/debug115.c)
