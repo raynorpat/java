@@ -132,13 +132,14 @@ target_link_libraries(java javai)
 add_executable(java-rmi src/share/java/javai/rmi_cgi.c)
 set_target_properties(java-rmi PROPERTIES SUFFIX ".cgi")
 install(TARGETS java-rmi RUNTIME DESTINATION bin)
-foreach(tool javac javap jar appletviewer native2ascii serialver javadoc javakey rmic rmiregistry)
+foreach(tool javac javap jar appletviewer native2ascii serialver javadoc javakey rmic rmiregistry jdb)
   add_executable(${tool} src/share/java/javai/tool_main.c src/${plat}/java/runtime/path_md.c
     src/share/java/runtime/zip.c ${file_hpi_sources})
   target_link_libraries(${tool} javai zlib115)
 endforeach()
 target_compile_definitions(javac PRIVATE TOOL_CLASS="sun.tools.javac.Main")
 target_compile_definitions(javap PRIVATE TOOL_CLASS="sun.tools.javap.JavaP" TOOL_SIMPLE TOOL_HEAP="")
+target_compile_definitions(jdb PRIVATE TOOL_CLASS="sun.tools.ttydebug.TTY" TOOL_SIMPLE TOOL_HEAP="")
 target_compile_definitions(jar PRIVATE TOOL_CLASS="sun.tools.jar.Main" TOOL_SIMPLE)
 target_compile_definitions(native2ascii PRIVATE TOOL_CLASS="sun.tools.native2ascii.Main" TOOL_SIMPLE)
 target_compile_definitions(serialver PRIVATE TOOL_CLASS="sun.tools.serialver.SerialVer" TOOL_HOME TOOL_HEAP="")
@@ -174,6 +175,10 @@ endforeach()
 
 # --- Smoke tests (ctest -C Release). Classes are prebuilt with JDK 1.1.5 javac (class file 45.3). ---
 enable_testing()
+add_test(NAME tools-jdb115 COMMAND ${CMAKE_COMMAND}
+  "-DTOOL=$<TARGET_FILE:jdb>" "-DFIXTURES=${CMAKE_SOURCE_DIR}/tests/tools"
+  "-DLIBDIR=$<TARGET_FILE_DIR:net>"
+  -P "${CMAKE_SOURCE_DIR}/tests/tools/jdb115.cmake")
 include(cmake/zip115.cmake)
 include(cmake/sysresource115.cmake)
 include(cmake/mmedia115.cmake)
@@ -462,7 +467,7 @@ add_test(NAME native COMMAND java -classpath "${native_cp}" NativeHello)
 set_tests_properties(native PROPERTIES PASS_REGULAR_EXPRESSION "native add=42 greet=hello java")
 
 # --- JDK image ---
-install(TARGETS java javac javah javap jar appletviewer native2ascii serialver javadoc javakey rmic rmiregistry jre javai RUNTIME DESTINATION bin LIBRARY DESTINATION lib
+install(TARGETS java javac javah javap jar appletviewer native2ascii serialver javadoc javakey rmic rmiregistry jdb jre javai RUNTIME DESTINATION bin LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib)
 if(WIN32)
   install(TARGETS javaw jrew RUNTIME DESTINATION bin)
