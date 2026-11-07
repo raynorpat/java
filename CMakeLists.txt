@@ -501,13 +501,13 @@ if(WIN32)
   set(awt_classes sun.awt.windows.WComponentPeer sun.awt.windows.WWindowPeer
     sun.awt.windows.WFramePeer sun.awt.windows.WGraphics java.awt.Component java.awt.Container java.awt.Window
     sun.awt.windows.WMenuItemPeer sun.awt.windows.WMenuPeer sun.awt.windows.WMenuBarPeer sun.awt.windows.WCheckboxMenuItemPeer sun.awt.windows.WPopupMenuPeer
-    java.awt.MenuComponent java.awt.MenuItem java.awt.Menu java.awt.MenuBar java.awt.CheckboxMenuItem java.awt.PopupMenu java.awt.MenuShortcut
+    java.awt.MenuComponent java.awt.MenuItem java.awt.Menu java.awt.MenuBar java.awt.CheckboxMenuItem java.awt.PopupMenu java.awt.MenuShortcut java.awt.Event
     java.awt.Frame java.awt.Button java.awt.Label java.awt.Checkbox java.awt.Scrollbar java.awt.TextArea java.awt.TextField java.awt.Insets java.awt.Font java.awt.Cursor java.awt.Color java.awt.AWTEvent java.awt.event.KeyEvent java.awt.event.MouseEvent
     sun.awt.windows.WFontMetrics sun.awt.windows.WDefaultFontCharset sun.awt.FontDescriptor sun.awt.PlatformFont sun.awt.CharsetString
     sun.awt.image.ImageRepresentation sun.awt.image.Image sun.awt.image.OffScreenImageSource sun.awt.image.GifImageDecoder
     java.awt.image.ColorModel java.awt.image.DirectColorModel java.awt.image.IndexColorModel java.awt.Rectangle
     sun.awt.windows.WScrollPanePeer java.awt.ScrollPane java.awt.ScrollPaneAdjustable
-    sun.awt.windows.WFileDialogPeer java.awt.FileDialog)
+    sun.awt.windows.WFileDialogPeer java.awt.FileDialog sun.awt.windows.WDrawingSurfaceInfo)
   set(awt_headers)
   foreach(clazz ${awt_classes})
     string(REPLACE "." "_" header ${clazz})
@@ -527,13 +527,13 @@ if(WIN32)
     DEPENDS javah ${awt_headers})
   add_library(winawt SHARED src/win32/sun/windows/awt_Toolkit.cpp
     src/win32/sun/windows/awt_Component.cpp src/win32/sun/windows/awt_Input.cpp src/win32/sun/windows/awt_Window.cpp
-    src/win32/sun/windows/awt_Frame.cpp src/win32/sun/windows/awt_Graphics.cpp
+    src/win32/sun/windows/awt_Frame.cpp src/win32/sun/windows/awt_Menu.cpp src/win32/sun/windows/awt_Graphics.cpp
     src/win32/sun/windows/awt_Canvas.cpp src/win32/sun/windows/awt_Button.cpp
     src/win32/sun/windows/awt_Font.cpp src/win32/sun/windows/awt_Label.cpp
     src/win32/sun/windows/awt_Checkbox.cpp src/win32/sun/windows/awt_Choice.cpp src/win32/sun/windows/awt_List.cpp src/win32/sun/windows/awt_Scrollbar.cpp src/win32/sun/windows/awt_Image.cpp src/win32/sun/windows/image.cpp ${awt_headers} ${awt_stubs}
     src/win32/sun/windows/awt_TextComponent.cpp src/win32/sun/windows/awt_ScrollPane.cpp
     src/win32/sun/windows/awt_PixelFormat.cpp src/win32/sun/windows/awt_Dialog.cpp
-    src/win32/sun/windows/awt_FileDialog.cpp src/win32/sun/windows/winawt.def)
+    src/win32/sun/windows/awt_FileDialog.cpp src/win32/sun/windows/awt_DrawingSurface.cpp src/win32/sun/windows/winawt.def)
   target_include_directories(winawt BEFORE PRIVATE "${awt_gen}")
   target_link_libraries(winawt javai user32 gdi32 advapi32 comdlg32)
   add_library(awtgraphics115probe SHARED tests/native/awtgraphics115probe.c)
@@ -541,15 +541,17 @@ if(WIN32)
   add_executable(awtformats115 tests/native/awtformats115.cpp src/win32/sun/windows/awt_PixelFormat.cpp)
   target_link_libraries(awtformats115 user32 gdi32 advapi32)
   add_test(NAME awt-formats115 COMMAND awtformats115)
+  add_library(awtmenu115probe SHARED tests/native/awtmenu115probe.c)
+  target_link_libraries(awtmenu115probe javai user32)
   add_library(awt115probe SHARED tests/native/awt115probe.c)
-  target_link_libraries(awt115probe javai user32)
+  target_link_libraries(awt115probe javai user32 gdi32)
   add_executable(winawt115-toolkit tests/native/winawt115-toolkit.c
     src/win32/sun/windows/awt_Toolkit.cpp)
   target_compile_definitions(winawt115-toolkit PRIVATE AWT115_QUERIES_ONLY)
   target_link_libraries(winawt115-toolkit user32 gdi32)
   add_test(NAME winawt115-toolkit COMMAND winawt115-toolkit
     "${JDK115_DIR}/bin/winawt$<$<CONFIG:Debug>:_g>.dll")
-  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 WindowState115 Dialog115 FileDialog115 Input115 InputRetire115 Canvas115 Button115 Fonts115 Label115 Checkbox115 Choice115 List115 Scrollbar115 Text115 ScrollPane115 ReentrantPeers115 PaneRace115 RetiredGraphics115 Images115 Raster115 TextRaster115 ImageRaster115 ColorRaster115 ImageBounds115 DecoderImages115 GifRaster115 GraphicsResources115 ProgressiveImages115 GraphicsHDC115 ScaledDelivery115)
+  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 WindowState115 Dialog115 FileDialog115 Input115 InputRetire115 MotionLifetime115 InputExit115 DrawingSurface115 SurfaceLocks115 Menu115 Canvas115 Button115 Fonts115 Label115 Checkbox115 Choice115 List115 Scrollbar115 Text115 ScrollPane115 ReentrantPeers115 PaneRace115 RetiredGraphics115 Images115 Raster115 TextRaster115 ImageRaster115 ColorRaster115 ImageBounds115 DecoderImages115 GifRaster115 GraphicsResources115 ProgressiveImages115 GraphicsHDC115 ScaledDelivery115)
   add_test(NAME awt-${awt_test} COMMAND ${CMAKE_COMMAND}
     -DROOT=${CMAKE_SOURCE_DIR} -DJAVA=$<TARGET_FILE:java> -DJAVAC=$<TARGET_FILE:javac>
     -DJDK=${JDK115_DIR} -DLIBDIR=$<TARGET_FILE_DIR:winawt>

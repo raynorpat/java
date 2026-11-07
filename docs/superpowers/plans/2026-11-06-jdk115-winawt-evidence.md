@@ -356,3 +356,34 @@ input tests2/2; Release AWT35/35 (43.66s), out/phase4-input-*-{build,tests}.log.
 Independent input review pending; wider focus/IME/demo gate remains open.
 Task4 scoped review accepted after b78706d restored retained GIF notice and
 425390b preserved borrowed-HDC copy clipping; targeted3/3 Debug/Release pass.
+
+Menu Task3 slice dd12c7a independently accepted:15exports, Unicode/native menu
+mutations/actions, GC/disposal and Canvas popup, checked bitmap249ink exactSun.
+Shared Component/Toolkit/CMake hooks integrated with drawing-surface checkpoint.
+Input findings addressed and re-review accepted: orphaned motion records were
+confirmed by blocked-listener40k-event RED retaining2,559,872 nativeheapbytes.
+Motion carries inlinebuttonflags and replays finalJavaeventcoords (intentional
+translatePoint replay deviation); no native allocation survives Java coalescing.
+Exit maps GetMessagePos into client coordinates (100230A8). Debug/Release4/4
+focused fixes pass. Non-ACP U+6F22 becomes? on bothSun/ours; e9 fixture is ACP
+coverage, not a claim of arbitrary UTF16/IME input fidelity.
+
+DrawingSurface8exports reconstructed from1000BC50..1000BF55, DC mutex/refcounts
+10003290/10003300 and componentDC10005D82. Sun baseline state1/2,image0,depth24,
+offscreenbitsNULL; ours initiallymissinggetHDC. NativeDCaccess, state/bounds,
+lock exclusion, GC and postflush resource lifetime now pass Sun/reconstruction.
+Reentrant locked-thread drawing with another waiter passedSun but timedoutours;
+Toolkit carries callerthread through synchronousrequests, surface waits service
+sent requests only, and lock-owner drawing safely reenters. Surface pins and
+postwaitGraphicsidentity checks protect disposal during this dispatch. A waiting
+retiredGraphics staysinert; retained lockedimage survivesflush. Nested lock on
+sameinfo is rejected (Sun can lose its handle after one unlock); wrong-thread
+unlock is rejected instead of corrupting a native criticalsection.
+Debug fullAWT40/40 before reentry addition; scoped finalsurface2/2 Debug1.73s,
+Release1.06s. Reentrant Release fullAWT40/40 passed51.84s. Logs:
+out/phase4-surface-{integrated-debug,reentrant-release}-tests.log and
+out/phase4-surface-{reentrant-debug,retire-release}-build.log.
+Background launches intermittently prevented Sun WindowState115 activation;
+fixture now posts activationnotifications explicitly, retaining realnative
+iconify/restore operations. Actual desktop focus remains in finaldemo gate.
+Independent surface review remains pending; Phase4 is not complete.

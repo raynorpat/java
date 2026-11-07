@@ -144,6 +144,41 @@ __declspec(dllexport) stack_item *Java_WinAwtProbe_paneScroll_stub(stack_item *s
     PostMessage(pane,sp[1].i ? WM_VSCROLL:WM_HSCROLL,MAKEWPARAM(sp[2].i,sp[3].i),0);
     return sp;
 }
+__declspec(dllexport) stack_item *Java_WinAwtProbe_surfacePixel_stub(stack_item *sp,struct execenv *ee)
+{
+    HDC dc=(HDC)sp[0].i;
+    if (sp[1].i>=0) SetPixel(dc,1,1,(COLORREF)sp[1].i);
+    GdiFlush(); sp[0].i=(long)GetPixel(dc,1,1); return sp+1;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_heapBytes_stub(stack_item *sp,struct execenv *ee)
+{
+    PROCESS_HEAP_ENTRY entry; HANDLE heaps[64]; DWORD bytes=0,count,index;
+    count=GetProcessHeaps(64,heaps);
+    if (count>64) { SignalError(ee,"java/lang/RuntimeException","too many native heaps"); return sp; }
+    for (index=0;index<count;index++) {
+        ZeroMemory(&entry,sizeof(entry));
+        if (!HeapLock(heaps[index])) continue;
+        while (HeapWalk(heaps[index],&entry)) if (entry.wFlags&PROCESS_HEAP_ENTRY_BUSY) bytes+=entry.cbData;
+        HeapUnlock(heaps[index]);
+    }
+    sp[0].i=bytes; return sp+1;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_motionBurst_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND frame=test_window((struct Hjava_lang_String *)sp[0].p), child=NULL; int i;
+    if (frame) EnumChildWindows(frame,find_canvas,(LPARAM)&child);
+    if (!child) { SignalError(ee,"java/lang/RuntimeException","motion canvas missing"); return sp; }
+    for (i=0;i<1000;i++) SendMessage(child,WM_MOUSEMOVE,sp[2].i ? MK_LBUTTON:0,MAKELPARAM(i,sp[1].i));
+    return sp;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_mousePosition_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND frame=test_window((struct Hjava_lang_String *)sp[0].p), child=NULL; POINT point;
+    if (frame) EnumChildWindows(frame,find_canvas,(LPARAM)&child);
+    if (!child) { SignalError(ee,"java/lang/RuntimeException","motion canvas missing"); return sp; }
+    GetCursorPos(&point); ScreenToClient(child,&point);
+    sp[0].i=MAKELPARAM(point.x,point.y); return sp+1;
+}
 __declspec(dllexport) stack_item *Java_WinAwtProbe_input_stub(stack_item *sp,struct execenv *ee)
 {
     HWND frame=test_window((struct Hjava_lang_String *)sp[0].p), child=NULL;
@@ -157,6 +192,13 @@ __declspec(dllexport) stack_item *Java_WinAwtProbe_move_stub(stack_item *sp,stru
     HWND window = test_window((struct Hjava_lang_String *)sp[0].p);
     if (!window || !SetWindowPos(window,NULL,sp[1].i,sp[2].i,sp[3].i,sp[4].i,SWP_NOZORDER|SWP_NOACTIVATE))
         SignalError(ee,"java/lang/RuntimeException","cannot move test window");
+    return sp;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_activation_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND window=test_window((struct Hjava_lang_String *)sp[0].p);
+    if (!window || !PostMessage(window,WM_ACTIVATE,sp[1].i ? WA_ACTIVE:WA_INACTIVE,0))
+        SignalError(ee,"java/lang/RuntimeException","activation target missing");
     return sp;
 }
 __declspec(dllexport) stack_item *Java_WinAwtProbe_windowState_stub(stack_item *sp,struct execenv *ee)

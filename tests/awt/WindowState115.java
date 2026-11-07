@@ -14,6 +14,8 @@ public class WindowState115 {
                 public void windowDeactivated(WindowEvent e) { deactivated++; }
             });
             first.show(); second.show(); WinAwtProbe.windowState("WindowState115",9); first.toFront();
+            // Background process launches cannot reliably acquire desktop foreground.
+            WinAwtProbe.activation("WindowState115",true);
             for (int i=0;activated==0 && i<100;i++) Thread.sleep(10);
             if (activated==0) throw new RuntimeException("activation");
             WinAwtProbe.windowState("WindowState115",6);
@@ -22,7 +24,7 @@ public class WindowState115 {
             WinAwtProbe.windowState("WindowState115",9);
             for (int i=0;restored==0 && i<100;i++) Thread.sleep(10);
             if (restored==0) throw new RuntimeException("restoration");
-            second.toFront();
+            second.toFront(); WinAwtProbe.activation("WindowState115",false);
             for (int i=0;deactivated==0 && i<100;i++) Thread.sleep(10);
             if (deactivated==0) throw new RuntimeException("deactivation");
             second.dispose(); first.dispose();

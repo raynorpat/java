@@ -127,9 +127,16 @@ BOOL AwtComponent::InputMessage(UINT message,WPARAM w,LPARAM l)
         } else event=(Hjava_awt_AWTEvent *)execute_java_constructor(EE(),"java/awt/event/KeyEvent",NULL,
             "(Ljava/awt/Component;IJIIC)",GetTarget(),input->id,input->when,input->modifiers,input->key,input->character);
         if (event && !exceptionOccurred(EE()) && !IsDisposed()) {
-            long eventToken=input->message ? input->token:0;
-            if (input->message) { unhand(event)->data=input->token; insertInput(input); }
-            else delete input;
+            long eventToken=0;
+            if (input->id==503 || input->id==506) {
+                /* EventQueue replaces queued motion events without returning
+                 * them to the peer. Store button flags inline, not an owned MSG.
+                 * Replay uses the final Java event's client position. */
+                unhand(event)->data=(long)(0x80000000u|(input->w&0x7fffffffu));
+                delete input;
+            } else if (input->message) {
+                eventToken=input->token; unhand(event)->data=eventToken; insertInput(input);
+            } else delete input;
             execute_java_dynamic_method(EE(),(HObject *)peer,"postEvent","(Ljava/awt/AWTEvent;)V",event);
             if (exceptionOccurred(EE())) delete takeInput(this,eventToken);
         } else delete input;
@@ -148,7 +155,11 @@ BOOL AwtComponent::InputMessage(UINT message,WPARAM w,LPARAM l)
     case WM_MBUTTONUP: button=2; input.id=502; break;
     case WM_RBUTTONUP: button=3; input.id=502; break;
     case WM_MOUSEMOVE: input.id=(w&(MK_LBUTTON|MK_MBUTTON|MK_RBUTTON)) ? 506:503; break;
-    case WM_MOUSELEAVE: mouseInside=FALSE; input.id=505; input.message=0; break;
+    case WM_MOUSELEAVE: {
+        DWORD position=GetMessagePos(); POINT point={(short)LOWORD(position),(short)HIWORD(position)};
+        ScreenToClient(hwnd,&point); input.x=point.x; input.y=point.y;
+        mouseInside=FALSE; input.id=505; input.message=0; break;
+    }
     case WM_KEYDOWN: case WM_SYSKEYDOWN: if (w==229) return FALSE; input.id=401; break;
     case WM_KEYUP: case WM_SYSKEYUP: if (w==229) return FALSE; input.id=402; break;
     case WM_CHAR: case WM_SYSCHAR: input.id=400; break;
@@ -194,12 +205,13 @@ void AwtComponent::ReplayInput(Hjava_awt_AWTEvent *event)
 {
     Classjava_awt_AWTEvent *base=unhand(event);
     long token=base->data; base->data=0;
-    AwtInput *input=token ? takeInput(this,token):NULL;
     int id=base->id;
+    BOOL inlineMotion=(id==503 || id==506) && ((unsigned long)token&0x80000000u);
+    AwtInput *input=token && !inlineMotion ? takeInput(this,token):NULL;
     if (base->consumed) { suppressTyped=id==401; delete input; return; }
     if (id==400 && suppressTyped) { suppressTyped=FALSE; delete input; return; }
     if (id==402) suppressTyped=FALSE;
-    if (token && !input) return;
+    if (token && !input && !inlineMotion) return;
     if (!input) {
         if (id!=400 && id!=401 && id!=402 && id!=501 && id!=502 && id!=503 && id!=506) return;
         input=new AwtInput(); input->component=this; input->token=InterlockedIncrement(&nextToken);
@@ -207,7 +219,15 @@ void AwtComponent::ReplayInput(Hjava_awt_AWTEvent *event)
             Classjava_awt_event_MouseEvent *mouse=unhand((Hjava_awt_event_MouseEvent *)event);
             int button=(mouse->modifiers&4) ? 1:(mouse->modifiers&8) ? 2:0;
             input->message=id==501 ? WM_LBUTTONDOWN+button*3:id==502 ? WM_LBUTTONUP+button*3:WM_MOUSEMOVE;
-            input->l=MAKELPARAM(mouse->x,mouse->y);
+            int x=mouse->x,y=mouse->y;
+            if (inlineMotion) {
+                input->w=(unsigned long)token&0x7fffffffu;
+                if (!(GetWindowLong(hwnd,GWL_STYLE)&WS_CHILD)) {
+                    RECT outer; POINT origin={0,0}; GetWindowRect(hwnd,&outer); ClientToScreen(hwnd,&origin);
+                    x-=origin.x-outer.left; y-=origin.y-outer.top;
+                }
+            }
+            input->l=MAKELPARAM(x,y);
         } else {
             Classjava_awt_event_KeyEvent *key=unhand((Hjava_awt_event_KeyEvent *)event);
             input->message=id==400 ? WM_CHAR:id==401 ? WM_KEYDOWN:WM_KEYUP;

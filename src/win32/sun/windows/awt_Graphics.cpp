@@ -18,6 +18,19 @@ AwtSurface::~AwtSurface()
     if (bitmap) DeleteObject(bitmap);
     if (dc && ownsDC) DeleteDC(dc);
     free(alpha); free(coverage); free(rows); free(ditherErrors);
+    DeleteCriticalSection(&nativeLock);
+}
+BOOL awtEnterSurface(AwtSurface *surface)
+{
+    AwtToolkit &toolkit=AwtToolkit::GetInstance();
+    for (;;) {
+        if (surface->nativeOwner && surface->nativeOwner==toolkit.CallerThread()) return FALSE;
+        if (TryEnterCriticalSection(&surface->nativeLock)) return TRUE;
+        /* A blocked client can call back into AWT while it owns the DC.
+         * Service only synchronous requests, not queued input/paint events. */
+        MsgWaitForMultipleObjects(0,NULL,FALSE,10,QS_SENDMESSAGE);
+        MSG message; PeekMessage(&message,NULL,0,0,PM_NOREMOVE|PM_QS_SENDMESSAGE);
+    }
 }
 struct AwtGraphics {
     AwtSurface *surface;
@@ -45,11 +58,20 @@ BOOL awtGraphicsDC(Hsun_awt_windows_WGraphics *peer,AwtDC *lease)
     ZeroMemory(lease,sizeof(*lease));
     AwtGraphics *g = getGraphics(peer); AwtSurface *s = g ? g->surface : NULL;
     if (!s) return FALSE;
+    ++s->references; lease->locked=s; lease->entered=awtEnterSurface(s);
+    /* Synchronous requests serviced while waiting may retire these graphics. */
+    if (getGraphics(peer)!=g || g->surface!=s) {
+        if (lease->entered) LeaveCriticalSection(&s->nativeLock);
+        s->Release(); lease->locked=NULL; return FALSE;
+    }
     if (s->dc) lease->dc = s->dc;
     else if (s->component && IsWindow(s->component->GetHWnd())) {
         lease->window = s->component->GetHWnd(); lease->dc = GetDC(lease->window);
     }
-    if (!lease->dc) return FALSE;
+    if (!lease->dc) {
+        if (lease->entered) LeaveCriticalSection(&s->nativeLock);
+        s->Release(); lease->locked=NULL; return FALSE;
+    }
     lease->saved = SaveDC(lease->dc);
     HPALETTE palette=s->palette?s->palette:awtImagePalette();
     if(palette){SelectPalette(lease->dc,palette,FALSE);RealizePalette(lease->dc);}
@@ -64,6 +86,8 @@ void awtReleaseDC(AwtDC *lease)
     RestoreDC(lease->dc,lease->saved);
     if (lease->window) ReleaseDC(lease->window,lease->dc);
     GdiFlush(); lease->dc = NULL;
+    if (lease->entered) LeaveCriticalSection(&lease->locked->nativeLock);
+    lease->locked->Release(); lease->locked=NULL;
 }
 enum GraphicsOperation { FROM_COMPONENT, FROM_GRAPHICS, FROM_IMAGE, FROM_HDC,
     DESTROY, COLOR, FONT, PAINT, XOR_MODE, CHANGE_CLIP, REMOVE_CLIP, GET_CLIP,

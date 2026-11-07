@@ -10,6 +10,7 @@ extern "C" {
 #include "awt_Toolkit.h"
 #include "awt_Component.h"
 #include "awt_Image.h"
+#include "awt_Menu.h"
 
 AwtToolkit &AwtToolkit::GetInstance()
 {
@@ -40,12 +41,12 @@ BOOL AwtToolkit::Initialize(BOOL standalone)
     return TRUE;
 }
 
-struct AwtRequest { void (*function)(void *); void *argument; };
+struct AwtRequest { void (*function)(void *); void *argument; DWORD caller; };
 void AwtToolkit::Invoke(void (*function)(void *), void *argument)
 {
     if (GetCurrentThreadId() == thread) function(argument);
     else {
-        AwtRequest request = { function, argument };
+        AwtRequest request = { function, argument, GetCurrentThreadId() };
         SendMessageA(window, 0x464, 0, (LPARAM)&request);
     }
 }
@@ -54,7 +55,9 @@ LRESULT CALLBACK AwtToolkit::WndProc(HWND hwnd, UINT message, WPARAM w, LPARAM l
 {
     if (message == 0x464) {
         AwtRequest *request = (AwtRequest *)l;
-        request->function(request->argument); return 0;
+        AwtToolkit &toolkit=GetInstance(); DWORD previous=toolkit.callerThread;
+        toolkit.callerThread=request->caller;
+        request->function(request->argument); toolkit.callerThread=previous; return 0;
     }
     if (message == 0x466) { GetInstance().Cleanup(); return 0; }
     return DefWindowProcA(hwnd, message, w, l);
@@ -72,6 +75,7 @@ void AwtToolkit::Cleanup()
     if (GetCurrentThreadId() != thread) {
         SendMessageA(window, 0x466, 0, 0); return;
     }
+    awtMenuCleanup();
     AwtComponent::Cleanup();
     awtCleanupImagePalette();
     DestroyWindow(window); window = NULL;

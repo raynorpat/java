@@ -2,6 +2,7 @@
 #include "awt_Component.h"
 #include "awt_Graphics.h"
 #include "awt_Font.h"
+#include "awt_Menu.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -111,6 +112,8 @@ LRESULT CALLBACK AwtComponent::WndProc(HWND window, UINT message, WPARAM w, LPAR
 
 LRESULT AwtComponent::WindowProc(UINT message, WPARAM w, LPARAM l)
 {
+    LRESULT menuResult;
+    if (awtMenuMessage(this,message,w,l,&menuResult)) return menuResult;
     if ((message == WM_HSCROLL || message == WM_VSCROLL) && l) {
         AwtComponent *child = (AwtComponent *)GetWindowLong((HWND)l,GWL_USERDATA);
         if (child) { child->Scroll(LOWORD(w),HIWORD(w)); return 0; }

@@ -1,5 +1,9 @@
 public class WinAwtProbe {
     static { System.loadLibrary("awt115probe"); }
+    public static native int heapBytes();
+    public static native int surfacePixel(int dc, int color);
+    public static native void motionBurst(String title, int cycle, boolean drag);
+    public static native int mousePosition(String title);
     public static native void input(String title, boolean text, int message, int key, int x, int y);
     public static native void move(String title, int x, int y, int w, int h);
     public static native void close(String title);
@@ -10,6 +14,7 @@ public class WinAwtProbe {
     public static native void scroll(String title, int code, int value);
     public static native void edit(String title, String text, boolean enter);
     public static native void paneScroll(String title, boolean vertical, int code, int value);
+    public static native void activation(String title, boolean active);
     public static native void windowState(String title, int state);
     public static native void paint(String title, String label);
     public static native void paintAll(String title);

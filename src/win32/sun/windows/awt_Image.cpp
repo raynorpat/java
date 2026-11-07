@@ -96,6 +96,7 @@ static void imageRequest(void *argument)
         unhand(r->peer)->pData=0; if (s) s->Release(); r->result=TRUE; return;
     }
     if (!s) { r->failed=TRUE; return; }
+    AwtSurfaceLock lock(s);
     switch (r->operation) {
     case INIT:
         free(s->coverage); s->coverage=NULL; s->remaining=0;
