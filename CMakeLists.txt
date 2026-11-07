@@ -440,9 +440,10 @@ add_test(NAME javah-jni COMMAND ${CMAKE_COMMAND}
   "-DOUT=${CMAKE_BINARY_DIR}/jni-headers/$<CONFIG>"
   -P ${CMAKE_SOURCE_DIR}/tests/native/javah-jni.cmake)
 set(native_gen "${CMAKE_BINARY_DIR}/native-gen")
+file(MAKE_DIRECTORY "${native_gen}/tmp")
 add_custom_command(OUTPUT "${native_gen}/NativeHello.h" "${native_gen}/NativeHello.c"
-  COMMAND javah -classpath "${native_cp}" -d "${native_gen}" NativeHello
-  COMMAND javah -stubs -classpath "${native_cp}" -d "${native_gen}" NativeHello
+  COMMAND ${CMAKE_COMMAND} -E env "TMP=${native_gen}/tmp" "TMPDIR=${native_gen}/tmp" $<TARGET_FILE:javah> -classpath "${native_cp}" -d "${native_gen}" NativeHello
+  COMMAND ${CMAKE_COMMAND} -E env "TMP=${native_gen}/tmp" "TMPDIR=${native_gen}/tmp" $<TARGET_FILE:javah> -stubs -classpath "${native_cp}" -d "${native_gen}" NativeHello
   DEPENDS javah tests/native/NativeHello.class)
 add_library(nativehello SHARED tests/native/nativehello.c "${native_gen}/NativeHello.c")
 target_include_directories(nativehello PRIVATE "${native_gen}")
@@ -494,12 +495,15 @@ target_include_directories(mach115-condition BEFORE PRIVATE tests/native/mach115
 add_test(NAME mach115-condition COMMAND mach115-condition)
 if(WIN32)
   set(awt_gen "${CMAKE_BINARY_DIR}/awt115-generated")
+  file(MAKE_DIRECTORY "${awt_gen}/tmp")
   configure_file("${JDK115_DIR}/lib/font.properties" "${CMAKE_BINARY_DIR}/lib/font.properties" COPYONLY)
   install(FILES "${JDK115_DIR}/lib/font.properties" DESTINATION lib)
   set(awt_classes sun.awt.windows.WComponentPeer sun.awt.windows.WWindowPeer
     sun.awt.windows.WFramePeer sun.awt.windows.WGraphics java.awt.Component java.awt.Container java.awt.Window
-    java.awt.Frame java.awt.Button java.awt.Label java.awt.Checkbox java.awt.Insets java.awt.Font java.awt.Cursor java.awt.Color java.awt.AWTEvent
-    sun.awt.windows.WFontMetrics sun.awt.windows.WDefaultFontCharset sun.awt.FontDescriptor sun.awt.PlatformFont)
+    java.awt.Frame java.awt.Button java.awt.Label java.awt.Checkbox java.awt.Scrollbar java.awt.TextArea java.awt.TextField java.awt.Insets java.awt.Font java.awt.Cursor java.awt.Color java.awt.AWTEvent
+    sun.awt.windows.WFontMetrics sun.awt.windows.WDefaultFontCharset sun.awt.FontDescriptor sun.awt.PlatformFont sun.awt.CharsetString
+    sun.awt.image.ImageRepresentation sun.awt.image.Image sun.awt.image.OffScreenImageSource
+    java.awt.image.ColorModel java.awt.image.DirectColorModel java.awt.image.IndexColorModel java.awt.Rectangle)
   set(awt_headers)
   foreach(clazz ${awt_classes})
     string(REPLACE "." "_" header ${clazz})
@@ -507,14 +511,14 @@ if(WIN32)
   endforeach()
   add_custom_command(OUTPUT ${awt_headers}
     COMMAND ${CMAKE_COMMAND} -E make_directory "${awt_gen}"
-    COMMAND javah -classpath "${JDK115_DIR}/lib/classes.zip" -d "${awt_gen}" ${awt_classes}
+    COMMAND ${CMAKE_COMMAND} -E env "TMP=${awt_gen}/tmp" "TMPDIR=${awt_gen}/tmp" $<TARGET_FILE:javah> -classpath "${JDK115_DIR}/lib/classes.zip" -d "${awt_gen}" ${awt_classes}
     DEPENDS javah "${JDK115_DIR}/lib/classes.zip")
   set(awt_stubs)
   foreach(peer WComponentPeer WWindowPeer)
     list(APPEND awt_stubs "${awt_gen}/sun_awt_windows_${peer}.c")
   endforeach()
   add_custom_command(OUTPUT ${awt_stubs}
-    COMMAND javah -stubs -classpath "${JDK115_DIR}/lib/classes.zip" -d "${awt_gen}"
+    COMMAND ${CMAKE_COMMAND} -E env "TMP=${awt_gen}/tmp" "TMPDIR=${awt_gen}/tmp" $<TARGET_FILE:javah> -stubs -classpath "${JDK115_DIR}/lib/classes.zip" -d "${awt_gen}"
       sun.awt.windows.WComponentPeer sun.awt.windows.WWindowPeer
     DEPENDS javah ${awt_headers})
   add_library(winawt SHARED src/win32/sun/windows/awt_Toolkit.cpp
@@ -522,7 +526,7 @@ if(WIN32)
     src/win32/sun/windows/awt_Frame.cpp src/win32/sun/windows/awt_Graphics.cpp
     src/win32/sun/windows/awt_Canvas.cpp src/win32/sun/windows/awt_Button.cpp
     src/win32/sun/windows/awt_Font.cpp src/win32/sun/windows/awt_Label.cpp
-    src/win32/sun/windows/awt_Checkbox.cpp ${awt_headers} ${awt_stubs}
+    src/win32/sun/windows/awt_Checkbox.cpp src/win32/sun/windows/awt_Choice.cpp src/win32/sun/windows/awt_List.cpp src/win32/sun/windows/awt_Scrollbar.cpp src/win32/sun/windows/awt_Image.cpp ${awt_headers} ${awt_stubs}
     src/win32/sun/windows/winawt.def)
   target_include_directories(winawt BEFORE PRIVATE "${awt_gen}")
   target_link_libraries(winawt javai user32 gdi32)
@@ -534,7 +538,7 @@ if(WIN32)
   target_link_libraries(winawt115-toolkit user32 gdi32)
   add_test(NAME winawt115-toolkit COMMAND winawt115-toolkit
     "${JDK115_DIR}/bin/winawt$<$<CONFIG:Debug>:_g>.dll")
-  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 Canvas115 Button115 Fonts115 Label115 Checkbox115)
+  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 Canvas115 Button115 Fonts115 Label115 Checkbox115 Choice115 List115 Scrollbar115 Images115 Raster115 TextRaster115 ImageRaster115 ColorRaster115 ImageBounds115 DecoderImages115)
   add_test(NAME awt-${awt_test} COMMAND ${CMAKE_COMMAND}
     -DROOT=${CMAKE_SOURCE_DIR} -DJAVA=$<TARGET_FILE:java> -DJAVAC=$<TARGET_FILE:javac>
     -DJDK=${JDK115_DIR} -DLIBDIR=$<TARGET_FILE_DIR:winawt>
@@ -591,3 +595,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   add_test(NAME mach115-monitor-concurrent COMMAND mach115-monitor-concurrent)
   set_tests_properties(mach115-monitor-concurrent PROPERTIES TIMEOUT 30)
 endif()
+
+
+
+
+
+
+

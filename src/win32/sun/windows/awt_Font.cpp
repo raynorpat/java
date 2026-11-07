@@ -4,6 +4,7 @@ extern "C" {
 #include "sun_awt_PlatformFont.h"
 #include "sun_awt_windows_WFontMetrics.h"
 #include "sun_awt_windows_WDefaultFontCharset.h"
+#include "sun_awt_CharsetString.h"
 }
 #include <stdlib.h>
 #include <wchar.h>
@@ -188,4 +189,63 @@ extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WDefaultFontCh
         if (font) DeleteObject(font); if (dc) ReleaseDC(NULL,dc);
     }
     sp[0].i = result; return sp+1;
+}
+
+/* Multi-font control text routine at 1000DCE3. The Java peer chooses descriptor
+ * segments and substitutions; each selected native font contributes its extent. */
+SIZE awtFontText(HDC dc,Hjava_awt_Font *font,Hjava_lang_String *string,int x,int y,BOOL draw)
+{
+    SIZE total={0,0};
+    if (!string || !javaStringLength(string)) return total;
+    ExecEnv *ee=EE();
+    HArrayOfObject *segments=NULL;
+    if (font && fontDescriptors(font))
+        segments=(HArrayOfObject *)execute_java_dynamic_method(ee,(HObject *)unhand(font)->peer,
+            "makeMultiCharsetString","(Ljava/lang/String;)[Lsun/awt/CharsetString;",string);
+    if (exceptionOccurred(ee)) return total;
+    int count=segments?obj_length(segments):0;
+    if (!count) {
+        WCHAR *text=awtUnicode(string); HFONT nativeFont=font?createFont(font,NULL):NULL;
+        HGDIOBJ old=nativeFont?SelectObject(dc,nativeFont):NULL;
+        if (text) {
+            int length=javaStringLength(string);
+            if (draw) TextOutW(dc,x,y,text,length);
+            GetTextExtentPoint32W(dc,text,length,&total); free(text);
+        }
+        if (nativeFont) { SelectObject(dc,old); DeleteObject(nativeFont); }
+        return total;
+    }
+    for (int i=0;i<count && !exceptionOccurred(ee);i++) {
+        Hsun_awt_CharsetString *segment=(Hsun_awt_CharsetString *)unhand(segments)->body[i];
+        Hsun_awt_FontDescriptor *descriptor=unhand(segment)->fontDescriptor;
+        int offset=unhand(segment)->offset,length=unhand(segment)->length;
+        WCHAR *name=awtUnicode(unhand(descriptor)->nativeName);
+        BOOL converted=name && wcsstr(name,L"NEED_CONVERTED"); free(name);
+        HArrayOfByte *bytes=NULL; int byteCount=0;
+        if (converted) {
+            HObject *converter=(HObject *)unhand(descriptor)->fontCharset;
+            int capacity=execute_java_dynamic_method(ee,converter,"getMaxBytesPerChar","()I")*length;
+            if (exceptionOccurred(ee)) break;
+            bytes=(HArrayOfByte *)ArrayAlloc(T_BYTE,capacity);
+            if (!bytes) { SignalError(ee,"java/lang/OutOfMemoryError",NULL); break; }
+            byteCount=execute_java_dynamic_method(ee,converter,"convert","([CII[BII)I",
+                unhand(segment)->charsetChars,offset,offset+length,bytes,0,capacity);
+            if (exceptionOccurred(ee)) break;
+        }
+        HFONT nativeFont=createFont(font,descriptor);
+        if (!nativeFont) { SignalError(ee,"java/lang/OutOfMemoryError",NULL); break; }
+        HGDIOBJ old=SelectObject(dc,nativeFont); SIZE size={0,0};
+        if (converted) {
+            char *text=(char *)unhand(bytes)->body;
+            if (draw) TextOutA(dc,x,y,text,byteCount);
+            GetTextExtentPoint32A(dc,text,byteCount,&size);
+        } else {
+            WCHAR *text=(WCHAR *)unhand(unhand(segment)->charsetChars)->body+offset;
+            if (draw) TextOutW(dc,x,y,text,length);
+            GetTextExtentPoint32W(dc,text,length,&size);
+        }
+        SelectObject(dc,old); DeleteObject(nativeFont);
+        x+=size.cx; total.cx+=size.cx; total.cy=max(total.cy,size.cy);
+    }
+    return total;
 }
