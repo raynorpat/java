@@ -141,10 +141,20 @@ java_lang_Class_newInstance(ClassClass *this)
 {
     ExecEnv *ee = EE();
     ClassClass *cb;
+    char *detail = 0, *error;
 
     if ((this == NULL) || ((cb = this) == NULL)) {
 	SignalError(0, JAVAPKG "NullPointerException", 0);
 	return 0;
+    }
+    /* Sun javai_g 1000B81A resolves classes returned by loadClass(false)
+     * before constructor lookup; defineClass alone has not assigned IDs. */
+    if (!CCIs(cb, Resolved)) {
+        error = ResolveClass(cb, &detail);
+        if (error) {
+            if (!exceptionOccurred(ee)) SignalError(ee, error, detail);
+            return 0;
+        }
     }
     return execute_java_constructor(ee, NULL, cb, "()");
 }

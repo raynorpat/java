@@ -34,6 +34,8 @@ public class Resources {
         read("system", ClassLoader.getSystemResourceAsStream("vm115.properties"));
         Loader loader = new Loader();
         read("custom", loader.getResourceAsStream("vm115.properties"));
+        Class lazy = new Loader().loadClass("ResourcePayload", false);
+        System.out.println("lazy=" + lazy.newInstance().toString());
         Class payload = loader.loadClass("ResourcePayload", true);
         System.out.println("defined=" + (payload.getClassLoader() == loader));
         System.out.println("payload=" + payload.newInstance().toString());
