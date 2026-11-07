@@ -11,10 +11,7 @@
 #include "_stubs/java_lang_String.c"
 #include "_stubs/java_lang_Thread.c"
 #include "_stubs/java_util_Date.c"
-#ifndef WIN32
-/* Windows JDK 1.1.5 uses the wider parseImage ABI exported by winawt. */
-#include "_stubs/sun_awt_image_GifImageDecoder.c"
-#endif
+/* JDK 1.1.5 uses the wider parseImage ABI exported by the AWT library. */
 
 /* Contentious natives */
 #include "_stubs/java_lang_Class.c"

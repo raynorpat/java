@@ -339,3 +339,22 @@ shutdown pipe needed an explicit flush; GDB located that wait in Process.waitFor
 All 24 focused Linux Debug tests pass (112.57 seconds), with 189 bindings.
 Non-ASCII/compound-text locale conversion and clipboard paste into widgets
 remain part of the full locale/input gate.
+
+## Shared image codec checkpoint
+
+The reconstructed Windows GIF LZW decoder is now shared C source, preserving
+its Sun notice and the recovered ten-argument 1.1.5 ABI. Solaris release 0x3267c
+has the corresponding parseImage entry. GDB caught Linux resolving the obsolete
+seven-argument runtime stub before libawt; removing that registry entry selects
+the AWT decoder without changing either original class archive.
+
+Codec115 verifies completion and transparent drawing. The existing interlaced
+and non-interlaced GIF and baseline/gray/progressive JPEG fixtures also run on
+Linux, with every rendered RGB pixel checked against direct producer delivery.
+The Windows oracle returns blue-channel grayscale for the color fixtures;
+Linux TrueColor preserves RGB, so Linux uses its independently checked RGB hashes.
+Windows Debug and Release retain the original oracle comparisons (2/2 each).
+All 27 focused Linux Debug tests pass (137.48 seconds). JPEG is now a dependency
+of the Motif test build. The manual GIF entry is outside the 207 generated-peer
+binding count; that count remains 189 implemented. Other visual, font, printing,
+input/window and installed-demo completion gates remain open.

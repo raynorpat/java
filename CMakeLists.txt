@@ -557,7 +557,7 @@ if(WIN32)
     src/win32/sun/windows/awt_Frame.cpp src/win32/sun/windows/awt_Menu.cpp src/win32/sun/windows/awt_Graphics.cpp
     src/win32/sun/windows/awt_Canvas.cpp src/win32/sun/windows/awt_Button.cpp
     src/win32/sun/windows/awt_Font.cpp src/win32/sun/windows/awt_Label.cpp
-    src/win32/sun/windows/awt_Checkbox.cpp src/win32/sun/windows/awt_Choice.cpp src/win32/sun/windows/awt_List.cpp src/win32/sun/windows/awt_Scrollbar.cpp src/win32/sun/windows/awt_Image.cpp src/win32/sun/windows/image.cpp ${awt_headers} ${awt_stubs}
+    src/win32/sun/windows/awt_Checkbox.cpp src/win32/sun/windows/awt_Choice.cpp src/win32/sun/windows/awt_List.cpp src/win32/sun/windows/awt_Scrollbar.cpp src/win32/sun/windows/awt_Image.cpp src/share/sun/awt/gifdecoder.c ${awt_headers} ${awt_stubs}
     src/win32/sun/windows/awt_TextComponent.cpp src/win32/sun/windows/awt_ScrollPane.cpp
     src/win32/sun/windows/awt_PixelFormat.cpp src/win32/sun/windows/awt_Dialog.cpp
     src/win32/sun/windows/awt_FileDialog.cpp src/win32/sun/windows/awt_DrawingSurface.cpp

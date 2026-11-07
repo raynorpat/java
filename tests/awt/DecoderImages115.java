@@ -6,7 +6,7 @@ public class DecoderImages115 {
    Image i=Toolkit.getDefaultToolkit().createImage(decode(fixtures[n]));MediaTracker tracker=new MediaTracker(f);tracker.addImage(i,n);tracker.waitForAll();if(tracker.isErrorAny())throw new RuntimeException("decode "+n);
    int w=i.getWidth(null),h=i.getHeight(null);if(w!=(n==0?1:17)||h!=(n==0?1:9))throw new RuntimeException("dimensions");
    Image dst=f.createImage(w,h);Graphics g=dst.getGraphics();g.setColor(Color.white);g.fillRect(0,0,w,h);g.drawImage(i,0,0,null);g.dispose();
-   int[] p=new int[w*h];if(!new PixelGrabber(dst,0,0,w,h,p,0,w).grabPixels(5000))throw new RuntimeException("pixels");int hash=0;for(int j=0;j<p.length;j++)hash=hash*31+(p[j]&0xffffff);System.out.println("decoder "+n+" "+hash);i.flush();dst.flush();System.gc();
+   int[] p=new int[w*h];if(!new PixelGrabber(dst,0,0,w,h,p,0,w).grabPixels(5000))throw new RuntimeException("pixels");if(a.length>0 && a[0].equals("rgb")){int[] raw=new int[p.length];if(!new PixelGrabber(i,0,0,w,h,raw,0,w).grabPixels(5000))throw new RuntimeException("source pixels");for(int j=0;j<p.length;j++)if((p[j]&0xffffff)!=((raw[j]>>>24)==0?0xffffff:raw[j]&0xffffff))throw new RuntimeException("RGB pixel "+j);}int hash=0;for(int j=0;j<p.length;j++)hash=hash*31+(p[j]&0xffffff);System.out.println("decoder "+n+" "+hash);i.flush();dst.flush();System.gc();
   }
   f.dispose();System.out.println("GIF and baseline, gray, progressive JPEG drawing passed");System.exit(0);
  }catch(Throwable t){t.printStackTrace();System.exit(1);}}

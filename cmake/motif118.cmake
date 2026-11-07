@@ -65,7 +65,7 @@ if(UNIX AND NOT APPLE)
     src/unix/sun/awt/awt_ScrollPane118.c src/unix/sun/awt/awt_Image118.c
     src/unix/sun/awt/awt_Menu118.c src/unix/sun/awt/awt_Window118.c
     src/unix/sun/awt/awt_Dialog118.c src/unix/sun/awt/awt_FileDialog118.c
-    src/unix/sun/awt/awt_Selection118.c ${toolkit_stubs})
+    src/unix/sun/awt/awt_Selection118.c src/share/sun/awt/gifdecoder.c ${toolkit_stubs})
   target_include_directories(awt BEFORE PRIVATE "${motif118_out}/generated")
   target_link_libraries(awt javai Xm Xt X11)
   set_target_properties(awt PROPERTIES LINK_FLAGS "-Wl,--no-undefined")
@@ -76,7 +76,7 @@ if(UNIX AND NOT APPLE)
   add_dependencies(motif118xprobe motif118-peers)
   add_executable(motif118selection tests/native/motif118selection.c)
   target_link_libraries(motif118selection X11)
-  add_dependencies(motif118xprobe motif118selection)
+  add_dependencies(motif118xprobe motif118selection jpeg)
   foreach(mode display no-display)
     add_test(NAME motif118-toolkit-${mode} COMMAND ${CMAKE_COMMAND}
       "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
@@ -187,4 +187,18 @@ if(UNIX AND NOT APPLE)
     "-DLIBDIR=$<TARGET_FILE_DIR:awt>" "-DCLASS=Clipboard115"
     -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
   set_tests_properties(motif118-clipboard PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+  add_test(NAME motif118-codec COMMAND ${CMAKE_COMMAND}
+    "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
+    "-DJAVA=$<TARGET_FILE:java>" "-DJAVAC=$<TARGET_FILE:javac>"
+    "-DLIBDIR=$<TARGET_FILE_DIR:awt>" "-DCLASS=Codec115"
+    -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
+  set_tests_properties(motif118-codec PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+  foreach(codec DecoderImages115 GifRaster115)
+    add_test(NAME motif118-${codec} COMMAND ${CMAKE_COMMAND}
+      "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
+      "-DJAVA=$<TARGET_FILE:java>" "-DJAVAC=$<TARGET_FILE:javac>"
+      "-DLIBDIR=$<TARGET_FILE_DIR:awt>" "-DCLASS=${codec}"
+      -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
+    set_tests_properties(motif118-${codec} PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+  endforeach()
 endif()
