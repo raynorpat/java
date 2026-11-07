@@ -297,3 +297,31 @@ control comparisons and Scrollbar separately pass in Release. List evidence:
 Parallel generated-header corruption revealed CRT tempnam name collisions;
 CMake isolates javah temporary directories per build and generator group.
 Phase4 remains open for text/menu/input/remaining interfaces and final gates.
+
+Text/ScrollPane/Dialog/window-state and lifetime checkpoint:
+- Text115 matches Sun NT Unicode editing, CR/LF insertion/removal, native
+  selection offsets, replace/insert, password/read-only setters and native
+  text/action events. Evidence1002098A..100221F7.
+- ScrollPane115 matches all policies, viewport/insets, spans/clamping and
+  native H/V callbacks. Evidence1001F675..100207C2. Insets/span reads preserve
+  original caller-thread ordering; a peer critical section coordinates them
+  with native retirement without dispatching an extra owner-thread request.
+- WindowState115 matches activation/deactivation and iconify/restore events
+  (10010FA4,1002447C). Dialog115 matches modeless/modal creation, disabled
+  owner windows, blocking show and close callbacks (1000AFC0..1000B94F).
+- Review identified reentrant Java getters deleting a native painting peer.
+  ReentrantPeers115 reproduced Debug exit0xc000041d before correction. Native
+  leases now retain the C++ object and Java peer during callbacks/requests;
+  disposal clears pData and destroys HWND immediately, deleting the native
+  object after leases unwind. Drawing stops after reentrant disposal.
+  Extended coverage includes Label/Button/Checkbox/Choice/List, parent
+  disposal, GC and Choice reshape. Choice metrics run on the caller thread
+  before HWND dispatch, avoiding callback treeLock deadlock.
+- PaneRace115 races retained peer span/inset calls against disposal+GC.
+  Safety cases are ours-only; unsafe Sun behavior is not executed. Task4
+  also makes graphics acquired during retirement inert to tolerate queued
+  Java paint events after native detachment.
+- Combined Debug AWT31/31 passed, logs out/phase4-controls-lifetime-debug-*.
+  Release AWT30/30 passed before Dialog and final low-depth integration;
+  Dialog separately passed Release Sun. Full final platform/export/demo
+  gates remain open. Controls scoped re-review pending.

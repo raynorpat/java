@@ -39,17 +39,21 @@ public:
         SelectObject(dc,font ? font : GetStockObject(DEFAULT_GUI_FONT)); SetBkMode(dc,TRANSPARENT);
         Hjava_lang_String *text = unhand((Hjava_awt_Button *)GetTarget())->label;
         Hjava_awt_Font *javaFont = (Hjava_awt_Font *)execute_java_dynamic_method(EE(),(HObject *)GetTarget(),"getFont","()Ljava/awt/Font;");
+        if (IsDisposed()) return;
         if (text) {
             SIZE size = awtFontText(dc,javaFont,text,0,0,FALSE);
+            if (IsDisposed()) return;
             IntersectClipRect(dc,rect.left,rect.top,rect.right,rect.bottom);
             int x = (rect.left+rect.right-size.cx)/2+pressed;
             int y = (rect.top+rect.bottom-size.cy)/2+pressed;
             if (!IsWindowEnabled(hwnd)) {
                 SetTextColor(dc,GetSysColor(COLOR_3DHILIGHT));
                 awtFontText(dc,javaFont,text,x+1,y+1,TRUE);
+                if (IsDisposed()) return;
                 SetTextColor(dc,GetSysColor(COLOR_GRAYTEXT));
             } else SetTextColor(dc,foreground);
             awtFontText(dc,javaFont,text,x,y,TRUE);
+            if (IsDisposed()) return;
         }
         if (item->itemState & ODS_FOCUS) { InflateRect(&rect,-3,-3); DrawFocusRect(dc,&rect); }
         RestoreDC(dc,saved);
@@ -74,6 +78,7 @@ static void buttonRequest(void *argument)
     } else {
         AwtComponent *button = AwtComponent::Get(r->peer);
         if (!button) { r->failed = TRUE; return; }
+    AwtComponentLease lease(button);
         SetWindowTextW(button->GetHWnd(),r->text ? r->text : L"");
         InvalidateRect(button->GetHWnd(),NULL,TRUE);
     }

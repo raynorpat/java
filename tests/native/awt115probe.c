@@ -21,6 +21,20 @@ static BOOL CALLBACK find_scrollbar(HWND window, LPARAM parameter)
     if (!lstrcmpiW(name,L"SCROLLBAR")) { *(HWND *)parameter = window; return FALSE; }
     return TRUE;
 }
+static BOOL CALLBACK find_edit(HWND window, LPARAM parameter)
+{
+    WCHAR name[32]; GetClassNameW(window,name,32);
+    if (!lstrcmpiW(name,L"EDIT")) { *(HWND *)parameter = window; return FALSE; }
+    return TRUE;
+}
+static BOOL CALLBACK find_pane(HWND window, LPARAM parameter)
+{
+    WCHAR name[64]; GetClassNameW(window,name,64);
+    if (!lstrcmpiW(name,L"SunAwtScrollPane") || !lstrcmpiW(name,L"AwtScrollPane")) {
+        *(HWND *)parameter = window; return FALSE;
+    }
+    return TRUE;
+}
 __declspec(dllexport) stack_item *Java_WinAwtProbe_choice_stub(stack_item *sp,struct execenv *ee);
 static BOOL CALLBACK find_window(HWND window, LPARAM parameter)
 {
@@ -75,12 +89,46 @@ __declspec(dllexport) stack_item *Java_WinAwtProbe_scroll_stub(stack_item *sp,st
         MAKEWPARAM(sp[1].i,sp[2].i),(LPARAM)scroll);
     return sp;
 }
+__declspec(dllexport) stack_item *Java_WinAwtProbe_edit_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND frame = test_window((struct Hjava_lang_String *)sp[0].p), edit = NULL;
+    struct Hjava_lang_String *value = (struct Hjava_lang_String *)sp[1].p;
+    WCHAR text[256]; int length;
+    if (frame) EnumChildWindows(frame,find_edit,(LPARAM)&edit);
+    if (!edit || !value || (length=javaStringLength(value))>255) {
+        SignalError(ee,"java/lang/RuntimeException","invalid edit request"); return sp;
+    }
+    javaString2unicode(value,(unicode *)text,length); text[length]=0;
+    SetWindowTextW(edit,text);
+    if (sp[2].i) PostMessage(edit,WM_CHAR,13,1);
+    return sp;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_paneScroll_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND frame = test_window((struct Hjava_lang_String *)sp[0].p), pane = NULL;
+    if (frame) EnumChildWindows(frame,find_pane,(LPARAM)&pane);
+    if (!pane) { SignalError(ee,"java/lang/RuntimeException","scroll pane not found"); return sp; }
+    PostMessage(pane,sp[1].i ? WM_VSCROLL:WM_HSCROLL,MAKEWPARAM(sp[2].i,sp[3].i),0);
+    return sp;
+}
 __declspec(dllexport) stack_item *Java_WinAwtProbe_move_stub(stack_item *sp,struct execenv *ee)
 {
     HWND window = test_window((struct Hjava_lang_String *)sp[0].p);
     if (!window || !SetWindowPos(window,NULL,sp[1].i,sp[2].i,sp[3].i,sp[4].i,SWP_NOZORDER|SWP_NOACTIVATE))
         SignalError(ee,"java/lang/RuntimeException","cannot move test window");
     return sp;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_windowState_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND window = test_window((struct Hjava_lang_String *)sp[0].p);
+    if (!window) SignalError(ee,"java/lang/RuntimeException","window not found");
+    else ShowWindow(window,sp[1].i);
+    return sp;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_windowEnabled_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND window=test_window((struct Hjava_lang_String *)sp[0].p);
+    sp[0].i=window && IsWindowEnabled(window); return sp+1;
 }
 __declspec(dllexport) stack_item *Java_WinAwtProbe_close_stub(stack_item *sp,struct execenv *ee)
 {
@@ -102,6 +150,32 @@ __declspec(dllexport) stack_item *Java_WinAwtProbe_click_stub(stack_item *sp,str
     EnumChildWindows(window,find_window,(LPARAM)&search);
     if (!search.window) SignalError(ee,"java/lang/RuntimeException","button text not found");
     else SendMessage(search.window,BM_CLICK,0,0);
+    return sp;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_paint_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND frame=test_window((struct Hjava_lang_String *)sp[0].p);
+    struct Hjava_lang_String *label=(struct Hjava_lang_String *)sp[1].p;
+    WCHAR text[256]; struct window_search search; int length;
+    if (!frame || !label || (length=javaStringLength(label))>255) {
+        SignalError(ee,"java/lang/RuntimeException","invalid paint request"); return sp;
+    }
+    javaString2unicode(label,(unicode *)text,length); text[length]=0;
+    search.title=text; search.window=NULL; EnumChildWindows(frame,find_window,(LPARAM)&search);
+    if (!search.window) SignalError(ee,"java/lang/RuntimeException","paint target not found");
+    else RedrawWindow(search.window,NULL,NULL,RDW_INVALIDATE|RDW_ERASE|RDW_UPDATENOW);
+    return sp;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_paintAll_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND frame=test_window((struct Hjava_lang_String *)sp[0].p);
+    if (frame) RedrawWindow(frame,NULL,NULL,RDW_INVALIDATE|RDW_ERASE|RDW_ALLCHILDREN|RDW_UPDATENOW);
+    return sp;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_paneSpans_stub(stack_item *sp,struct execenv *ee)
+{
+    execute_java_dynamic_method(ee,(HObject *)sp[0].p,"setSpans","(IIII)V",220,160,400,300);
+    if (!exceptionOccurred(ee)) execute_java_dynamic_method(ee,(HObject *)sp[0].p,"setInsets","()V");
     return sp;
 }
 

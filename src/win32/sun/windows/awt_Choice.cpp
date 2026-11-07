@@ -18,8 +18,8 @@ public:
         }
         return AwtComponent::WindowProc(message,w,l);
     }
-    void Reshape(int x,int y,int width,int height) {
-        int drop = execute_java_dynamic_method(EE(),(HObject *)peer,"getDropDownHeight","()I");
+    void Reshape(int x,int y,int width,int height,int drop) {
+        if (IsDisposed()) return;
         RECT rect; GetWindowRect(hwnd,&rect); int closed = rect.bottom-rect.top;
         if (closed > 0 && height > closed) y += (height-closed)/2;
         HWND parent = GetParent(hwnd);
@@ -29,7 +29,7 @@ public:
         }
         SetWindowPos(hwnd,NULL,x,y,width,closed+drop+3*GetSystemMetrics(SM_CYBORDER),SWP_NOACTIVATE|SWP_NOZORDER);
     }
-    void Resize() { Classjava_awt_Component *t = unhand(GetTarget()); Reshape(t->x,t->y,t->width,t->height); }
+    void Resize(int drop) { Classjava_awt_Component *t = unhand(GetTarget()); Reshape(t->x,t->y,t->width,t->height,drop); }
 };
 
 enum ChoiceOperation { CHOICE_CREATE, CHOICE_ADD, CHOICE_REMOVE, CHOICE_SELECT, CHOICE_RESHAPE };
@@ -39,6 +39,7 @@ struct ChoiceRequest {
     WCHAR *text;
     long values[4];
     BOOL failed;
+    int drop;
 };
 static void choiceRequest(void *argument)
 {
@@ -52,16 +53,23 @@ static void choiceRequest(void *argument)
     }
     AwtChoice *choice = (AwtChoice *)AwtComponent::Get(r->peer);
     if (!choice) { r->failed = TRUE; return; }
+    AwtComponentLease lease(choice);
     HWND window = choice->GetHWnd();
     switch (r->operation) {
-    case CHOICE_ADD: SendMessage(window,CB_INSERTSTRING,r->values[0],(LPARAM)r->text); choice->Resize(); break;
-    case CHOICE_REMOVE: SendMessage(window,CB_DELETESTRING,r->values[0],0); choice->Resize(); break;
+    case CHOICE_ADD: SendMessage(window,CB_INSERTSTRING,r->values[0],(LPARAM)r->text); if (!choice->IsDisposed()) choice->Resize(r->drop); break;
+    case CHOICE_REMOVE: SendMessage(window,CB_DELETESTRING,r->values[0],0); if (!choice->IsDisposed()) choice->Resize(r->drop); break;
     case CHOICE_SELECT: SendMessage(window,CB_SETCURSEL,r->values[0],0); break;
-    case CHOICE_RESHAPE: choice->Reshape(r->values[0],r->values[1],r->values[2],r->values[3]); break;
+    case CHOICE_RESHAPE: choice->Reshape(r->values[0],r->values[1],r->values[2],r->values[3],r->drop); break;
     }
 }
 static void invokeChoice(ChoiceRequest *r,struct execenv *ee)
 {
+    if (r->operation==CHOICE_ADD || r->operation==CHOICE_REMOVE || r->operation==CHOICE_RESHAPE) {
+        /* Recover the Java metric on the calling thread, as Sun does. A
+         * getter may remove this peer while the caller holds treeLock. */
+        r->drop=execute_java_dynamic_method(ee,(HObject *)r->peer,"getDropDownHeight","()I");
+        if (exceptionOccurred(ee) || !unhand(r->peer)->pData) return;
+    }
     AwtToolkit::GetInstance().Invoke(choiceRequest,r);
     if (r->failed) SignalError(ee,"java/lang/NullPointerException","invalid choice peer");
 }

@@ -42,16 +42,20 @@ public:
         SelectObject(dc,font ? font : GetStockObject(DEFAULT_GUI_FONT)); SetBkMode(dc,TRANSPARENT);
         Hjava_lang_String *text = unhand((Hjava_awt_Checkbox *)GetTarget())->label;
         Hjava_awt_Font *javaFont = (Hjava_awt_Font *)execute_java_dynamic_method(EE(),(HObject *)GetTarget(),"getFont","()Ljava/awt/Font;");
+        if (IsDisposed()) return;
         if (text) {
             SIZE size = awtFontText(dc,javaFont,text,0,0,FALSE);
+            if (IsDisposed()) return;
             IntersectClipRect(dc,rect.left,rect.top,rect.right,rect.bottom);
             int y = (rect.bottom+rect.top-size.cy)/2;
             if (!IsWindowEnabled(hwnd)) {
                 SetTextColor(dc,GetSysColor(COLOR_3DHILIGHT));
                 awtFontText(dc,javaFont,text,rect.left+1,y+1,TRUE);
+                if (IsDisposed()) return;
                 SetTextColor(dc,GetSysColor(COLOR_GRAYTEXT));
             } else SetTextColor(dc,foreground);
             awtFontText(dc,javaFont,text,rect.left,y,TRUE);
+            if (IsDisposed()) return;
             if (item->itemState & ODS_FOCUS) {
                 RECT focus = {rect.left-2,y,rect.left+size.cx+2,y+size.cy}; DrawFocusRect(dc,&focus);
             }
@@ -80,6 +84,7 @@ static void checkboxRequest(void *argument)
     }
     AwtComponent *checkbox = AwtComponent::Get(r->peer);
     if (!checkbox) { r->failed = TRUE; return; }
+    AwtComponentLease lease(checkbox);
     HWND window = checkbox->GetHWnd();
     if (r->operation == CHECK_LABEL) SetWindowTextW(window,r->text ? r->text : L"");
     if (r->operation == CHECK_GROUP) SendMessage(window,BM_SETSTYLE,BS_OWNERDRAW,TRUE);

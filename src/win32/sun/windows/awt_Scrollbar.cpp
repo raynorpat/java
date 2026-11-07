@@ -61,6 +61,7 @@ static void scrollbarRequest(void *argument)
     }
     AwtScrollbar *bar=(AwtScrollbar *)AwtComponent::Get(r->peer);
     if (!bar) { r->failed=TRUE; return; }
+    AwtComponentLease lease(bar);
     if (r->operation==SCROLL_LINE) bar->line=r->values[0];
     if (r->operation==SCROLL_PAGE) bar->page=r->values[0];
     if (r->operation==SCROLL_VALUES) {

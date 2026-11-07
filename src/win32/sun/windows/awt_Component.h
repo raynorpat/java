@@ -24,6 +24,11 @@ public:
     virtual void MeasureItem(MEASUREITEMSTRUCT *item) {}
     virtual void UpdateInsets(Hjava_awt_Insets *insets) {}
     void Dispose();
+    void Retain() { InterlockedIncrement(&references); }
+    void Release() { if (!InterlockedDecrement(&references)) delete this; }
+    BOOL IsDisposed() const { return disposed; }
+    static void LockPeers();
+    static void UnlockPeers();
     static void Cleanup();
     HWND GetHWnd() const { return hwnd; }
     Hsun_awt_windows_WComponentPeer *GetPeer() const { return peer; }
@@ -46,6 +51,28 @@ protected:
     WNDPROC originalProc;
     UINT controlID;
     static UINT nextControlID;
+    LONG references;
+    BOOL disposed;
+};
+/* Native callbacks can run Java that removes this peer. Keep both the C++
+ * object and its Java handle alive until the complete native use ends. */
+class AwtComponentLease {
+    AwtComponent *component;
+    HObject *volatile javaPeer;
+public:
+    AwtComponentLease(AwtComponent *c) : component(c), javaPeer(c ? (HObject *)c->GetPeer() : NULL) { if (c) c->Retain(); }
+    ~AwtComponentLease() { if (javaPeer && component) component->Release(); }
+private:
+    AwtComponentLease(const AwtComponentLease &);
+    AwtComponentLease &operator=(const AwtComponentLease &);
+};
+class AwtComponentLock {
+public:
+    AwtComponentLock() { AwtComponent::LockPeers(); }
+    ~AwtComponentLock() { AwtComponent::UnlockPeers(); }
+private:
+    AwtComponentLock(const AwtComponentLock &);
+    AwtComponentLock &operator=(const AwtComponentLock &);
 };
 WCHAR *awtUnicode(Hjava_lang_String *string);
 #endif

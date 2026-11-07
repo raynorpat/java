@@ -18,8 +18,10 @@ public:
                 SelectObject(dc,font ? font : GetStockObject(DEFAULT_GUI_FONT)); SetBkMode(dc,TRANSPARENT);
                 Hjava_lang_String *text = unhand((Hjava_awt_Label *)GetTarget())->text;
                 Hjava_awt_Font *javaFont = (Hjava_awt_Font *)execute_java_dynamic_method(EE(),(HObject *)GetTarget(),"getFont","()Ljava/awt/Font;");
+                if (IsDisposed()) return 0;
                 if (text) {
                     SIZE size = awtFontText(dc,javaFont,text,0,0,FALSE);
+                    if (IsDisposed()) return 0;
                     IntersectClipRect(dc,rect.left,rect.top,rect.right,rect.bottom);
                     long alignment = unhand((Hjava_awt_Label *)GetTarget())->alignment;
                     int x = alignment == 1 ? (rect.right-size.cx)/2 : alignment == 2 ? rect.right-size.cx : 0;
@@ -27,9 +29,11 @@ public:
                     if (!IsWindowEnabled(hwnd)) {
                         SetTextColor(dc,GetSysColor(COLOR_3DHILIGHT));
                         awtFontText(dc,javaFont,text,x+1,y+1,TRUE);
+                        if (IsDisposed()) return 0;
                         SetTextColor(dc,GetSysColor(COLOR_GRAYTEXT));
                     } else SetTextColor(dc,foreground);
                     awtFontText(dc,javaFont,text,x,y,TRUE);
+                    if (IsDisposed()) return 0;
                 }
                 RestoreDC(dc,saved);
                 if (started && !paintPending) { paintPending = TRUE; PostMessage(hwnd,WM_APP+5,0,0); }
@@ -67,6 +71,7 @@ static void labelRequest(void *argument)
     }
     AwtComponent *label = AwtComponent::Get(r->peer);
     if (!label) { r->failed = TRUE; return; }
+    AwtComponentLease lease(label);
     if (r->operation == LABEL_TEXT) SetWindowTextW(label->GetHWnd(),r->text ? r->text : L"");
     InvalidateRect(label->GetHWnd(),NULL,TRUE);
 }

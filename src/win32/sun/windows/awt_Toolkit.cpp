@@ -9,6 +9,7 @@ extern "C" {
 #ifndef AWT115_QUERIES_ONLY
 #include "awt_Toolkit.h"
 #include "awt_Component.h"
+#include "awt_Image.h"
 
 AwtToolkit &AwtToolkit::GetInstance()
 {
@@ -72,6 +73,7 @@ void AwtToolkit::Cleanup()
         SendMessageA(window, 0x466, 0, 0); return;
     }
     AwtComponent::Cleanup();
+    awtCleanupImagePalette();
     DestroyWindow(window); window = NULL;
     UnregisterClassA("AwtToolkit",GetModuleHandle(NULL));
     UnhookWindowsHookEx(hook); hook = NULL;
@@ -132,14 +134,7 @@ extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WToolkit_event
 extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WToolkit_makeColorModel_stub(
     stack_item *sp, struct execenv *ee)
 {
-    HDC dc = GetDC(NULL);
-    int depth = GetDeviceCaps(dc, BITSPIXEL) * GetDeviceCaps(dc, PLANES);
-    ReleaseDC(NULL, dc);
-    if (depth >= 24) depth = 24;
-    /* The true-color constructor recovered at 10019D33. Palette and device
-     * mask initialization are completed with the image subsystem. */
-    sp[0].p = execute_java_constructor(ee, "java/awt/image/DirectColorModel", NULL,
-        "(IIIII)", depth, 0xff, 0xff00, 0xff0000, 0);
+    sp[0].p = awtImageColorModel(ee);
     return sp + 1;
 }
 

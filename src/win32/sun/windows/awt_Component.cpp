@@ -15,10 +15,17 @@ WCHAR *awtUnicode(Hjava_lang_String *string)
 }
 
 AwtComponent *AwtComponent::components = NULL;
+static struct PeerMutex {
+    CRITICAL_SECTION section;
+    PeerMutex() { InitializeCriticalSection(&section); }
+    ~PeerMutex() { DeleteCriticalSection(&section); }
+} peerMutex;
+void AwtComponent::LockPeers() { EnterCriticalSection(&peerMutex.section); }
+void AwtComponent::UnlockPeers() { LeaveCriticalSection(&peerMutex.section); }
 UINT AwtComponent::nextControlID = 1;
 AwtComponent::AwtComponent(Hsun_awt_windows_WComponentPeer *p)
     : foreground(GetSysColor(COLOR_WINDOWTEXT)), background(GetSysColor(COLOR_WINDOW)),
-      font(NULL), cursor(LoadCursor(NULL, IDC_ARROW)), started(FALSE), surface(NULL), paintPending(FALSE), hwnd(NULL), peer(p), next(NULL), originalProc(NULL), controlID(0) {}
+      font(NULL), cursor(LoadCursor(NULL, IDC_ARROW)), started(FALSE), surface(NULL), paintPending(FALSE), hwnd(NULL), peer(p), next(NULL), originalProc(NULL), controlID(0), references(1), disposed(FALSE) {}
 AwtComponent::~AwtComponent() { if (font) DeleteObject(font); }
 AwtComponent *AwtComponent::Get(Hsun_awt_windows_WComponentPeer *p)
 { return p ? (AwtComponent *)unhand(p)->pData : NULL; }
@@ -48,7 +55,7 @@ BOOL AwtComponent::CreateControl(const WCHAR *name, const WCHAR *text, DWORD sty
     next = components; components = this;
     hwnd = CreateWindowExW(exStyle,name,text,style,target->x,target->y,target->width,target->height,
         parent,(HMENU)controlID,GetModuleHandle(NULL),NULL);
-    if (!hwnd) { components = next; return FALSE; }
+    if (!hwnd) { Unlink(); return FALSE; }
     SetWindowLong(hwnd,GWL_USERDATA,(LONG)this);
     originalProc = (WNDPROC)SetWindowLongW(hwnd,GWL_WNDPROC,(LONG)WndProc);
     unhand(peer)->pData = (long)this;
@@ -64,15 +71,17 @@ void AwtComponent::Unlink()
 
 void AwtComponent::Dispose()
 {
-    /* Retire on the owner thread after preceding synchronous requests. The
-     * original deletes after a 500ms wait, risking a queued use-after-free. */
-    started = FALSE;
+    AwtComponentLock lock;
+    /* Detach on the owner thread, after caller-thread read/post operations.
+     * Active native callbacks retain the object until their stacks unwind. */
+    if (disposed) return;
+    disposed = TRUE; started = FALSE;
+    unhand(peer)->pData = 0;
     Unlink();
     if (surface) { surface->component = NULL; surface->Release(); surface = NULL; }
     if (IsWindow(hwnd)) DestroyWindow(hwnd);
     hwnd = NULL;
-    unhand(peer)->pData = 0;
-    delete this;
+    Release();
 }
 
 LRESULT CALLBACK AwtComponent::WndProc(HWND window, UINT message, WPARAM w, LPARAM l)
@@ -84,6 +93,7 @@ LRESULT CALLBACK AwtComponent::WndProc(HWND window, UINT message, WPARAM w, LPAR
         SetWindowLongA(window, GWL_USERDATA, (LONG)component);
     }
     if (!component) return DefWindowProcA(window, message, w, l);
+    AwtComponentLease lease(component);
     LRESULT result = component->WindowProc(message, w, l);
     if (message == WM_NCDESTROY) {
         component->started = FALSE;
@@ -106,16 +116,16 @@ LRESULT AwtComponent::WindowProc(UINT message, WPARAM w, LPARAM l)
     if (message == WM_MEASUREITEM && l && w) {
         MEASUREITEMSTRUCT *item = (MEASUREITEMSTRUCT *)l;
         for (AwtComponent *child = components; child; child = child->next)
-            if (child->controlID == item->CtlID) { child->MeasureItem(item); return TRUE; }
+            if (child->controlID == item->CtlID) { AwtComponentLease lease(child); child->MeasureItem(item); return TRUE; }
     }
     if (message == WM_COMMAND && l) {
         AwtComponent *child = (AwtComponent *)GetWindowLong((HWND)l,GWL_USERDATA);
-        if (child) { child->Command(HIWORD(w)); return 0; }
+        if (child) { AwtComponentLease lease(child); child->Command(HIWORD(w)); return 0; }
     }
     if (message == WM_DRAWITEM && l) {
         DRAWITEMSTRUCT *item = (DRAWITEMSTRUCT *)l;
         AwtComponent *child = (AwtComponent *)GetWindowLong(item->hwndItem,GWL_USERDATA);
-        if (child) { child->DrawItem(item); return TRUE; }
+        if (child) { AwtComponentLease lease(child); child->DrawItem(item); return TRUE; }
     }
     if (started && (message == WM_SETFOCUS || message == WM_KILLFOCUS)) {
         BOOL temporary = FALSE;
@@ -185,6 +195,7 @@ static void componentRequest(void *argument)
     ComponentRequest *r = (ComponentRequest *)argument;
     AwtComponent *c = AwtComponent::Get(r->peer);
     if (!c) { r->missing = TRUE; return; }
+    AwtComponentLease lease(c);
     HWND window = c->GetHWnd();
     switch (r->operation) {
     case SHOW: ShowWindow(window, SW_SHOWNORMAL); break;

@@ -5,6 +5,13 @@
 /* Geometry100243F7/1002447C, closing100243A4; event constructors10024131/1002425D. */
 LRESULT AwtWindow::WindowProc(UINT message, WPARAM w, LPARAM l)
 {
+    if (started && message==WM_SIZE) {
+        if (w==SIZE_MINIMIZED) { iconic=TRUE; PostMessage(hwnd,WM_APP+2,203,0); }
+        else if (iconic && (w==SIZE_RESTORED || w==SIZE_MAXIMIZED)) {
+            iconic=FALSE; PostMessage(hwnd,WM_APP+2,204,0);
+            return AwtComponent::WindowProc(message,w,l);
+        }
+    }
     if (started && (message == WM_MOVE || message == WM_SIZE)) {
         RECT bounds; GetWindowRect(hwnd,&bounds);
         Classjava_awt_Component *target = unhand(GetTarget());
@@ -73,6 +80,7 @@ static void windowRequest(void *argument)
         return;
     }
     if (!c) { r->failed = TRUE; return; }
+    AwtComponentLease lease(c);
     HWND window = c->GetHWnd();
     switch (r->operation) {
     case FRONT: SetWindowPos(window, HWND_TOP, 0,0,0,0, SWP_NOMOVE | SWP_NOSIZE);

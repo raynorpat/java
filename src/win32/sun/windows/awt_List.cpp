@@ -67,6 +67,7 @@ static void listRequest(void *argument)
     }
     AwtList *list = (AwtList *)AwtComponent::Get(r->peer);
     if (!list) { r->failed = TRUE; return; }
+    AwtComponentLease lease(list);
     HWND window = list->GetHWnd();
     switch (r->operation) {
     case LIST_ADD:
