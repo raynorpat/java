@@ -22,6 +22,7 @@ typedef struct AwtPeer {
     Widget widget, shell, content;
     Cursor cursor;
     int references;
+    int imHeight;
     Hsun_awt_motif_MComponentPeer *javaPeer;
     struct AwtPeer *next;
     void (*cleanup)(struct AwtPeer *);

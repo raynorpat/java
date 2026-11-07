@@ -5,6 +5,8 @@
 #include <X11/extensions/XTest.h>
 #include <X11/keysym.h>
 #include <Xm/ToggleB.h>
+#include <Xm/TextF.h>
+#include <Xm/Text.h>
 #include <string.h>
 
 static Widget widget(Hjava_awt_Component *target)
@@ -12,6 +14,25 @@ static Widget widget(Hjava_awt_Component *target)
     Hsun_awt_motif_MComponentPeer *peer=(Hsun_awt_motif_MComponentPeer *)unhand(target)->peer;
     AwtPeer *data=peer ? awt118_peer(peer) : NULL;
     return data ? (data->content ? data->content : data->widget) : NULL;
+}
+
+JAVA_PUBLIC_API(stack_item *) Java_TextField115_displayed_stub(stack_item *p,struct execenv *ee)
+{
+    char *text;
+    AWT_LOCK();
+    text=XmTextFieldGetString(widget(p[0].p));
+    p[0].p=makeJavaString(text,strlen(text));
+    XtFree(text); AWT_UNLOCK();
+    return p+1;
+}
+
+JAVA_PUBLIC_API(stack_item *) Java_TextArea115_scrollbars_stub(stack_item *p,struct execenv *ee)
+{
+    Boolean horizontal,vertical;
+    AWT_LOCK();
+    XtVaGetValues(widget(p[0].p),XmNscrollHorizontal,&horizontal,XmNscrollVertical,&vertical,NULL);
+    p[0].i=(horizontal ? 1 : 0)|(vertical ? 2 : 0);
+    AWT_UNLOCK(); return p+1;
 }
 
 JAVA_PUBLIC_API(stack_item *) Java_Input115_key_stub(stack_item *p,struct execenv *ee)

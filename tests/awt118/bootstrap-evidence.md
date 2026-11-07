@@ -172,3 +172,25 @@ releases its Xt keyboard/pointer grab. Component retirement also restores the
 original unmanage/drain/destroy ordering (debug 0x3ba28, helper 0x6d828).
 Linux Debug: all 14 focused Motif tests pass; 78 native bindings implemented.
 The remaining widget/rendering/demo gates still keep Phase 6 incomplete.
+
+## Text peer checkpoint
+
+Release 0x298dc..0x2a5a0 and 0x23da4..0x24bf0 recover text-field and text-area
+callbacks, selection/caret, edits, editable state, masking, geometry and disposal.
+The field owns its password buffer separately from displayed text, preserving
+Solaris's append/trailing-deletion restriction. Buffer growth beyond 1024 bytes
+and replacement/change of echo characters are exercised without private Motif
+offsets. Compound text areas retain the scrolled outer and inner text widgets.
+The original Java initialization also requires Frame.addTextComponent (0x2da90);
+its status/preedit area query uses public XIC attributes rather than the Solaris
+Motif layout used by helper 0x3123c. Full XIM and decorated-frame geometry remain
+open integration gates.
+
+Both fixtures first failed at missing create. TextField115 passes four lifetime
+cycles, initial selection, caret placement, keyboard edits, text/action callbacks,
+read-only state, echo storage/display and growth. TextArea115 passes all four
+scrollbar policies, multiline edits, selection, keyboard/caret, font geometry and
+show/hide/disposal. Fixtures wait for asynchronous Java/native event replay.
+All 16 focused Linux Debug Motif tests pass; 111 native bindings are implemented.
+Multifont/locale conversion, clipboard paste, full input/window semantics and the
+remaining rendering/demo/platform gates are still unfinished.

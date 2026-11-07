@@ -6,12 +6,69 @@
 #include <X11/Shell.h>
 #include <Xm/DrawingA.h>
 #include <Xm/Protocols.h>
+#include <Xm/Text.h>
+#include <Xm/TextF.h>
+#include <Xm/XmIm.h>
 #include <stdlib.h>
 
 static void close_window(Widget widget,XtPointer closure,XtPointer call)
 {
     execute_java_dynamic_method(EE(),(HObject *)closure,"handleQuit","()V");
     awt118_callback_done();
+}
+
+/* Release 2da90/3123c: include the input method's status/preedit area in
+ * bottom insets. Query XIC attributes instead of Solaris Motif private offsets. */
+static int input_method_height(Widget widget)
+{
+    XIC ic;
+    XIMStyle style=0;
+    XRectangle *area=NULL;
+    XVaNestedList attributes;
+    WidgetList children;
+    Cardinal count,i;
+    int height=0,value;
+    if (XmIsText(widget) || XmIsTextField(widget)) {
+        ic=XmImGetXIC(widget,XmPER_SHELL,NULL,0);
+        if (ic && !XGetICValues(ic,XNInputStyle,&style,NULL)) {
+            if (style&XIMStatusArea) {
+                attributes=XVaCreateNestedList(0,XNAreaNeeded,&area,NULL);
+                if (!XGetICValues(ic,XNStatusAttributes,attributes,NULL) && area) {
+                    height=area->height; XFree(area); area=NULL;
+                }
+                XFree(attributes);
+            }
+            if (style&XIMPreeditArea) {
+                attributes=XVaCreateNestedList(0,XNAreaNeeded,&area,NULL);
+                if (!XGetICValues(ic,XNPreeditAttributes,attributes,NULL) && area) {
+                    if (area->height>height) height=area->height;
+                    XFree(area);
+                }
+                XFree(attributes);
+            }
+        }
+    } else if (XtIsComposite(widget)) {
+        XtVaGetValues(widget,XtNchildren,&children,XtNnumChildren,&count,NULL);
+        for (i=0;i<count;i++) {
+            value=input_method_height(children[i]); if (value>height) height=value;
+        }
+    }
+    return height;
+}
+void sun_awt_motif_MFramePeer_addTextComponent(Hsun_awt_motif_MFramePeer *self)
+{
+    AwtPeer *data;
+    int height;
+    AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
+    if (!data || !data->shell) SignalError(EE(),"java/lang/NullPointerException",NULL);
+    else {
+        height=input_method_height(data->widget);
+        if (height) height+=2;
+        if (unhand(self)->insets) unhand(unhand(self)->insets)->bottom+=height-data->imHeight;
+        data->imHeight=height;
+        XFlush(awt_display);
+    }
+    AWT_UNLOCK();
 }
 static void shell_event(Widget widget,XtPointer closure,XEvent *event,Boolean *dispatch)
 {
