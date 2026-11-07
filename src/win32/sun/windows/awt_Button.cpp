@@ -39,23 +39,24 @@ public:
         SelectObject(dc,font ? font : GetStockObject(DEFAULT_GUI_FONT)); SetBkMode(dc,TRANSPARENT);
         Hjava_lang_String *text = unhand((Hjava_awt_Button *)GetTarget())->label;
         Hjava_awt_Font *javaFont = (Hjava_awt_Font *)execute_java_dynamic_method(EE(),(HObject *)GetTarget(),"getFont","()Ljava/awt/Font;");
-        if (IsDisposed()) return;
+        if (IsDisposed()) goto drawDone;
         if (text) {
             SIZE size = awtFontText(dc,javaFont,text,0,0,FALSE);
-            if (IsDisposed()) return;
+            if (IsDisposed()) goto drawDone;
             IntersectClipRect(dc,rect.left,rect.top,rect.right,rect.bottom);
             int x = (rect.left+rect.right-size.cx)/2+pressed;
             int y = (rect.top+rect.bottom-size.cy)/2+pressed;
             if (!IsWindowEnabled(hwnd)) {
                 SetTextColor(dc,GetSysColor(COLOR_3DHILIGHT));
                 awtFontText(dc,javaFont,text,x+1,y+1,TRUE);
-                if (IsDisposed()) return;
+                if (IsDisposed()) goto drawDone;
                 SetTextColor(dc,GetSysColor(COLOR_GRAYTEXT));
             } else SetTextColor(dc,foreground);
             awtFontText(dc,javaFont,text,x,y,TRUE);
-            if (IsDisposed()) return;
+            if (IsDisposed()) goto drawDone;
         }
         if (item->itemState & ODS_FOCUS) { InflateRect(&rect,-3,-3); DrawFocusRect(dc,&rect); }
+drawDone:
         RestoreDC(dc,saved);
         if (started && !paintPending) { paintPending = TRUE; PostMessage(hwnd,WM_APP+5,0,0); }
     }

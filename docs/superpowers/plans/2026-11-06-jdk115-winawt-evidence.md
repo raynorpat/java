@@ -325,3 +325,10 @@ Text/ScrollPane/Dialog/window-state and lifetime checkpoint:
   Release AWT30/30 passed before Dialog and final low-depth integration;
   Dialog separately passed Release Sun. Full final platform/export/demo
   gates remain open. Controls scoped re-review pending.
+
+Controls scoped re-review accepted both P1 lifetime fixes and identified a
+P2 cleanup gap in early disposal exits. Label now retains the original paint
+HWND and always reaches RestoreDC/EndPaint; Button/Checkbox/Choice/List shared
+drawing also reaches RestoreDC without further painting after retirement.
+Debug ReentrantPeers115, PaneRace115 and GraphicsResources115 pass3/3 after
+this cleanup correction (out/phase4-paint-cleanup-debug-build.log).

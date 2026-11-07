@@ -23,20 +23,21 @@ public:
         HBRUSH brush = CreateSolidBrush(back); FillRect(dc,&rect,brush); DeleteObject(brush);
         if (item->itemID != (UINT)-1) {
             Hjava_lang_String *value = (Hjava_lang_String *)execute_java_dynamic_method(EE(),(HObject *)GetTarget(),"getItem","(I)Ljava/lang/String;",item->itemID);
-            if (IsDisposed()) return;
+            if (IsDisposed()) goto drawDone;
             if (value) {
                 Hjava_awt_Font *javaFont = (Hjava_awt_Font *)execute_java_dynamic_method(EE(),(HObject *)GetTarget(),"getFont","()Ljava/awt/Font;");
-                if (IsDisposed()) return;
+                if (IsDisposed()) goto drawDone;
                 SIZE size = awtFontText(dc,javaFont,value,0,0,FALSE);
-                if (IsDisposed()) return;
+                if (IsDisposed()) goto drawDone;
                 SetBkColor(dc,back); SetBkMode(dc,TRANSPARENT);
                 SetTextColor(dc,selected ? GetSysColor(COLOR_HIGHLIGHTTEXT) : IsWindowEnabled(hwnd) ? foreground : GetSysColor(COLOR_GRAYTEXT));
                 IntersectClipRect(dc,rect.left,rect.top,rect.right,rect.bottom);
                 awtFontText(dc,javaFont,value,rect.left+1,(rect.top+rect.bottom-size.cy)/2,TRUE);
-                if (IsDisposed()) return;
+                if (IsDisposed()) goto drawDone;
             }
         }
         if ((item->itemState & ODS_FOCUS) && (item->itemAction & (ODA_DRAWENTIRE|ODA_FOCUS))) DrawFocusRect(dc,&rect);
+drawDone:
         RestoreDC(dc,saved);
     }
 };
