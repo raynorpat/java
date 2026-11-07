@@ -498,7 +498,7 @@ if(WIN32)
   install(FILES "${JDK115_DIR}/lib/font.properties" DESTINATION lib)
   set(awt_classes sun.awt.windows.WComponentPeer sun.awt.windows.WWindowPeer
     sun.awt.windows.WFramePeer sun.awt.windows.WGraphics java.awt.Component java.awt.Container java.awt.Window
-    java.awt.Frame java.awt.Button java.awt.Insets java.awt.Font java.awt.Cursor java.awt.Color java.awt.AWTEvent
+    java.awt.Frame java.awt.Button java.awt.Label java.awt.Checkbox java.awt.Insets java.awt.Font java.awt.Cursor java.awt.Color java.awt.AWTEvent
     sun.awt.windows.WFontMetrics sun.awt.windows.WDefaultFontCharset sun.awt.FontDescriptor sun.awt.PlatformFont)
   set(awt_headers)
   foreach(clazz ${awt_classes})
@@ -521,7 +521,8 @@ if(WIN32)
     src/win32/sun/windows/awt_Component.cpp src/win32/sun/windows/awt_Window.cpp
     src/win32/sun/windows/awt_Frame.cpp src/win32/sun/windows/awt_Graphics.cpp
     src/win32/sun/windows/awt_Canvas.cpp src/win32/sun/windows/awt_Button.cpp
-    src/win32/sun/windows/awt_Font.cpp ${awt_headers} ${awt_stubs}
+    src/win32/sun/windows/awt_Font.cpp src/win32/sun/windows/awt_Label.cpp
+    src/win32/sun/windows/awt_Checkbox.cpp ${awt_headers} ${awt_stubs}
     src/win32/sun/windows/winawt.def)
   target_include_directories(winawt BEFORE PRIVATE "${awt_gen}")
   target_link_libraries(winawt javai user32 gdi32)
@@ -533,7 +534,7 @@ if(WIN32)
   target_link_libraries(winawt115-toolkit user32 gdi32)
   add_test(NAME winawt115-toolkit COMMAND winawt115-toolkit
     "${JDK115_DIR}/bin/winawt$<$<CONFIG:Debug>:_g>.dll")
-  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 Canvas115 Button115 Fonts115)
+  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 Canvas115 Button115 Fonts115 Label115 Checkbox115)
   add_test(NAME awt-${awt_test} COMMAND ${CMAKE_COMMAND}
     -DROOT=${CMAKE_SOURCE_DIR} -DJAVA=$<TARGET_FILE:java> -DJAVAC=$<TARGET_FILE:javac>
     -DJDK=${JDK115_DIR} -DLIBDIR=$<TARGET_FILE_DIR:winawt>

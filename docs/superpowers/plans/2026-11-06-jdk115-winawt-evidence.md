@@ -239,3 +239,34 @@ reports character0 present after its missing-Unicode-table assertion; debug
 that unsupported table. Cost: this out-of-contract symbol-font query differs;
 normal symbol text uses the converted FontDescriptor path, which matches the
 Unicode width oracle. The test checks this corrected case only on ours.
+
+## Label and Checkbox peers
+
+Label creation1001AB45 uses a custom child class/style0x44000000. Painting
+1001AC91/1001AEC0 fills the client background and positions text vertically
+centered, with x=0, centered, or right-aligned according to target.alignment.
+Setters1001B0DB/1001B189 update text/invalidate; the alignment argument is not
+stored separately from Java. Label115 was RED at create, then verifies actual
+native text pixel positions, text changes, sizing and retirement against Sun.
+Initial pixel reads returned CLR_INVALID on both implementations: CMake starts
+the process with a hidden initial show state, leaving the frame HWND hidden
+despite Java's visible flag. The process-owned probe explicitly shows its
+frame before pixel reads. This is a harness correction, not a native peer fix.
+Multifont text drawing remains part of Task4 integration.
+
+Checkbox creation1000344F uses owner-drawn BUTTON/style0x4400000B. Command
+100035BE toggles Java target.state (10003622) and calls handleAction(Z)V;
+the Java method handles CheckboxGroup exclusion and posts ItemEvent.
+Draw10003669 uses GetSystemMetrics(50) for the check size, DrawFrameControl
+with radio/check/pressed/selected flags, label text and focus rectangle.
+Setters10003BB4/10003C92/10003EEB update style/state/text and invalidate.
+Checkbox115 was RED at create; checks and group exclusion, changing group,
+accented labels and native item events now match Sun. The oracle corrected an
+initial test assumption: removing a selected checkbox from its group clears
+its state in Java1.1.5 before the next click. No Java library change was made.
+
+Ruling: remaining Task4 is delegated under the subagent-driven-development
+skill, with separate source/build ownership and a task review. The coordinator
+continues controls/integration. The established AwtSurface and owner-thread
+contracts make these areas separable. Cost: additional review/integration work;
+CMake edits must be serialized between implementer and coordinator.
