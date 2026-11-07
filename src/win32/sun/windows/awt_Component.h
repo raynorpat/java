@@ -16,10 +16,12 @@ public:
     AwtComponent(Hsun_awt_windows_WComponentPeer *peer);
     virtual ~AwtComponent();
     BOOL Create(const char *name, DWORD style, DWORD exStyle, HWND parent);
-    BOOL CreateControl(const WCHAR *name, const WCHAR *text, DWORD style, HWND parent);
+    BOOL CreateControl(const WCHAR *name, const WCHAR *text, DWORD style, HWND parent, DWORD exStyle = 0);
     virtual LRESULT WindowProc(UINT message, WPARAM w, LPARAM l);
     virtual void Command(WORD code) {}
+    virtual void Scroll(WORD code,WORD position) {}
     virtual void DrawItem(DRAWITEMSTRUCT *item) {}
+    virtual void MeasureItem(MEASUREITEMSTRUCT *item) {}
     virtual void UpdateInsets(Hjava_awt_Insets *insets) {}
     void Dispose();
     static void Cleanup();
@@ -36,11 +38,14 @@ public:
     RECT pendingPaint;
     BOOL paintPending;
 protected:
+    void Unlink();
     HWND hwnd;
     Hsun_awt_windows_WComponentPeer *peer;
     AwtComponent *next;
     static AwtComponent *components;
     WNDPROC originalProc;
+    UINT controlID;
+    static UINT nextControlID;
 };
 WCHAR *awtUnicode(Hjava_lang_String *string);
 #endif

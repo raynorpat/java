@@ -1,5 +1,6 @@
 /* Label creation1001AB45, painting1001AC91/1001AEC0, setters1001B0DB/1001B189. */
 #include "awt_Component.h"
+#include "awt_Font.h"
 extern "C" {
 #include "java_awt_Label.h"
 }
@@ -15,19 +16,20 @@ public:
                 RECT rect; GetClientRect(hwnd,&rect); int saved = SaveDC(dc);
                 HBRUSH brush = CreateSolidBrush(background); FillRect(dc,&rect,brush); DeleteObject(brush);
                 SelectObject(dc,font ? font : GetStockObject(DEFAULT_GUI_FONT)); SetBkMode(dc,TRANSPARENT);
-                int length = GetWindowTextLengthW(hwnd);
-                WCHAR *text = (WCHAR *)malloc((length+1)*sizeof(WCHAR));
+                Hjava_lang_String *text = unhand((Hjava_awt_Label *)GetTarget())->text;
+                Hjava_awt_Font *javaFont = (Hjava_awt_Font *)execute_java_dynamic_method(EE(),(HObject *)GetTarget(),"getFont","()Ljava/awt/Font;");
                 if (text) {
-                    GetWindowTextW(hwnd,text,length+1); SIZE size; GetTextExtentPoint32W(dc,text,length,&size);
+                    SIZE size = awtFontText(dc,javaFont,text,0,0,FALSE);
+                    IntersectClipRect(dc,rect.left,rect.top,rect.right,rect.bottom);
                     long alignment = unhand((Hjava_awt_Label *)GetTarget())->alignment;
                     int x = alignment == 1 ? (rect.right-size.cx)/2 : alignment == 2 ? rect.right-size.cx : 0;
                     int y = (rect.bottom-size.cy)/2;
                     if (!IsWindowEnabled(hwnd)) {
                         SetTextColor(dc,GetSysColor(COLOR_3DHILIGHT));
-                        ExtTextOutW(dc,x+1,y+1,ETO_CLIPPED,&rect,text,length,NULL);
+                        awtFontText(dc,javaFont,text,x+1,y+1,TRUE);
                         SetTextColor(dc,GetSysColor(COLOR_GRAYTEXT));
                     } else SetTextColor(dc,foreground);
-                    ExtTextOutW(dc,x,y,ETO_CLIPPED,&rect,text,length,NULL); free(text);
+                    awtFontText(dc,javaFont,text,x,y,TRUE);
                 }
                 RestoreDC(dc,saved);
                 if (started && !paintPending) { paintPending = TRUE; PostMessage(hwnd,WM_APP+5,0,0); }

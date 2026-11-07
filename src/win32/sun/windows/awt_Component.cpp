@@ -15,9 +15,10 @@ WCHAR *awtUnicode(Hjava_lang_String *string)
 }
 
 AwtComponent *AwtComponent::components = NULL;
+UINT AwtComponent::nextControlID = 1;
 AwtComponent::AwtComponent(Hsun_awt_windows_WComponentPeer *p)
     : foreground(GetSysColor(COLOR_WINDOWTEXT)), background(GetSysColor(COLOR_WINDOW)),
-      font(NULL), cursor(LoadCursor(NULL, IDC_ARROW)), started(FALSE), surface(NULL), paintPending(FALSE), hwnd(NULL), peer(p), next(NULL), originalProc(NULL) {}
+      font(NULL), cursor(LoadCursor(NULL, IDC_ARROW)), started(FALSE), surface(NULL), paintPending(FALSE), hwnd(NULL), peer(p), next(NULL), originalProc(NULL), controlID(0) {}
 AwtComponent::~AwtComponent() { if (font) DeleteObject(font); }
 AwtComponent *AwtComponent::Get(Hsun_awt_windows_WComponentPeer *p)
 { return p ? (AwtComponent *)unhand(p)->pData : NULL; }
@@ -40,16 +41,25 @@ BOOL AwtComponent::Create(const char *name, DWORD style, DWORD exStyle, HWND par
 void AwtComponent::Cleanup()
 { while (components) components->Dispose(); }
 
-BOOL AwtComponent::CreateControl(const WCHAR *name, const WCHAR *text, DWORD style, HWND parent)
+BOOL AwtComponent::CreateControl(const WCHAR *name, const WCHAR *text, DWORD style, HWND parent, DWORD exStyle)
 {
     Classjava_awt_Component *target = unhand(GetTarget());
-    hwnd = CreateWindowExW(0,name,text,style,target->x,target->y,target->width,target->height,
-        parent,NULL,GetModuleHandle(NULL),NULL);
-    if (!hwnd) return FALSE;
+    controlID = nextControlID++;
+    next = components; components = this;
+    hwnd = CreateWindowExW(exStyle,name,text,style,target->x,target->y,target->width,target->height,
+        parent,(HMENU)controlID,GetModuleHandle(NULL),NULL);
+    if (!hwnd) { components = next; return FALSE; }
     SetWindowLong(hwnd,GWL_USERDATA,(LONG)this);
     originalProc = (WNDPROC)SetWindowLongW(hwnd,GWL_WNDPROC,(LONG)WndProc);
-    unhand(peer)->pData = (long)this; next = components; components = this;
+    unhand(peer)->pData = (long)this;
     return TRUE;
+}
+
+void AwtComponent::Unlink()
+{
+    AwtComponent **link = &components;
+    while (*link && *link != this) link = &(*link)->next;
+    if (*link) *link = next;
 }
 
 void AwtComponent::Dispose()
@@ -57,9 +67,7 @@ void AwtComponent::Dispose()
     /* Retire on the owner thread after preceding synchronous requests. The
      * original deletes after a 500ms wait, risking a queued use-after-free. */
     started = FALSE;
-    AwtComponent **link = &components;
-    while (*link && *link != this) link = &(*link)->next;
-    if (*link) *link = next;
+    Unlink();
     if (surface) { surface->component = NULL; surface->Release(); surface = NULL; }
     if (IsWindow(hwnd)) DestroyWindow(hwnd);
     hwnd = NULL;
@@ -91,6 +99,15 @@ LRESULT CALLBACK AwtComponent::WndProc(HWND window, UINT message, WPARAM w, LPAR
 
 LRESULT AwtComponent::WindowProc(UINT message, WPARAM w, LPARAM l)
 {
+    if ((message == WM_HSCROLL || message == WM_VSCROLL) && l) {
+        AwtComponent *child = (AwtComponent *)GetWindowLong((HWND)l,GWL_USERDATA);
+        if (child) { child->Scroll(LOWORD(w),HIWORD(w)); return 0; }
+    }
+    if (message == WM_MEASUREITEM && l && w) {
+        MEASUREITEMSTRUCT *item = (MEASUREITEMSTRUCT *)l;
+        for (AwtComponent *child = components; child; child = child->next)
+            if (child->controlID == item->CtlID) { child->MeasureItem(item); return TRUE; }
+    }
     if (message == WM_COMMAND && l) {
         AwtComponent *child = (AwtComponent *)GetWindowLong((HWND)l,GWL_USERDATA);
         if (child) { child->Command(HIWORD(w)); return 0; }

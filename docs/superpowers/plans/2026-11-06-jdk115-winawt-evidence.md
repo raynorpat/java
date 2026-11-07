@@ -270,3 +270,30 @@ skill, with separate source/build ownership and a task review. The coordinator
 continues controls/integration. The established AwtSurface and owner-thread
 contracts make these areas separable. Cost: additional review/integration work;
 CMake edits must be serialized between implementer and coordinator.
+
+Choice control slice: binary 10004135 create (0x44200013 owner-drawn
+COMBOBOX without HASSTRINGS), 10004395 native-height centering/drop-down
+sizing, 1000455E selection callback, 10004686/1000473A/10004812 item mutation.
+100086E7 draws target.getItem(index); 100086A6 routes item measurement.
+Control IDs now route WM_MEASUREITEM even during synchronous native creation.
+Choice115 first failed with missing create, then passed against Sun for native
+selection, insert/delete/repopulate and item events under GC. Other control
+regressions passed except one Lifecycle115 shutdown timeout after its success
+output; five immediate repeats passed. This intermittent shutdown issue stays
+open for the Task2 lifecycle gate. Primary-font painting still awaits Task4
+multifont integration. Logs: out/phase4-choice-*, out/phase4-lifecycle-repeat.log.
+
+Choice/List/Scrollbar control checkpoint: Choice115, List115 and Scrollbar115
+exercise native selection, single/multiple list HWND recreation, insertion,
+deleting/repopulation, item/action callbacks, both scrollbar orientations,
+line/page increments and tracking. RED was missing create for each; Release
+and Debug compare against Sun. Shared Choice/List owner-drawing routines
+100086A6/100086E7 now use Task4's recovered multifont text helper, also used by
+Label/Button/Checkbox. Six control comparisons pass in Debug; five multifont
+control comparisons and Scrollbar separately pass in Release. List evidence:
+1001B2C9 create, 1001B467 mode recreation, 1001B7DA event routing,
+1001B968..1001BEC0 mutations/selection. Scrollbar evidence: 1001EE93 create,
+1001F041 range, 1001F10B callbacks, 1001F447..1001F600 native setters.
+Parallel generated-header corruption revealed CRT tempnam name collisions;
+CMake isolates javah temporary directories per build and generator group.
+Phase4 remains open for text/menu/input/remaining interfaces and final gates.

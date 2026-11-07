@@ -2,6 +2,26 @@
 #include <windows.h>
 #include "StubPreamble.h"
 struct window_search { WCHAR *title; HWND window; };
+static BOOL CALLBACK find_choice(HWND window, LPARAM parameter)
+{
+    WCHAR name[32];
+    GetClassNameW(window,name,32);
+    if (!lstrcmpiW(name,L"COMBOBOX")) { *(HWND *)parameter = window; return FALSE; }
+    return TRUE;
+}
+static BOOL CALLBACK find_list(HWND window, LPARAM parameter)
+{
+    WCHAR name[32]; GetClassNameW(window,name,32);
+    if (!lstrcmpiW(name,L"LISTBOX")) { *(HWND *)parameter = window; return FALSE; }
+    return TRUE;
+}
+static BOOL CALLBACK find_scrollbar(HWND window, LPARAM parameter)
+{
+    WCHAR name[32]; GetClassNameW(window,name,32);
+    if (!lstrcmpiW(name,L"SCROLLBAR")) { *(HWND *)parameter = window; return FALSE; }
+    return TRUE;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_choice_stub(stack_item *sp,struct execenv *ee);
 static BOOL CALLBACK find_window(HWND window, LPARAM parameter)
 {
     struct window_search *search = (struct window_search *)parameter;
@@ -22,6 +42,38 @@ static HWND test_window(struct Hjava_lang_String *title)
     search.title = text; search.window = NULL;
     EnumWindows(find_window,(LPARAM)&search);
     return search.window;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_choice_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND frame = test_window((struct Hjava_lang_String *)sp[0].p), choice = NULL;
+    int index = sp[1].i;
+    if (frame) EnumChildWindows(frame,find_choice,(LPARAM)&choice);
+    if (!choice) { SignalError(ee,"java/lang/RuntimeException","choice not found"); return sp; }
+    if (index >= 0) {
+        SendMessage(choice,CB_SETCURSEL,index,0);
+        PostMessage(GetParent(choice),WM_COMMAND,MAKEWPARAM(GetDlgCtrlID(choice),CBN_SELCHANGE),(LPARAM)choice);
+    }
+    sp[0].i = (long)SendMessage(choice,CB_GETCURSEL,0,0); return sp+1;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_listEvent_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND frame = test_window((struct Hjava_lang_String *)sp[0].p), list = NULL;
+    if (frame) EnumChildWindows(frame,find_list,(LPARAM)&list);
+    if (!list) { SignalError(ee,"java/lang/RuntimeException","list not found"); return sp; }
+    if (GetWindowLong(list,GWL_STYLE)&LBS_MULTIPLESEL) {
+        SendMessage(list,LB_SETSEL,TRUE,sp[1].i); SendMessage(list,LB_SETCARETINDEX,sp[1].i,FALSE);
+    } else SendMessage(list,LB_SETCURSEL,sp[1].i,0);
+    PostMessage(GetParent(list),WM_COMMAND,MAKEWPARAM(GetDlgCtrlID(list),sp[2].i ? LBN_DBLCLK : LBN_SELCHANGE),(LPARAM)list);
+    return sp;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_scroll_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND frame = test_window((struct Hjava_lang_String *)sp[0].p), scroll = NULL;
+    if (frame) EnumChildWindows(frame,find_scrollbar,(LPARAM)&scroll);
+    if (!scroll) { SignalError(ee,"java/lang/RuntimeException","scrollbar not found"); return sp; }
+    PostMessage(GetParent(scroll),(GetWindowLong(scroll,GWL_STYLE)&SBS_VERT) ? WM_VSCROLL : WM_HSCROLL,
+        MAKEWPARAM(sp[1].i,sp[2].i),(LPARAM)scroll);
+    return sp;
 }
 __declspec(dllexport) stack_item *Java_WinAwtProbe_move_stub(stack_item *sp,struct execenv *ee)
 {

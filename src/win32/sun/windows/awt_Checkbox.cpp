@@ -1,5 +1,6 @@
 /* Checkbox peer recovered from winawt_g1000344F..10003EEB. */
 #include "awt_Component.h"
+#include "awt_Font.h"
 extern "C" {
 #include "java_awt_Checkbox.h"
 }
@@ -39,20 +40,21 @@ public:
         DrawFrameControl(dc,&check,DFC_BUTTON,state);
         rect.left += extent + extent/4;
         SelectObject(dc,font ? font : GetStockObject(DEFAULT_GUI_FONT)); SetBkMode(dc,TRANSPARENT);
-        int length = GetWindowTextLengthW(hwnd); WCHAR *text = (WCHAR *)malloc((length+1)*sizeof(WCHAR));
+        Hjava_lang_String *text = unhand((Hjava_awt_Checkbox *)GetTarget())->label;
+        Hjava_awt_Font *javaFont = (Hjava_awt_Font *)execute_java_dynamic_method(EE(),(HObject *)GetTarget(),"getFont","()Ljava/awt/Font;");
         if (text) {
-            GetWindowTextW(hwnd,text,length+1); SIZE size; GetTextExtentPoint32W(dc,text,length,&size);
+            SIZE size = awtFontText(dc,javaFont,text,0,0,FALSE);
+            IntersectClipRect(dc,rect.left,rect.top,rect.right,rect.bottom);
             int y = (rect.bottom+rect.top-size.cy)/2;
             if (!IsWindowEnabled(hwnd)) {
                 SetTextColor(dc,GetSysColor(COLOR_3DHILIGHT));
-                ExtTextOutW(dc,rect.left+1,y+1,ETO_CLIPPED,&rect,text,length,NULL);
+                awtFontText(dc,javaFont,text,rect.left+1,y+1,TRUE);
                 SetTextColor(dc,GetSysColor(COLOR_GRAYTEXT));
             } else SetTextColor(dc,foreground);
-            ExtTextOutW(dc,rect.left,y,ETO_CLIPPED,&rect,text,length,NULL);
+            awtFontText(dc,javaFont,text,rect.left,y,TRUE);
             if (item->itemState & ODS_FOCUS) {
                 RECT focus = {rect.left-2,y,rect.left+size.cx+2,y+size.cy}; DrawFocusRect(dc,&focus);
             }
-            free(text);
         }
         RestoreDC(dc,saved);
         if (started && !paintPending) { paintPending = TRUE; PostMessage(hwnd,WM_APP+5,0,0); }

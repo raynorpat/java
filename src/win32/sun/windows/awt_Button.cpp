@@ -1,5 +1,6 @@
 /* Button creation10002435, BN_CLICKED100025B5, owner drawing100025F2. */
 #include "awt_Component.h"
+#include "awt_Font.h"
 extern "C" {
 #include "java_awt_Button.h"
 }
@@ -36,19 +37,19 @@ public:
         HBRUSH brush = CreateSolidBrush(background); FillRect(dc,&rect,brush); DeleteObject(brush);
         DrawEdge(dc,&rect,pressed ? EDGE_SUNKEN : EDGE_RAISED,BF_RECT|BF_SOFT);
         SelectObject(dc,font ? font : GetStockObject(DEFAULT_GUI_FONT)); SetBkMode(dc,TRANSPARENT);
-        int length = GetWindowTextLengthW(hwnd);
-        WCHAR *text = (WCHAR *)malloc((length+1)*sizeof(WCHAR));
+        Hjava_lang_String *text = unhand((Hjava_awt_Button *)GetTarget())->label;
+        Hjava_awt_Font *javaFont = (Hjava_awt_Font *)execute_java_dynamic_method(EE(),(HObject *)GetTarget(),"getFont","()Ljava/awt/Font;");
         if (text) {
-            GetWindowTextW(hwnd,text,length+1); SIZE size;
-            GetTextExtentPoint32W(dc,text,length,&size);
+            SIZE size = awtFontText(dc,javaFont,text,0,0,FALSE);
+            IntersectClipRect(dc,rect.left,rect.top,rect.right,rect.bottom);
             int x = (rect.left+rect.right-size.cx)/2+pressed;
             int y = (rect.top+rect.bottom-size.cy)/2+pressed;
             if (!IsWindowEnabled(hwnd)) {
                 SetTextColor(dc,GetSysColor(COLOR_3DHILIGHT));
-                ExtTextOutW(dc,x+1,y+1,ETO_CLIPPED,&rect,text,length,NULL);
+                awtFontText(dc,javaFont,text,x+1,y+1,TRUE);
                 SetTextColor(dc,GetSysColor(COLOR_GRAYTEXT));
             } else SetTextColor(dc,foreground);
-            ExtTextOutW(dc,x,y,ETO_CLIPPED,&rect,text,length,NULL); free(text);
+            awtFontText(dc,javaFont,text,x,y,TRUE);
         }
         if (item->itemState & ODS_FOCUS) { InflateRect(&rect,-3,-3); DrawFocusRect(dc,&rect); }
         RestoreDC(dc,saved);
