@@ -26,24 +26,26 @@ require_success("Validate Motif closure")
 set(cp "${JDK}/lib/classes.zip${sep}${OUT}/motif-peers.zip")
 file(STRINGS "${OUT}/peer-classes.txt" classes)
 file(STRINGS "${OUT}/native-classes.txt" native_classes)
+set(image_classes sun.awt.image.ImageRepresentation sun.awt.image.OffScreenImageSource)
 execute_process(COMMAND "${JAVAH}" -classpath "${cp}" -d "${OUT}/generated" ${classes}
   java.awt.Component java.awt.Button java.awt.Canvas java.awt.Window java.awt.Frame java.awt.Checkbox java.awt.Scrollbar java.awt.TextArea java.awt.ScrollPane
   java.awt.Font sun.awt.FontDescriptor java.awt.Insets java.awt.Color java.awt.Cursor java.awt.AWTEvent
+  ${image_classes}
   RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 120)
 require_success("Generate baseline-layout peer headers")
-execute_process(COMMAND "${JAVAH}" -stubs -classpath "${cp}" -d "${OUT}/generated" ${native_classes}
+execute_process(COMMAND "${JAVAH}" -stubs -classpath "${cp}" -d "${OUT}/generated" ${native_classes} ${image_classes}
   RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 120)
 require_success("Generate native peer bindings")
 set(actual)
-foreach(class ${native_classes})
+foreach(class ${native_classes} ${image_classes})
   string(REPLACE "." "_" filename "${class}")
   file(READ "${OUT}/generated/${filename}.c" stub)
-  string(REGEX MATCHALL "Java_sun_awt_motif_[A-Za-z0-9_]+_stub" names "${stub}")
+  string(REGEX MATCHALL "Java_sun_awt_(motif_|image_(ImageRepresentation|OffScreenImageSource)_)[A-Za-z0-9_]+_stub" names "${stub}")
   list(APPEND actual ${names})
 endforeach()
 list(REMOVE_DUPLICATES actual)
 list(SORT actual)
-file(STRINGS "${ROOT}/tools/solaris118-awt-native-entries.txt" expected REGEX "^Java_sun_awt_motif_")
+file(STRINGS "${ROOT}/tools/solaris118-awt-native-entries.txt" expected REGEX "^Java_sun_awt_(motif_|image_(ImageRepresentation|OffScreenImageSource)_)")
 list(SORT expected)
 if(NOT "${actual}" STREQUAL "${expected}")
   message(FATAL_ERROR "Generated Motif bindings do not match Solaris entries")
@@ -57,4 +59,4 @@ execute_process(COMMAND "${JAVAC}" -classpath "${cp}" -d "${OUT}/tests"
   WORKING_DIRECTORY "${ROOT}/tests/awt118"
   RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 60)
 require_success("Compile peer boundary fixtures")
-file(WRITE "${OUT}/bindings.ok" "76 classes, 199 Motif native bindings, baseline headers\n")
+file(WRITE "${OUT}/bindings.ok" "76 classes, 199 Motif and 8 image native bindings, baseline headers\n")

@@ -8,7 +8,7 @@ names = manifest.read_text().splitlines()
 if len(names) != len(set(names)):
     raise ValueError("Duplicate implemented binding")
 stubs = {}
-for path in generated.glob("sun_awt_motif_*.c"):
+for path in list(generated.glob("sun_awt_motif_*.c")) + list(generated.glob("sun_awt_image_*.c")):
     for match in re.finditer(r"JAVA_PUBLIC_API\(stack_item\*\)\s+Java_(\w+)_stub\([^}]+^}", path.read_text(), re.M):
         stubs[match[1]] = match[0]
 missing = set(names) - stubs.keys()

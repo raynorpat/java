@@ -3,10 +3,12 @@
 #include "sun_awt_motif_X11Graphics.h"
 #include "java_awt_Component.h"
 #include "java_awt_Color.h"
+#include "awt_Image118.h"
 #include <stdlib.h>
 
 typedef struct {
     AwtPeer *peer;
+    AwtImage *image;
     Drawable drawable;
     GC gc;
     XRectangle clip;
@@ -18,9 +20,11 @@ typedef struct {
 static AwtGraphics *graphics(Hsun_awt_motif_X11Graphics *self)
 {
     AwtGraphics *data=(AwtGraphics *)unhand(self)->pData;
-    if (!data || !data->peer || !data->peer->widget || !XtIsRealized(data->peer->widget)) return NULL;
+    if (!data) return NULL;
+    if (data->image) { if (data->image->retired) return NULL; }
+    else if (!data->peer || !data->peer->widget || !XtIsRealized(data->peer->widget)) return NULL;
     if (!data->gc) {
-        data->drawable=XtWindow(data->peer->widget);
+        data->drawable=data->image ? data->image->pixmap : XtWindow(data->peer->widget);
         data->gc=XCreateGC(awt_display,data->drawable,0,NULL);
         if (!data->gc) return NULL;
         XSetGraphicsExposures(awt_display,data->gc,True);
@@ -51,6 +55,7 @@ void sun_awt_motif_X11Graphics_createFromGraphics(Hsun_awt_motif_X11Graphics *se
         else {
             *data=*from; data->gc=NULL;
             if (data->peer) data->peer->references++;
+            if (data->image) data->image->references++;
             unhand(self)->pData=(long)data;
             if (graphics(source) && graphics(self)) {
                 XCopyGC(awt_display,from->gc,GCForeground|GCBackground|GCFunction|GCFont,data->gc);
@@ -67,6 +72,7 @@ void sun_awt_motif_X11Graphics_disposeImpl(Hsun_awt_motif_X11Graphics *self)
     if (data) {
         if (data->gc) XFreeGC(awt_display,data->gc);
         if (data->peer) awt118_release_peer(data->peer);
+        if (data->image) awt118_release_image(data->image);
         free(data); unhand(self)->pData=0;
     }
     AWT_UNLOCK();
@@ -150,9 +156,10 @@ void sun_awt_motif_X11Graphics_clearRect(Hsun_awt_motif_X11Graphics *self,long x
     if (width<=0 || height<=0) return;
     AWT_LOCK(); data=graphics(self);
     if (data) {
-        background=unhand(unhand(unhand(self)->peer)->target)->background;
+        background=data->image ? NULL : unhand(unhand(unhand(self)->peer)->target)->background;
         XSetFunction(awt_display,data->gc,GXcopy);
-        XSetForeground(awt_display,data->gc,background ? awt118_pixel(unhand(background)->value) : WhitePixel(awt_display,awt_screen));
+        XSetForeground(awt_display,data->gc,data->image ? data->image->background :
+            background ? awt118_pixel(unhand(background)->value) : awt118_pixel(0xffffff));
         XFillRectangle(awt_display,data->drawable,data->gc,x+unhand(self)->originX,y+unhand(self)->originY,width,height);
         XSetForeground(awt_display,data->gc,data->foreground ^ (data->xorMode ? data->xorPixel : 0));
         XSetFunction(awt_display,data->gc,data->xorMode ? GXxor : GXcopy);
@@ -372,4 +379,39 @@ long sun_awt_motif_X11Graphics_drawMFCharsSegment(Hsun_awt_motif_X11Graphics *se
         }
     }
     AWT_UNLOCK(); return advance;
+}
+
+/* Release 2e594/2fc24: offscreen graphics and unscaled image drawing. */
+void sun_awt_motif_X11Graphics_imageCreate(Hsun_awt_motif_X11Graphics *self,Hsun_awt_image_ImageRepresentation *image)
+{
+    AwtImage *source;
+    AwtGraphics *data;
+    AWT_LOCK(); source=awt118_image(image,NULL);
+    if (!self || !source) SignalError(EE(),"java/lang/NullPointerException",NULL);
+    else {
+        data=(AwtGraphics *)calloc(1,sizeof(*data));
+        if (!data) SignalError(EE(),"java/lang/OutOfMemoryError",NULL);
+        else {
+            source->references++; data->image=source; data->drawable=source->pixmap;
+            unhand(self)->pData=(long)data;
+        }
+    }
+    AWT_UNLOCK();
+}
+void sun_awt_image_ImageRepresentation_imageDraw(Hsun_awt_image_ImageRepresentation *self,struct Hjava_awt_Graphics *target,long x,long y,Hjava_awt_Color *background)
+{
+    AwtImage *source;
+    AwtGraphics *data;
+    Hsun_awt_motif_X11Graphics *destination=(Hsun_awt_motif_X11Graphics *)target;
+    if (!target) { SignalError(EE(),"java/lang/NullPointerException",NULL); return; }
+    if (obj_classblock((HObject *)target)!=FindClass(EE(),"sun/awt/motif/X11Graphics",TRUE)) {
+        SignalError(EE(),"java/lang/IllegalArgumentException",NULL); return;
+    }
+    AWT_LOCK(); data=graphics(destination); source=awt118_image(self,NULL);
+    if (data && source && !source->retired) {
+        XCopyArea(awt_display,source->pixmap,data->drawable,data->gc,0,0,source->width,source->height,
+            x+unhand(destination)->originX,y+unhand(destination)->originY);
+        XFlush(awt_display);
+    }
+    AWT_UNLOCK();
 }

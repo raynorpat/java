@@ -226,3 +226,19 @@ are retained explicitly, including the tested truncation boundary.
 All 18 focused Linux Debug tests pass; 134 Motif bindings are implemented.
 Offscreen images, image delivery/scaling, complete multifont/locale behavior,
 printing and remaining window/input peers are still open Phase 6 gates.
+
+## Offscreen image checkpoint
+
+Release 0x32ecc/0x33620/0x36280/0x36314 supplies image storage, offscreen
+initialization, disposal and consumer delivery; 0x2e594/0x2fc24 supplies graphics
+creation and image copying. The native binding audit now includes the eight
+ImageRepresentation/OffScreenImageSource entries against the Solaris inventory.
+Five additional adapters are implemented, for 139 entries in total.
+
+Image115 first failed at offscreenInit. It now verifies exact offscreen pixels,
+cloned graphics, copying to a window and background clearing over eight cycles.
+A consumer removes itself, flushes the image and requests GC during its first
+row callback; delivery stops safely. Retained graphics also tolerate image flush.
+All 19 focused Linux Debug Motif tests pass (67.16 seconds). Incoming pixel
+conversion, transparency, scaling, other visuals and the full platform/demo
+gates remain open; this checkpoint does not complete Task 5 or Phase 6.
