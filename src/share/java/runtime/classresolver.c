@@ -536,7 +536,17 @@ Locked_ResolveClass(ClassClass * cb, char **detail)
 	definition of this routine if different depending on if we
 	are compiling the interpreter or not.
     */
-    if (!cbIsPrimitive(cb) && (ret = RuntimeInitClass(0, cb)) != 0) {
+    /* Sun javai_g 10010E9B resolves the component of a synthetic array
+     * instead of passing its private constant pool to the verifier. */
+    if (cbName(cb)[0] == SIGNATURE_ARRAY) {
+        ClassClass *component = (ClassClass *)
+            cbConstantPool(cb)[CONSTANT_POOL_ARRAY_CLASS_INDEX].p;
+        if (component && (ret = ResolveClass(component, detail)) != 0) {
+            CCClear(cb, Resolved);
+            CCSet(cb, Error);
+            return ret;
+        }
+    } else if (!cbIsPrimitive(cb) && (ret = RuntimeInitClass(0, cb)) != 0) {
 	*detail = cbName(cb);
 	CCClear(cb, Resolved);
 	CCSet(cb, Error);

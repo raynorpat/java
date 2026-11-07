@@ -3,4 +3,5 @@ custom=115 233
 lazy=resource115
 defined=true
 payload=resource115
+array=2 3
 missing=true

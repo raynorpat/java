@@ -39,6 +39,8 @@ public class Resources {
         Class payload = loader.loadClass("ResourcePayload", true);
         System.out.println("defined=" + (payload.getClassLoader() == loader));
         System.out.println("payload=" + payload.newInstance().toString());
+        Object[] array = (Object[])java.lang.reflect.Array.newInstance(payload, new int[] {2, 3});
+        System.out.println("array=" + array.length + " " + ((Object[])array[0]).length);
         System.out.println("missing=" + (loader.getResourceAsStream("absent-vm115.properties") == null));
     }
 }
