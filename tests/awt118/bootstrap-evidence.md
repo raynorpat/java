@@ -441,3 +441,22 @@ This does not close the visual, full locale/window, installed-demo, cross-platfo
 or final-review gates.
 
 All 33 focused Linux Debug tests pass (125.31 seconds).
+
+## Indexed and 16-bit visual checkpoint
+
+Visual115 initially failed at the explicit indexed-color-model boundary.
+Release 0x3e058/0x3df14/0x3ec48 supplies allocation, nearest-color matching and
+IndexColorModel construction. Linux retains existing shared colormap colors,
+allocates primary colors, a gray ramp and a deterministic six-level cube, and
+keeps 32 cells available for later Motif/client allocation. Without that reserve,
+Xvfb reported an unavailable default widget background; the corrected run is clean.
+Gray matches prefer gray entries, as in the recovered matcher.
+
+Ruling: use the host-allocated deterministic palette instead of Solaris's adaptive
+img_makePalette optimizer. This keeps a stable Linux color model and preserves
+actual X pixel/color ownership; palette choice and low-depth image quantization
+are a documented host adaptation, not a claim of Solaris palette/dither parity.
+
+Forced-default 8-bit and 16-bit Xvfb visuals pass exact primary/gray drawing,
+producer conversion, offscreen delivery and repeated flush/GC checks. The 24-bit
+toolkit/raster/image tests plus both visual tests pass together (5/5, 12.02 seconds).

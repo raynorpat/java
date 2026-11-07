@@ -101,6 +101,7 @@ static unsigned long channel(unsigned long value,unsigned long mask)
 }
 unsigned long awt118_pixel(unsigned long rgb)
 {
+    if(awt_visInfo.class!=TrueColor) return awt118_index_pixel(rgb);
     return channel((rgb>>16)&255,awt_visInfo.red_mask) |
         channel((rgb>>8)&255,awt_visInfo.green_mask) | channel(rgb&255,awt_visInfo.blue_mask);
 }

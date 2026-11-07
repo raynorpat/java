@@ -73,6 +73,7 @@ void sun_awt_motif_MToolkit_init(Hsun_awt_motif_MToolkit *self)
     awt_cmap = awt_visInfo.visual == DefaultVisual(awt_display, awt_screen)
         ? DefaultColormap(awt_display, awt_screen)
         : XCreateColormap(awt_display, RootWindow(awt_display, awt_screen), awt_visInfo.visual, AllocNone);
+    awt118_init_colors();
     AWT_UNLOCK();
 }
 
@@ -115,8 +116,7 @@ void sun_awt_motif_MToolkit_beep(Hsun_awt_motif_MToolkit *self)
 struct Hjava_awt_image_ColorModel *sun_awt_motif_MToolkit_makeColorModel(Hsun_awt_motif_MToolkit *self)
 {
     if (awt_visInfo.class != TrueColor) {
-        SignalError(EE(), "java/lang/InternalError", "Indexed X11 color model not yet reconstructed");
-        return NULL;
+        return awt118_index_model();
     }
     return (struct Hjava_awt_image_ColorModel *)execute_java_constructor(EE(),
         "java/awt/image/DirectColorModel", NULL, "(IIIII)", awt_visInfo.depth,
