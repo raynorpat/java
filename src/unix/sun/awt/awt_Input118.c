@@ -72,12 +72,16 @@ static void post_event(AwtPeer *peer,XEvent *event,Hjava_awt_AWTEvent *javaEvent
 static void post_mouse(AwtPeer *peer,XEvent *event,int id,int count,int popup,int replay)
 {
     Hjava_awt_AWTEvent *javaEvent;
+    Window child;
+    int x=event->xbutton.x,y=event->xbutton.y;
     unsigned int state=event->xbutton.state;
+    if (event->xany.window!=XtWindow(peer->widget))
+        XTranslateCoordinates(awt_display,event->xany.window,XtWindow(peer->widget),x,y,&x,&y,&child);
     if (event->type==ButtonPress && event->xbutton.button<=3)
         state|=Button1Mask<<(event->xbutton.button-1);
     javaEvent=(Hjava_awt_AWTEvent *)execute_java_constructor(EE(),"java/awt/event/MouseEvent",NULL,
         "(Ljava/awt/Component;IJIIIIZ)",unhand(peer->javaPeer)->target,id,
-        (int64_t)event->xbutton.time,modifiers(state),event->xbutton.x,event->xbutton.y,count,popup);
+        (int64_t)event->xbutton.time,modifiers(state),x,y,count,popup);
     post_event(peer,event,javaEvent,replay);
 }
 
@@ -154,11 +158,12 @@ int awt118_filter_input(XEvent *event)
     int id;
     if (event->type<KeyPress || event->type>LeaveNotify) return 0;
     widget=XtWindowToWidget(awt_display,event->xany.window);
+    if (!widget) return 0;
     if (widget && (event->type==KeyPress || event->type==KeyRelease)) {
         focus=XmGetFocusWidget(widget);
         if (focus) widget=focus;
     }
-    for (peer=peers;peer && peer->widget!=widget;peer=peer->next) {}
+    for (peer=peers;peer && peer->widget!=widget && peer->content!=widget;peer=peer->next) {}
     if (!peer || !XtIsSensitive(widget)) return 0;
     switch (event->type) {
     case KeyPress: case KeyRelease:

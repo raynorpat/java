@@ -35,6 +35,7 @@ static void destroyed(Widget widget,XtPointer closure,XtPointer call)
     AwtPeer *data=(AwtPeer *)closure;
     awt118_forget_input(data);
     data->widget=NULL;
+    data->content=NULL;
 }
 
 static void canvas_event(Widget widget,XtPointer closure,XEvent *event,Boolean *dispatch)
@@ -54,6 +55,7 @@ void awt118_register_widget(Hsun_awt_motif_MComponentPeer *peer)
     awt118_register_input(data);
     XtAddCallback(data->widget,XmNdestroyCallback,destroyed,data);
     XtAddEventHandler(data->widget,peer_events,False,canvas_event,peer);
+    if (data->content) XtAddEventHandler(data->content,peer_events,False,canvas_event,peer);
 }
 
 void awt118_dispose_peer(Hsun_awt_motif_MComponentPeer *peer)
@@ -64,11 +66,12 @@ void awt118_dispose_peer(Hsun_awt_motif_MComponentPeer *peer)
     awt118_forget_input(data);
     if (data->widget) {
         XtRemoveEventHandler(data->widget,peer_events,False,canvas_event,peer);
+        if (data->content) XtRemoveEventHandler(data->content,peer_events,False,canvas_event,peer);
         if (XtHasCallbacks(data->widget,XmNactivateCallback)!=XtCallbackNoList)
             XtRemoveAllCallbacks(data->widget,XmNactivateCallback);
         XtRemoveCallback(data->widget,XmNdestroyCallback,destroyed,data);
         XtDestroyWidget(data->shell ? data->shell : data->widget);
-        data->widget=NULL; data->shell=NULL;
+        data->widget=NULL; data->shell=NULL; data->content=NULL;
     }
     if (data->cursor) XFreeCursor(awt_display,data->cursor);
     data->cursor=None;
@@ -180,7 +183,10 @@ void sun_awt_motif_MComponentPeer_pSetForeground(Hsun_awt_motif_MComponentPeer *
     AwtPeer *data;
     if (!color) { SignalError(EE(),"java/lang/NullPointerException",NULL); return; }
     AWT_LOCK(); data=awt118_peer(self);
-    if (data && data->widget) XtVaSetValues(data->widget,XmNforeground,awt118_pixel(unhand(color)->value),NULL);
+    if (data && data->widget) {
+        XtVaSetValues(data->widget,XmNforeground,awt118_pixel(unhand(color)->value),NULL);
+        if (data->content) XtVaSetValues(data->content,XmNforeground,awt118_pixel(unhand(color)->value),NULL);
+    }
     AWT_UNLOCK();
 }
 void sun_awt_motif_MComponentPeer_pSetBackground(Hsun_awt_motif_MComponentPeer *self,Hjava_awt_Color *color)
@@ -188,7 +194,10 @@ void sun_awt_motif_MComponentPeer_pSetBackground(Hsun_awt_motif_MComponentPeer *
     AwtPeer *data;
     if (!color) { SignalError(EE(),"java/lang/NullPointerException",NULL); return; }
     AWT_LOCK(); data=awt118_peer(self);
-    if (data && data->widget) XmChangeColor(data->widget,awt118_pixel(unhand(color)->value));
+    if (data && data->widget) {
+        XmChangeColor(data->widget,awt118_pixel(unhand(color)->value));
+        if (data->content) XmChangeColor(data->content,awt118_pixel(unhand(color)->value));
+    }
     AWT_UNLOCK();
 }
 void sun_awt_motif_MComponentPeer_pSetFont(Hsun_awt_motif_MComponentPeer *self,struct Hjava_awt_Font *font)
@@ -199,7 +208,7 @@ void sun_awt_motif_MComponentPeer_pSetFont(Hsun_awt_motif_MComponentPeer *self,s
     AWT_LOCK(); data=awt118_peer(self); xfont=awt118_font(font);
     if (data && data->widget && xfont) {
         list=XmFontListCreate(xfont,XmFONTLIST_DEFAULT_TAG);
-        XtVaSetValues(data->widget,XmNfontList,list,NULL); XmFontListFree(list);
+        XtVaSetValues(data->content ? data->content : data->widget,XmNfontList,list,NULL); XmFontListFree(list);
     }
     AWT_UNLOCK();
 }

@@ -19,7 +19,7 @@ struct Hsun_awt_FontDescriptor;
 XFontStruct *awt118_font(struct Hjava_awt_Font *font);
 XFontStruct *awt118_segment_font(struct Hjava_awt_Font *font, struct Hsun_awt_FontDescriptor *descriptor);
 typedef struct AwtPeer {
-    Widget widget, shell;
+    Widget widget, shell, content;
     Cursor cursor;
     int references;
     Hsun_awt_motif_MComponentPeer *javaPeer;

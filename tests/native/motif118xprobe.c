@@ -10,7 +10,8 @@
 static Widget widget(Hjava_awt_Component *target)
 {
     Hsun_awt_motif_MComponentPeer *peer=(Hsun_awt_motif_MComponentPeer *)unhand(target)->peer;
-    return peer && unhand(peer)->pData ? *(Widget *)unhand(peer)->pData : NULL;
+    AwtPeer *data=peer ? awt118_peer(peer) : NULL;
+    return data ? (data->content ? data->content : data->widget) : NULL;
 }
 
 JAVA_PUBLIC_API(stack_item *) Java_Input115_key_stub(stack_item *p,struct execenv *ee)
@@ -33,6 +34,24 @@ JAVA_PUBLIC_API(stack_item *) Java_Widgets115_state_stub(stack_item *p,struct ex
 {
     AWT_LOCK();
     p[0].i=XmToggleButtonGetState(widget(p[0].p))!=False;
+    AWT_UNLOCK();
+    return p+1;
+}
+JAVA_PUBLIC_API(stack_item *) Java_List115_itemCount_stub(stack_item *p,struct execenv *ee)
+{
+    int value;
+    AWT_LOCK();
+    XtVaGetValues(widget(p[0].p),XmNitemCount,&value,NULL);
+    p[0].i=value;
+    AWT_UNLOCK();
+    return p+1;
+}
+JAVA_PUBLIC_API(stack_item *) Java_List115_topIndex_stub(stack_item *p,struct execenv *ee)
+{
+    int value;
+    AWT_LOCK();
+    XtVaGetValues(widget(p[0].p),XmNtopItemPosition,&value,NULL);
+    p[0].i=value-1;
     AWT_UNLOCK();
     return p+1;
 }

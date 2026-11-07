@@ -132,3 +132,17 @@ detachment expectation was corrected using the original 1.1.5 Checkbox bytecode:
 setCheckboxGroup first clears the old group's selection, so the detached box
 starts unchecked. All eleven focused Linux Debug tests pass. The native binding
 subset is now 57 entries. Multifont label conversion remains a Task 5 gate.
+
+## Scrolled-list checkpoint
+
+Release 0x2b780..0x2bed0 and debug Slist_callback at 0x5b860 establish a compound
+peer: the public widget is the scrolled window and selection operates on its
+inner XmList. The native record now tracks that content widget; input, focus,
+font and color propagation reach it, and mouse coordinates translate back to
+the Java component. Disposal removes both event handlers before retiring widgets.
+
+List115 first failed at missing MListPeer.create. Its six-cycle check now passes
+multiple/single selection, insertion/deletion, native item counts, native scroll
+position, mouse selection, Return activation, clearing and disposal. The partial
+native inventory has 66 entries. Locale-aware item strings and menu/modal input
+remain separate open gates.
