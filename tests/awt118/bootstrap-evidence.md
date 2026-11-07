@@ -116,3 +116,19 @@ correct that host integration issue. Checks cover relative screen coordinates,
 focus notification, lowercase, Shift, Control, arrow keys, consumed Space, and
 the prior mouse/disposal cases. Remaining input work includes dynamic modifier
 mapping, keypad/locale/XIM handling, edited-key replay, menus and modality.
+
+## Label and checkbox checkpoint
+
+Label resources follow release 0x2bff0/0x2c0ac/0x2c208. Toggle creation, state,
+group indication and callbacks follow debug 0x482e0..0x48f78 and release
+0x24d38..0x25044. Toggle callbacks invoke action(boolean); programmatic resource
+updates do not synthesize ItemEvents. CheckboxGroup exclusivity remains in the
+unchanged Java classes.
+
+Widgets115 failed on missing MLabelPeer.create before implementation. It now
+checks native label contents/alignment, null labels, actual checkbox state,
+radio selection and group detachment over eight lifetime cycles. The initial
+detachment expectation was corrected using the original 1.1.5 Checkbox bytecode:
+setCheckboxGroup first clears the old group's selection, so the detached box
+starts unchecked. All eleven focused Linux Debug tests pass. The native binding
+subset is now 57 entries. Multifont label conversion remains a Task 5 gate.

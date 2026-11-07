@@ -4,6 +4,8 @@
 #include "sun_awt_motif_MComponentPeer.h"
 #include <X11/extensions/XTest.h>
 #include <X11/keysym.h>
+#include <Xm/ToggleB.h>
+#include <string.h>
 
 static Widget widget(Hjava_awt_Component *target)
 {
@@ -25,6 +27,36 @@ JAVA_PUBLIC_API(stack_item *) Java_Input115_key_stub(stack_item *p,struct execen
     XFlush(awt_display);
     AWT_UNLOCK();
     return p;
+}
+
+JAVA_PUBLIC_API(stack_item *) Java_Widgets115_state_stub(stack_item *p,struct execenv *ee)
+{
+    AWT_LOCK();
+    p[0].i=XmToggleButtonGetState(widget(p[0].p))!=False;
+    AWT_UNLOCK();
+    return p+1;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Widgets115_alignment_stub(stack_item *p,struct execenv *ee)
+{
+    unsigned char value;
+    AWT_LOCK();
+    XtVaGetValues(widget(p[0].p),XmNalignment,&value,NULL);
+    p[0].i=value;
+    AWT_UNLOCK();
+    return p+1;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Widgets115_label_stub(stack_item *p,struct execenv *ee)
+{
+    XmString label;
+    char *text=NULL;
+    AWT_LOCK();
+    XtVaGetValues(widget(p[0].p),XmNlabelString,&label,NULL);
+    XmStringGetLtoR(label,XmFONTLIST_DEFAULT_TAG,&text);
+    p[0].p=makeJavaString(text ? text : "",text ? strlen(text) : 0);
+    if (text) XtFree(text);
+    XmStringFree(label);
+    AWT_UNLOCK();
+    return p+1;
 }
 
 JAVA_PUBLIC_API(stack_item *) Java_Window115_click_stub(stack_item *p,struct execenv *ee)

@@ -11,7 +11,7 @@ public class Window115 {
             paints++;
         }
     }
-    static native void click(Button button);
+    static native void click(Component component);
     static native int pixel(Canvas canvas, int x, int y);
     public static void main(String[] args) throws Exception {
         System.getProperties().put("awt.toolkit", "sun.awt.motif.MToolkit");
