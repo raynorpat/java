@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.0...3.10)
 project(SunJava C)
+if(WIN32)
+  enable_language(CXX)
+endif()
 set(JDK115_DIR "${CMAKE_SOURCE_DIR}/vendor/jdk1.1.5" CACHE PATH "Sun JDK 1.1.5 reference tree")
 if(NOT EXISTS "${JDK115_DIR}/lib/classes.zip")
   message(FATAL_ERROR "JDK115_DIR does not contain lib/classes.zip - run tools/vendor.cmake")
@@ -489,6 +492,13 @@ add_executable(mach115-condition tests/native/mach115-condition.c
   src/unix/java/runtime/condition_md.c)
 target_include_directories(mach115-condition BEFORE PRIVATE tests/native/mach115)
 add_test(NAME mach115-condition COMMAND mach115-condition)
+if(WIN32)
+  add_executable(winawt115-toolkit tests/native/winawt115-toolkit.c
+    src/win32/sun/windows/awt_Toolkit.cpp)
+  target_link_libraries(winawt115-toolkit user32 gdi32)
+  add_test(NAME winawt115-toolkit COMMAND winawt115-toolkit
+    "${JDK115_DIR}/bin/winawt$<$<CONFIG:Debug>:_g>.dll")
+endif()
 add_executable(mach115-condvar tests/native/mach115-condvar.c
   src/unix/java/runtime/condvar_md.c)
 add_executable(mach115-condvar-integration tests/native/mach115-condition.c
