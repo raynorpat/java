@@ -321,3 +321,21 @@ FileDialog115 failed at create, then passed real XTest Open/Save selections,
 cancellation, selected directory, font updates and exact filtered native list
 counts over four cycles. All 23 focused Linux Debug tests pass (100.79 seconds),
 with 181 bindings. Locale/font conversion and decorated-window gates remain open.
+
+## Clipboard checkpoint
+
+Release 0x2ffe4..0x30870 supplies eight selection bindings, Xt ownership,
+flavor-to-atom mapping, conversion and asynchronous receive callbacks. Java
+callbacks release the AWT monitor; each receive owns its completion state so
+simultaneous selections do not share the binary's global completion flags.
+TARGETS replies accept XA_ATOM as emitted by standard X11 clients as well as
+the original TARGETS type check. Native lists and text are released after transfer.
+
+Clipboard115 failed at init, then an external read caught the need to select
+the first matching flavor (a later stream flavor cannot supply String data).
+An independent X11 process verifies Java-to-X11 text, ownership-loss callbacks,
+XA_ATOM targets and X11-to-Java text over four cycles with GC. The helper's
+shutdown pipe needed an explicit flush; GDB located that wait in Process.waitFor.
+All 24 focused Linux Debug tests pass (112.57 seconds), with 189 bindings.
+Non-ASCII/compound-text locale conversion and clipboard paste into widgets
+remain part of the full locale/input gate.
