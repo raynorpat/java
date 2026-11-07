@@ -26,7 +26,7 @@ foreach(probe awt115probe awtgraphics115probe awtmenu115probe awtremaining115pro
   configure_file("${PROBE_DIR}/${probe}.dll" "${OUT}/probe/${probe}.dll" COPYONLY)
 endforeach()
 set(ENV{PATH} "${IMAGE}/bin;${OUT}/probe;$ENV{SystemRoot}/System32;$ENV{SystemRoot}")
-foreach(CLASS Toolkit115 Lifecycle115 Menu115 Input115 Images115 DrawingSurface115 SurfaceLocks115 Clipboard115 EmbeddedFrame115 FrameIcon115 PrintJob115)
+foreach(CLASS Toolkit115 Lifecycle115 DefaultFocus115 FocusLock115 Validation115 Menu115 Input115 Images115 DrawingSurface115 SurfaceLocks115 Clipboard115 EmbeddedFrame115 FrameIcon115 PrintJob115)
   include("${ROOT}/tests/awt/run115.cmake")
 endforeach()
 message(STATUS "Installed Phase 4 image checks passed")

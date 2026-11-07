@@ -550,6 +550,16 @@ if(WIN32)
     src/win32/sun/windows/awt_Clipboard.cpp src/win32/sun/windows/winawt.def)
   target_include_directories(winawt BEFORE PRIVATE "${awt_gen}")
   target_link_libraries(winawt javai user32 gdi32 advapi32 comdlg32)
+  add_executable(awtdemos115 tests/native/awtdemos115.c)
+  target_link_libraries(awtdemos115 user32 gdi32)
+  add_test(NAME awt-demo-inventory COMMAND ${CMAKE_COMMAND}
+    -DROOT=${CMAKE_SOURCE_DIR} -DOUT=${CMAKE_BINARY_DIR}/demo-inventory115
+    -P ${CMAKE_SOURCE_DIR}/tests/tools/winawt-demos115.cmake)
+  add_test(NAME awt-demo-runner COMMAND ${CMAKE_COMMAND}
+    -DROOT=${CMAKE_SOURCE_DIR} -DOUT=${CMAKE_BINARY_DIR}/demo-runner115-$<CONFIG>
+    -DMODE=SelfTest -DRUNNER=$<TARGET_FILE:awtdemos115>
+    -P ${CMAKE_SOURCE_DIR}/tests/tools/winawt-demos115.cmake)
+  set_tests_properties(awt-demo-runner PROPERTIES RESOURCE_LOCK awt_desktop TIMEOUT 100)
   install(TARGETS winawt RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
   add_test(NAME winawt-exports COMMAND ${CMAKE_COMMAND}
     "-DDUMPBIN=${msvc_bin}/dumpbin.exe" "-DDLL=$<TARGET_FILE:winawt>"
