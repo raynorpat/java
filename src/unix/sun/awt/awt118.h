@@ -36,6 +36,7 @@ void awt118_register_input(AwtPeer *peer);
 void awt118_forget_input(AwtPeer *peer);
 int awt118_filter_input(XEvent *event);
 int awt118_dispatch_putback(void);
+void awt118_focus_event(Hsun_awt_motif_MComponentPeer *peer,XEvent *event);
 #define AWT_LOCK() monitorEnter((unsigned int)awt_lock)
 #define AWT_UNLOCK() monitorExit((unsigned int)awt_lock)
 #endif

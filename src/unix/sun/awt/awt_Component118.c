@@ -7,7 +7,11 @@
 #include "java_awt_AWTEvent.h"
 #include <X11/Shell.h>
 #include <Xm/DrawingA.h>
+#include <Xm/ScrollBar.h>
 #include <stdlib.h>
+
+static const EventMask peer_events=ExposureMask|FocusChangeMask|KeyPressMask|KeyReleaseMask|
+    ButtonPressMask|ButtonReleaseMask|PointerMotionMask|EnterWindowMask|LeaveWindowMask;
 
 AwtPeer *awt118_peer(Hsun_awt_motif_MComponentPeer *peer)
 { return peer ? (AwtPeer *)unhand(peer)->pData : NULL; }
@@ -36,6 +40,7 @@ static void destroyed(Widget widget,XtPointer closure,XtPointer call)
 static void canvas_event(Widget widget,XtPointer closure,XEvent *event,Boolean *dispatch)
 {
     Hsun_awt_motif_MComponentPeer *peer=(Hsun_awt_motif_MComponentPeer *)closure;
+    if (event->type==FocusIn || event->type==FocusOut) awt118_focus_event(peer,event);
     if (event->type==Expose) {
         execute_java_dynamic_method(EE(),(HObject *)peer,"handleExpose","(IIII)V",
             event->xexpose.x,event->xexpose.y,event->xexpose.width,event->xexpose.height);
@@ -48,7 +53,7 @@ void awt118_register_widget(Hsun_awt_motif_MComponentPeer *peer)
     AwtPeer *data=awt118_peer(peer);
     awt118_register_input(data);
     XtAddCallback(data->widget,XmNdestroyCallback,destroyed,data);
-    XtAddEventHandler(data->widget,ExposureMask,False,canvas_event,peer);
+    XtAddEventHandler(data->widget,peer_events,False,canvas_event,peer);
 }
 
 void awt118_dispose_peer(Hsun_awt_motif_MComponentPeer *peer)
@@ -58,7 +63,7 @@ void awt118_dispose_peer(Hsun_awt_motif_MComponentPeer *peer)
     unhand(peer)->pData=0;
     awt118_forget_input(data);
     if (data->widget) {
-        XtRemoveEventHandler(data->widget,ExposureMask,False,canvas_event,peer);
+        XtRemoveEventHandler(data->widget,peer_events,False,canvas_event,peer);
         if (XtHasCallbacks(data->widget,XmNactivateCallback)!=XtCallbackNoList)
             XtRemoveAllCallbacks(data->widget,XmNactivateCallback);
         XtRemoveCallback(data->widget,XmNdestroyCallback,destroyed,data);
@@ -119,6 +124,57 @@ void sun_awt_motif_MComponentPeer_pReshape(Hsun_awt_motif_MComponentPeer *self,l
 }
 void sun_awt_motif_MComponentPeer_pDispose(Hsun_awt_motif_MComponentPeer *self)
 { AWT_LOCK(); awt118_dispose_peer(self); XFlush(awt_display); AWT_UNLOCK(); }
+
+/* Solaris release 20264: translate the realized widget's origin. */
+struct Hjava_awt_Point *sun_awt_motif_MComponentPeer_pGetLocationOnScreen(Hsun_awt_motif_MComponentPeer *self)
+{
+    AwtPeer *data;
+    Position x=0,y=0;
+    struct Hjava_awt_Point *point=NULL;
+    AWT_LOCK(); data=awt118_peer(self);
+    if (!data || !data->widget) SignalError(EE(),"java/lang/NullPointerException",NULL);
+    else if (!XtIsRealized(data->widget)) SignalError(EE(),"java/lang/InternalError","Widget not visible");
+    else {
+        XtTranslateCoords(data->widget,0,0,&x,&y);
+        point=(struct Hjava_awt_Point *)execute_java_constructor(EE(),"java/awt/Point",NULL,"(II)",x,y);
+    }
+    AWT_UNLOCK();
+    return point;
+}
+
+static void traversal(Widget widget,Boolean enabled)
+{
+    WidgetList children;
+    Cardinal count,i;
+    XtVaGetValues(widget,XtNchildren,&children,XtNnumChildren,&count,NULL);
+    for (i=0;i<count;i++) {
+        if (!XtIsSubclass(children[i],xmScrollBarWidgetClass))
+            XtVaSetValues(children[i],XmNtraversalOn,enabled,NULL);
+        if (XtIsSubclass(children[i],xmDrawingAreaWidgetClass)) traversal(children[i],enabled);
+    }
+}
+
+/* Solaris release 207a4/20838: focus a canvas without selecting its child. */
+void sun_awt_motif_MComponentPeer_requestFocus(Hsun_awt_motif_MComponentPeer *self)
+{
+    AwtPeer *data;
+    Widget shell;
+    Boolean canvas;
+    AWT_LOCK(); data=awt118_peer(self);
+    if (!data || !data->widget) SignalError(EE(),"java/lang/NullPointerException",NULL);
+    else {
+        canvas=XtIsSubclass(data->widget,xmDrawingAreaWidgetClass);
+        if (canvas) traversal(data->widget,False);
+        if (!XmProcessTraversal(data->widget,XmTRAVERSE_CURRENT)) {
+            shell=data->widget;
+            while (shell && !XtIsShell(shell)) shell=XtParent(shell);
+            if (shell) XtSetKeyboardFocus(shell,data->widget);
+        }
+        if (canvas) traversal(data->widget,True);
+        XFlush(awt_display);
+    }
+    AWT_UNLOCK();
+}
 void sun_awt_motif_MComponentPeer_pSetForeground(Hsun_awt_motif_MComponentPeer *self,Hjava_awt_Color *color)
 {
     AwtPeer *data;

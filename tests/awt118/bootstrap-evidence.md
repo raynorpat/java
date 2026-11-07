@@ -99,3 +99,20 @@ a later Java callback safely finds no pending token. This avoids retaining a
 native allocation when disposal removes Component.peer before Java dispatch.
 Queued replay occurs only on the Motif loop and is canceled with its owner.
 Keyboard, focus, modal/menu filtering and child-widget routing are still open.
+
+## Initial keyboard and focus checkpoint
+
+Release component screen-coordinate lookup (0x20264) and focus traversal
+(0x207a4/0x20838) now use Xt translation/traversal through generated peer layouts.
+Key mapping preserves the ordered 125-entry table at release 0x46830. Release
+0x3caf0 supplies press/typed/release conversion; debug 0x80ed0/0x82dd8 supplies
+focus-event filtering/construction. Focus handlers are registered with Xt so
+Motif's synthetic focus changes reach Java as well as real X events.
+
+Input115 failed first on the missing screen-coordinate native and then with no
+keyboard or focus events. After conversion, it exposed missing KeyReleaseMask
+selection (press and typed arrived, release did not). Explicit peer event masks
+correct that host integration issue. Checks cover relative screen coordinates,
+focus notification, lowercase, Shift, Control, arrow keys, consumed Space, and
+the prior mouse/disposal cases. Remaining input work includes dynamic modifier
+mapping, keypad/locale/XIM handling, edited-key replay, menus and modality.

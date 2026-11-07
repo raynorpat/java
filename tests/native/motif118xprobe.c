@@ -3,11 +3,28 @@
 #include "java_awt_Component.h"
 #include "sun_awt_motif_MComponentPeer.h"
 #include <X11/extensions/XTest.h>
+#include <X11/keysym.h>
 
 static Widget widget(Hjava_awt_Component *target)
 {
     Hsun_awt_motif_MComponentPeer *peer=(Hsun_awt_motif_MComponentPeer *)unhand(target)->peer;
     return peer && unhand(peer)->pData ? *(Widget *)unhand(peer)->pData : NULL;
+}
+
+JAVA_PUBLIC_API(stack_item *) Java_Input115_key_stub(stack_item *p,struct execenv *ee)
+{
+    KeyCode code;
+    AWT_LOCK();
+    code=XKeysymToKeycode(awt_display,(KeySym)p[0].i);
+    if (p[1].i&1) XTestFakeKeyEvent(awt_display,XKeysymToKeycode(awt_display,XK_Shift_L),True,CurrentTime);
+    if (p[1].i&2) XTestFakeKeyEvent(awt_display,XKeysymToKeycode(awt_display,XK_Control_L),True,CurrentTime);
+    XTestFakeKeyEvent(awt_display,code,True,CurrentTime);
+    XTestFakeKeyEvent(awt_display,code,False,CurrentTime);
+    if (p[1].i&2) XTestFakeKeyEvent(awt_display,XKeysymToKeycode(awt_display,XK_Control_L),False,CurrentTime);
+    if (p[1].i&1) XTestFakeKeyEvent(awt_display,XKeysymToKeycode(awt_display,XK_Shift_L),False,CurrentTime);
+    XFlush(awt_display);
+    AWT_UNLOCK();
+    return p;
 }
 
 JAVA_PUBLIC_API(stack_item *) Java_Window115_click_stub(stack_item *p,struct execenv *ee)

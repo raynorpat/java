@@ -2,7 +2,10 @@
  * Java listeners run before native replay on the Motif thread. */
 #include "awt118.h"
 #include "java_awt_AWTEvent.h"
+#include <X11/keysym.h>
+#include <ctype.h>
 #include <stdlib.h>
+#include "awt_Keymap118.h"
 
 typedef struct NativeEvent {
     XEvent event;
@@ -47,16 +50,9 @@ static int modifiers(unsigned int state)
         ((state&(Mod1Mask|Button2Mask)) ? 8 : 0) | ((state&Button1Mask) ? 16 : 0);
 }
 
-static void post_mouse(AwtPeer *peer,XEvent *event,int id,int count,int popup,int replay)
+static void post_event(AwtPeer *peer,XEvent *event,Hjava_awt_AWTEvent *javaEvent,int replay)
 {
-    Hjava_awt_AWTEvent *javaEvent;
     NativeEvent *native=NULL;
-    unsigned int state=event->xbutton.state;
-    if (event->type==ButtonPress && event->xbutton.button<=3)
-        state|=Button1Mask<<(event->xbutton.button-1);
-    javaEvent=(Hjava_awt_AWTEvent *)execute_java_constructor(EE(),"java/awt/event/MouseEvent",NULL,
-        "(Ljava/awt/Component;IJIIIIZ)",unhand(peer->javaPeer)->target,id,
-        (int64_t)event->xbutton.time,modifiers(state),event->xbutton.x,event->xbutton.y,count,popup);
     if (!javaEvent) { awt118_callback_done(); return; }
     if (replay) {
         native=(NativeEvent *)malloc(sizeof(*native));
@@ -73,16 +69,101 @@ static void post_mouse(AwtPeer *peer,XEvent *event,int id,int count,int popup,in
     awt118_callback_done();
 }
 
+static void post_mouse(AwtPeer *peer,XEvent *event,int id,int count,int popup,int replay)
+{
+    Hjava_awt_AWTEvent *javaEvent;
+    unsigned int state=event->xbutton.state;
+    if (event->type==ButtonPress && event->xbutton.button<=3)
+        state|=Button1Mask<<(event->xbutton.button-1);
+    javaEvent=(Hjava_awt_AWTEvent *)execute_java_constructor(EE(),"java/awt/event/MouseEvent",NULL,
+        "(Ljava/awt/Component;IJIIIIZ)",unhand(peer->javaPeer)->target,id,
+        (int64_t)event->xbutton.time,modifiers(state),event->xbutton.x,event->xbutton.y,count,popup);
+    post_event(peer,event,javaEvent,replay);
+}
+
+void awt118_focus_event(Hsun_awt_motif_MComponentPeer *peer,XEvent *event)
+{
+    Hjava_awt_AWTEvent *javaEvent;
+    if (event->xfocus.mode!=NotifyNormal || event->xfocus.detail==NotifyPointer ||
+        event->xfocus.detail==NotifyVirtual) return;
+    javaEvent=(Hjava_awt_AWTEvent *)execute_java_constructor(EE(),"java/awt/event/FocusEvent",NULL,
+        "(Ljava/awt/Component;IZ)",unhand(peer)->target,event->type==FocusIn ? 1004 : 1005,
+        event->type==FocusOut);
+    if (javaEvent) execute_java_dynamic_method(EE(),(HObject *)peer,"postEvent","(Ljava/awt/AWTEvent;)V",javaEvent);
+    awt118_callback_done();
+}
+
+/* Release 3caf0: unshifted keysym selects VK; translated symbol selects char. */
+static int post_key(AwtPeer *peer,XEvent *event)
+{
+    KeySym symbol,translated;
+    Modifiers used;
+    int i,code=0,typed=0,character=0,mods=modifiers(event->xkey.state);
+    Hjava_awt_AWTEvent *javaEvent;
+    symbol=XKeycodeToKeysym(awt_display,event->xkey.keycode,0);
+    for (i=0;i<sizeof(keymap)/sizeof(keymap[0]);i++) if (keymap[i].symbol==symbol) {
+        code=keymap[i].code; typed=keymap[i].typed; break;
+    }
+    if (!code) return 0;
+    if (event->type==KeyPress) {
+        if (symbol==XK_Shift_L || symbol==XK_Shift_R || symbol==XK_Shift_Lock) mods|=1;
+        if (symbol==XK_Control_L || symbol==XK_Control_R) mods|=2;
+        if (symbol==XK_Meta_L || symbol==XK_Meta_R) mods|=4;
+        if (symbol==XK_Alt_L || symbol==XK_Alt_R) mods|=8;
+    }
+    if (symbol<256) {
+        XtTranslateKeycode(awt_display,event->xkey.keycode,event->xkey.state,&used,&translated);
+        character=(int)translated;
+        if (event->xkey.state&ControlMask) {
+            if (character=='[' || character=='\\' || character==']' || character=='_') character-=64;
+            else if (character<128 && isalpha(character)) character=tolower(character)-96;
+        }
+    } else if (typed) {
+        if (symbol>=XK_KP_0 && symbol<=XK_KP_9) character='0'+symbol-XK_KP_0;
+        else switch (symbol) {
+        case XK_Return: case XK_KP_Enter: case XK_Linefeed: character=10; break;
+        case XK_BackSpace: character=8; break;
+        case XK_Tab: character=9; break;
+        case XK_Escape: character=27; break;
+        case XK_Delete: case XK_KP_Delete: character=127; break;
+        case XK_KP_Multiply: character='*'; break;
+        case XK_KP_Add: character='+'; break;
+        case XK_KP_Subtract: character='-'; break;
+        case XK_KP_Decimal: character='.'; break;
+        case XK_KP_Divide: character='/'; break;
+        case XK_KP_Equal: character='='; break;
+        }
+    }
+    javaEvent=(Hjava_awt_AWTEvent *)execute_java_constructor(EE(),"java/awt/event/KeyEvent",NULL,
+        "(Ljava/awt/Component;IJIIC)",unhand(peer->javaPeer)->target,event->type==KeyPress ? 401 : 402,
+        (int64_t)event->xkey.time,mods,code,character);
+    post_event(peer,event,javaEvent,1);
+    if (event->type==KeyPress && typed) {
+        javaEvent=(Hjava_awt_AWTEvent *)execute_java_constructor(EE(),"java/awt/event/KeyEvent",NULL,
+            "(Ljava/awt/Component;IJIIC)",unhand(peer->javaPeer)->target,400,
+            (int64_t)event->xkey.time,mods,0,character);
+        post_event(peer,event,javaEvent,0);
+    }
+    return 1;
+}
+
 int awt118_filter_input(XEvent *event)
 {
     AwtPeer *peer;
-    Widget widget;
+    Widget widget,focus;
     int id;
-    if (event->type<ButtonPress || event->type>LeaveNotify) return 0;
+    if (event->type<KeyPress || event->type>LeaveNotify) return 0;
     widget=XtWindowToWidget(awt_display,event->xany.window);
+    if (widget && (event->type==KeyPress || event->type==KeyRelease)) {
+        focus=XmGetFocusWidget(widget);
+        if (focus) widget=focus;
+    }
     for (peer=peers;peer && peer->widget!=widget;peer=peer->next) {}
     if (!peer || !XtIsSensitive(widget)) return 0;
     switch (event->type) {
+    case KeyPress: case KeyRelease:
+        lastClick=NULL; clickCount=0;
+        return post_key(peer,event);
     case ButtonPress:
         if (lastClick==peer && event->xbutton.time-lastTime<=(Time)XtGetMultiClickTime(awt_display)) clickCount++;
         else clickCount=1;
@@ -134,7 +215,7 @@ int awt118_dispatch_putback(void)
     if (!native) return 0;
     putback=native->next;
     if (!putback) putbackTail=&putback;
-    if (native->owner->widget && XtWindow(native->owner->widget)==native->event.xany.window)
+    if (native->owner->widget && XtWindowToWidget(awt_display,native->event.xany.window))
         XtDispatchEvent(&native->event);
     free(native);
     return 1;
