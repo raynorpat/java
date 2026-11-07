@@ -332,3 +332,13 @@ HWND and always reaches RestoreDC/EndPaint; Button/Checkbox/Choice/List shared
 drawing also reaches RestoreDC without further painting after retirement.
 Debug ReentrantPeers115, PaneRace115 and GraphicsResources115 pass3/3 after
 this cleanup correction (out/phase4-paint-cleanup-debug-build.log).
+
+FileDialog slice: recovered original ANSI common-dialog ABI at 1000BFF0,
+OPENFILENAME version400/flags0x200006, parent ownership, initial directory/file,
+and selected/cancel callbacks. Initial filename is bounded to MAX_PATH rather
+than retaining Sun's overflow. FileDialog115 compares cancel, open/save selection
+(without writing a file), and process current-directory restoration against Sun.
+Modern Save's nested filename editor requires a different test-driver lookup.
+Release and Debug FileDialog115/ScaledDelivery115 each pass 2/2 after full matching
+builds (out/phase4-file-{release,debug}-build.log). Graphics final integration
+includes ScaledDelivery115; independent Task4 review remains pending.

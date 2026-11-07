@@ -1,7 +1,28 @@
 /* Drive only windows owned by this test process; usable with either VM. */
 #include <windows.h>
+#include <commdlg.h>
+#include <commctrl.h>
+#include <dlgs.h>
 #include "StubPreamble.h"
 struct window_search { WCHAR *title; HWND window; };
+static BOOL CALLBACK find_file_edit(HWND window,LPARAM parameter)
+{
+    WCHAR name[32]; GetClassNameW(window,name,32);
+    if (GetDlgCtrlID(window)==1001 && !lstrcmpiW(name,L"EDIT") && IsWindowVisible(window)) {
+        *(HWND *)parameter=window; return FALSE;
+    }
+    return TRUE;
+}
+static HWND file_edit(HWND window)
+{
+    HWND combo,edit;
+    if (!window) return NULL;
+    combo=GetDlgItem(window,cmb13);
+    edit=combo ? (HWND)SendMessage(combo,CBEM_GETEDITCONTROL,0,0):GetDlgItem(window,edt1);
+    /* Modern Save dialogs nest their filename editor below DirectUI. */
+    if (!edit) EnumChildWindows(window,find_file_edit,(LPARAM)&edit);
+    return edit;
+}
 static BOOL CALLBACK find_choice(HWND window, LPARAM parameter)
 {
     WCHAR name[32];
@@ -46,7 +67,9 @@ static BOOL CALLBACK find_window(HWND window, LPARAM parameter)
     if (!lstrcmpW(title,search->title)) { search->window = window; return FALSE; }
     return TRUE;
 }
-static HWND test_window(struct Hjava_lang_String *title)
+static BOOL CALLBACK find_visible_window(HWND window, LPARAM parameter)
+{ return IsWindowVisible(window) ? find_window(window,parameter):TRUE; }
+static HWND test_window_matching(struct Hjava_lang_String *title,BOOL visible)
 {
     WCHAR text[256]; struct window_search search; int length;
     if (!title) return NULL;
@@ -54,9 +77,11 @@ static HWND test_window(struct Hjava_lang_String *title)
     if (length > 255) return NULL;
     javaString2unicode(title,(unicode *)text,length); text[length] = 0;
     search.title = text; search.window = NULL;
-    EnumWindows(find_window,(LPARAM)&search);
+    EnumWindows(visible ? find_visible_window:find_window,(LPARAM)&search);
     return search.window;
 }
+static HWND test_window(struct Hjava_lang_String *title)
+{ return test_window_matching(title,FALSE); }
 __declspec(dllexport) stack_item *Java_WinAwtProbe_choice_stub(stack_item *sp,struct execenv *ee)
 {
     HWND frame = test_window((struct Hjava_lang_String *)sp[0].p), choice = NULL;
@@ -129,6 +154,27 @@ __declspec(dllexport) stack_item *Java_WinAwtProbe_windowEnabled_stub(stack_item
 {
     HWND window=test_window((struct Hjava_lang_String *)sp[0].p);
     sp[0].i=window && IsWindowEnabled(window); return sp+1;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_chooseFile_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND window=test_window_matching((struct Hjava_lang_String *)sp[0].p,TRUE);
+    struct Hjava_lang_String *path=(struct Hjava_lang_String *)sp[1].p;
+    WCHAR wide[MAX_PATH]; HWND edit; int length;
+    if (!window || !path || (length=javaStringLength(path))>=MAX_PATH) {
+        SignalError(ee,"java/lang/RuntimeException","invalid file dialog request"); return sp;
+    }
+    javaString2unicode(path,(unicode *)wide,length); wide[length]=0;
+    edit=file_edit(window);
+    if (!edit) { SignalError(ee,"java/lang/RuntimeException","filename editor missing"); return sp; }
+    SetWindowTextW(edit,wide);
+    PostMessage(window,WM_COMMAND,IDOK,0); return sp;
+}
+__declspec(dllexport) stack_item *Java_WinAwtProbe_fileDialogReady_stub(stack_item *sp,struct execenv *ee)
+{
+    HWND window=test_window_matching((struct Hjava_lang_String *)sp[0].p,TRUE);
+    HWND edit=file_edit(window);
+    sp[0].i=window && IsWindowVisible(window) && IsWindowEnabled(window) && edit;
+    return sp+1;
 }
 __declspec(dllexport) stack_item *Java_WinAwtProbe_close_stub(stack_item *sp,struct execenv *ee)
 {

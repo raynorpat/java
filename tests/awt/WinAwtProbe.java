@@ -14,4 +14,6 @@ public class WinAwtProbe {
     public static native void paintAll(String title);
     public static native void paneSpans(Object peer);
     public static native boolean windowEnabled(String title);
+    public static native void chooseFile(String title, String path);
+    public static native boolean fileDialogReady(String title);
 }
