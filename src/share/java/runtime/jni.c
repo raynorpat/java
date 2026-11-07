@@ -8,6 +8,7 @@
 #include "utf.h"
 #include "monitor.h"
 #include "exceptions.h"
+#include "breakpoints.h"
 #include "path.h"
 extern ClassClass *allocClassClass(void);
 extern sys_mon_t *_heap_lock;
@@ -714,7 +715,7 @@ static jclass JNICALL jni_DefineClass(JNIEnv *env, const char *name, jobject loa
     return (jclass)localRef(env, (JHandle *)cbHandle(cb));
 }
 
-bool_t invokeJNINativeMethod(JHandle *object, struct methodblock *mb, int size, ExecEnv *ee)
+static void invokeJNINativeMethodBody(JHandle *object, struct methodblock *mb, int size, ExecEnv *ee)
 {
     JNIEnv *env = jni_Env(ee);
     JNIRefTable *locals;
@@ -723,7 +724,7 @@ bool_t invokeJNINativeMethod(JHandle *object, struct methodblock *mb, int size, 
     const char *sig;
     jobject clazz = NULL;
     int savedBase, savedTop;
-    if (!env) { SignalError(ee, JAVAPKG "OutOfMemoryError", NULL); return FALSE; }
+    if (!env) { SignalError(ee, JAVAPKG "OutOfMemoryError", NULL); return; }
     /* The local table belongs to this EE; other attached EEs may detach. */
     locals = JNIEnvGetLocalRefs(env);
     HEAP_LOCK();
@@ -752,15 +753,28 @@ bool_t invokeJNINativeMethod(JHandle *object, struct methodblock *mb, int size, 
     locals->base = savedBase; locals->top = savedTop;
     HEAP_UNLOCK();
     frame->optop = result;
+}
+bool_t invokeJNINativeMethod(JHandle *object, struct methodblock *mb, int size, ExecEnv *ee)
+{
+    invokeJNINativeMethodBody(object, mb, size, ee);
+#ifdef DEBUG
+    /* Sun100131C0 reports after restoring JNI locals and the result stack. */
+    if (exceptionOccurred(ee))
+        notify_debugger_of_exception(mb->code, ee, ee->exception.exc);
+#endif
     return !exceptionOccurred(ee);
 }
 bool_t invokeSynchronizedJNINativeMethod(JHandle *object, struct methodblock *mb, int size, ExecEnv *ee)
 {
-    bool_t result;
     monitorEnter(obj_monitor(object));
-    result = invokeJNINativeMethod(object, mb, size, ee);
+    invokeJNINativeMethodBody(object, mb, size, ee);
     monitorExit(obj_monitor(object));
-    return result;
+#ifdef DEBUG
+    /* Sun100135F7 releases the method monitor before the exception callback. */
+    if (exceptionOccurred(ee))
+        notify_debugger_of_exception(mb->code, ee, ee->exception.exc);
+#endif
+    return !exceptionOccurred(ee);
 }
 
 static char *jniMangle(char *out, const char *text, int length)
