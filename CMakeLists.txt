@@ -394,7 +394,7 @@ add_test(NAME zip115 COMMAND zip115-test "${CMAKE_SOURCE_DIR}/tests/vm/resources
 configure_file("${JDK115_DIR}/lib/classes.zip" "${CMAKE_BINARY_DIR}/classes.zip" COPYONLY)
 configure_file("${JDK115_DIR}/lib/classes.zip" "${CMAKE_BINARY_DIR}/lib/classes.zip" COPYONLY)
 configure_file("${JDK115_DIR}/lib/security/java.security" "${CMAKE_BINARY_DIR}/lib/security/java.security" COPYONLY)
-foreach(resource serialver.properties rmic.properties)
+foreach(resource serialver.properties rmic.properties appletviewer.properties awt.properties content-types.properties)
   configure_file("${JDK115_DIR}/lib/${resource}" "${CMAKE_BINARY_DIR}/lib/${resource}" COPYONLY)
   install(FILES "${JDK115_DIR}/lib/${resource}" DESTINATION lib)
 endforeach()
@@ -498,6 +498,10 @@ if(WIN32)
   file(MAKE_DIRECTORY "${awt_gen}/tmp")
   configure_file("${JDK115_DIR}/lib/font.properties" "${CMAKE_BINARY_DIR}/lib/font.properties" COPYONLY)
   install(FILES "${JDK115_DIR}/lib/font.properties" DESTINATION lib)
+  foreach(locale ja ko zh zh_TW)
+    configure_file("${JDK115_DIR}/lib/font.properties.${locale}" "${CMAKE_BINARY_DIR}/lib/font.properties.${locale}" COPYONLY)
+    install(FILES "${JDK115_DIR}/lib/font.properties.${locale}" DESTINATION lib)
+  endforeach()
   set(awt_classes sun.awt.windows.WComponentPeer sun.awt.windows.WWindowPeer
     sun.awt.windows.WFramePeer sun.awt.windows.WGraphics java.awt.Component java.awt.Container java.awt.Window
     sun.awt.windows.WMenuItemPeer sun.awt.windows.WMenuPeer sun.awt.windows.WMenuBarPeer sun.awt.windows.WCheckboxMenuItemPeer sun.awt.windows.WPopupMenuPeer
@@ -563,12 +567,12 @@ if(WIN32)
   target_link_libraries(winawt115-toolkit user32 gdi32)
   add_test(NAME winawt115-toolkit COMMAND winawt115-toolkit
     "${JDK115_DIR}/bin/winawt$<$<CONFIG:Debug>:_g>.dll")
-  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 WindowState115 Dialog115 FileDialog115 Input115 InputRetire115 MotionLifetime115 InputExit115 DrawingSurface115 SurfaceLocks115 Clipboard115 Menu115 EmbeddedFrame115 FrameIcon115 PrintJob115 Canvas115 Button115 Fonts115 Label115 Checkbox115 Choice115 List115 Scrollbar115 Text115 ScrollPane115 ReentrantPeers115 PaneRace115 RetiredGraphics115 Images115 Raster115 TextRaster115 ImageRaster115 ColorRaster115 ImageBounds115 DecoderImages115 GifRaster115 GraphicsResources115 ProgressiveImages115 GraphicsHDC115 ScaledDelivery115)
+  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 WindowState115 Dialog115 FileDialog115 Input115 Focus115 DefaultFocus115 FocusLock115 InputRetire115 MotionLifetime115 InputExit115 DrawingSurface115 SurfaceLocks115 Clipboard115 Menu115 EmbeddedFrame115 FrameIcon115 PrintJob115 Canvas115 Button115 Fonts115 Label115 Checkbox115 Choice115 List115 Scrollbar115 Text115 ScrollPane115 ReentrantPeers115 PaneRace115 RetiredGraphics115 Images115 Raster115 TextRaster115 ImageRaster115 ColorRaster115 ImageBounds115 DecoderImages115 GifRaster115 GraphicsResources115 ProgressiveImages115 GraphicsHDC115 ScaledDelivery115)
   add_test(NAME awt-${awt_test} COMMAND ${CMAKE_COMMAND}
     -DROOT=${CMAKE_SOURCE_DIR} -DJAVA=$<TARGET_FILE:java> -DJAVAC=$<TARGET_FILE:javac>
     -DJDK=${JDK115_DIR} -DLIBDIR=$<TARGET_FILE_DIR:winawt>
     -DOUT=${CMAKE_BINARY_DIR}/awt115-$<CONFIG> -DCLASS=${awt_test}
-    -DCOMPARE_ORACLE=ON
+    -DCOMPARE_ORACLE=$<NOT:$<STREQUAL:${awt_test},FocusLock115>>
     -P ${CMAKE_SOURCE_DIR}/tests/awt/run115.cmake)
   set_tests_properties(awt-${awt_test} PROPERTIES RESOURCE_LOCK awt_desktop)
   endforeach()

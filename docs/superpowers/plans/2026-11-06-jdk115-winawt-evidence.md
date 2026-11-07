@@ -412,3 +412,60 @@ Remaining interface checkpoint:
 - Lifecycle115 repeated 30 times in Release with no failure (49.88 seconds,
   out/phase4-lifecycle-repeat.log). The earlier sporadic exit timeout was not
   reproduced; this is stress evidence, not a claimed shutdown defect fix.
+
+Integrated verification at 28887a3:
+- Windows Release 160/160 passed. Linux Debug and Release each passed 108
+  tests with one expected unavailable-audio-device skip. Logs are
+  out/phase4-final-{win-release,linux-debug,linux-release}-tests.log.
+- Fresh installed Windows Debug and Release images passed all eleven AWT
+  smoke/behavior cases and the existing Phase 2 installed-image suite. Only
+  test bridges are staged separately; runtime libraries resolve from the
+  installed image. Logs are out/phase4-image-{debug,release}-{awt,base}.log.
+- Full Windows Debug reached 159/160: WindowState115 timed out without
+  output. Subsequent 100 normal and 100 hidden direct launches all passed.
+  Final CTest repeat/integration confirmation remains pending; no unsupported
+  shutdown fix is claimed from these repeated successes.
+- Whole-branch review prompted Focus115: both Sun and reconstruction report
+  temporary focus loss between sibling controls, including sibling Panels.
+  The fixture preserves this observed legacy behavior rather than asserting
+  modern focus semantics.
+- Menu command IDs are deliberately not recycled, preventing queued raw
+  WM_COMMAND messages from resolving to a replacement item. The resulting
+  65,535 lifetime item-creation cap is a disclosed limitation. Sun's original
+  monotonically increasing IDs can alias after the 16-bit command boundary;
+  exhaustion is rejected rather than delivering a stale command. Recycling
+  with queue retirement is deferred, not advertised as implemented.
+
+Focus restoration deadlock resolved:
+- The CTest watchdog reproduced WindowState115's timeout and captured native
+  stacks in out/phase4-windowstate-ctest-28008-stacks.log. The main thread
+  held a synchronized WComponentPeer.hide monitor while awaiting toolkit
+  Invoke; WM_APP+8 on the toolkit called Java default focus, whose synchronized
+  native requestFocus needed that same peer monitor.
+- FocusLock115 forces this ordering with an empty frame and a held peer
+  monitor. It timed out before the fix and now completes in both configs.
+  Native default-focus selection follows WWindowPeer child order, recursive
+  traversal and first-child fallback, then calls SetFocus without entering
+  the Java peer monitor. It retains lightweight dispatcher focus requests
+  and queued-key retargeting. Peer class checks precede pData access.
+- DefaultFocus115 compares nested/hidden/disabled/heavyweight/lightweight
+  selection with Sun, then repeats with public event-queue access denied.
+  The internal protected queue path preserves applet permissions; the public
+  accessor was rejected after the demo pilot exposed SecurityException.
+- Deliberate safety deviation: automatic default-focus restoration reads
+  visible/enabled/container fields and performs the native focus request
+  directly, rather than invoking user overrides of those accessors or
+  requestFocus. The virtual isFocusTraversable eligibility hook remains.
+  Existing-focus restoration continues using the recovered Java peer lookup.
+- WindowState115, Focus115, DefaultFocus115 and FocusLock115 passed 4/4 in
+  Debug (4.19s) and Release (3.60s). Full final suites remain pending.
+
+Demo pilot found missing appletviewer.properties and content-types.properties
+in the build image. CMake now copies/installs appletviewer, AWT and MIME
+resources plus all four shipped font-locale variants. The installed-image
+resource gate first failed on the missing appletviewer.properties; it checks
+all eight files against the unchanged vendor SHA256 values. The all-demo run
+uses the unchanged AppletViewer init/parse APIs through a tiny test driver,
+so it does not interact with the separate first-run copyright dialog or
+write acceptance settings. Native demo fixtures reject that unexpected
+startup dialog before sending input.
