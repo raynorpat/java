@@ -17,7 +17,9 @@ protected:
 };
 class AwtFrame : public AwtWindow {
 public:
-    AwtFrame(Hsun_awt_windows_WComponentPeer *peer) : AwtWindow(peer) {}
+    AwtFrame(Hsun_awt_windows_WComponentPeer *peer) : AwtWindow(peer), icon(NULL) {}
+    virtual ~AwtFrame();
     virtual LRESULT WindowProc(UINT message, WPARAM w, LPARAM l);
+    HICON icon;
 };
 #endif
