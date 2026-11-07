@@ -64,7 +64,7 @@ if(UNIX AND NOT APPLE)
     src/unix/sun/awt/awt_TextField118.c src/unix/sun/awt/awt_TextArea118.c
     src/unix/sun/awt/awt_ScrollPane118.c src/unix/sun/awt/awt_Image118.c
     src/unix/sun/awt/awt_Menu118.c src/unix/sun/awt/awt_Window118.c
-    src/unix/sun/awt/awt_Dialog118.c ${toolkit_stubs})
+    src/unix/sun/awt/awt_Dialog118.c src/unix/sun/awt/awt_FileDialog118.c ${toolkit_stubs})
   target_include_directories(awt BEFORE PRIVATE "${motif118_out}/generated")
   target_link_libraries(awt javai Xm Xt X11)
   set_target_properties(awt PROPERTIES LINK_FLAGS "-Wl,--no-undefined")
@@ -171,4 +171,10 @@ if(UNIX AND NOT APPLE)
     "-DLIBDIR=$<TARGET_FILE_DIR:awt>" "-DCLASS=Dialog115"
     -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
   set_tests_properties(motif118-dialog PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+  add_test(NAME motif118-file-dialog COMMAND ${CMAKE_COMMAND}
+    "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
+    "-DJAVA=$<TARGET_FILE:java>" "-DJAVAC=$<TARGET_FILE:javac>"
+    "-DLIBDIR=$<TARGET_FILE_DIR:awt>" "-DCLASS=FileDialog115"
+    -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
+  set_tests_properties(motif118-file-dialog PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
 endif()

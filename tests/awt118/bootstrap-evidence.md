@@ -309,3 +309,15 @@ owner-input suppression, modeless title/resizability/show/hide and modal hide
 followed by restored owner input. All 22 focused Linux Debug tests pass
 (97.78 seconds), with 174 bindings. Nested modality, decorated insets, input
 methods and event-dispatch-thread modal behavior still need the full input gate.
+
+## File dialog checkpoint
+
+Release 0x20e38..0x2144c and selection callbacks 0x20b3c/0x20bc8 supply seven
+file-dialog bindings. XmFileSelectionDialog handles directory search and file
+lists; Java's existing filename filter supplies the explicit list. Selection
+and cancellation run the original peer callbacks and release the shared modal
+wait. Directory masks use dynamic storage instead of the binary's fixed buffer.
+FileDialog115 failed at create, then passed real XTest Open/Save selections,
+cancellation, selected directory, font updates and exact filtered native list
+counts over four cycles. All 23 focused Linux Debug tests pass (100.79 seconds),
+with 181 bindings. Locale/font conversion and decorated-window gates remain open.

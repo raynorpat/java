@@ -10,6 +10,7 @@
 #include <Xm/TextF.h>
 #include <Xm/Text.h>
 #include <Xm/ScrolledW.h>
+#include <Xm/FileSB.h>
 #include <string.h>
 
 static Widget widget(Hjava_awt_Component *target)
@@ -32,6 +33,32 @@ JAVA_PUBLIC_API(stack_item *) Java_Menus115_click_stub(stack_item *p,struct exec
         XTestFakeButtonEvent(awt_display,Button1,False,CurrentTime); XFlush(awt_display);
     }
     AWT_UNLOCK(); return p;
+}
+JAVA_PUBLIC_API(stack_item *) Java_FileDialog115_choose_stub(stack_item *p,struct execenv *ee)
+{
+    Widget dialog,button,field;
+    char *path;
+    Position x,y; Dimension width,height;
+    AWT_LOCK(); dialog=widget(p[0].p);
+    if (!dialog || !XtIsRealized(dialog)) SignalError(ee,"java/lang/RuntimeException","file dialog not realized");
+    else {
+        if (!p[2].i) {
+            path=allocCString(p[1].p); field=XmFileSelectionBoxGetChild(dialog,XmDIALOG_TEXT);
+            XmTextFieldSetString(field,path); free(path);
+        }
+        button=XmFileSelectionBoxGetChild(dialog,p[2].i ? XmDIALOG_CANCEL_BUTTON : XmDIALOG_OK_BUTTON);
+        XtVaGetValues(button,XmNwidth,&width,XmNheight,&height,NULL); XtTranslateCoords(button,width/2,height/2,&x,&y);
+        XTestFakeMotionEvent(awt_display,awt_screen,x,y,CurrentTime);
+        XTestFakeButtonEvent(awt_display,Button1,True,CurrentTime);
+        XTestFakeButtonEvent(awt_display,Button1,False,CurrentTime); XFlush(awt_display);
+    }
+    AWT_UNLOCK(); return p;
+}
+JAVA_PUBLIC_API(stack_item *) Java_FileDialog115_listed_stub(stack_item *p,struct execenv *ee)
+{
+    int count=0;
+    AWT_LOCK(); XtVaGetValues(widget(p[0].p),XmNfileListItemCount,&count,NULL);
+    p[0].i=count; AWT_UNLOCK(); return p+1;
 }
 
 JAVA_PUBLIC_API(stack_item *) Java_TextField115_displayed_stub(stack_item *p,struct execenv *ee)

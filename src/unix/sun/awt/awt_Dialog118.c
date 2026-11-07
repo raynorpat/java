@@ -21,7 +21,7 @@ int awt118_modal_allows(Widget widget)
     }
     return 0;
 }
-static void end_modal(AwtPeer *data)
+void awt118_end_modal(AwtPeer *data)
 {
     AwtPeer **link=&modal;
     while (*link && *link!=data) link=&(*link)->modalPrevious;
@@ -30,7 +30,7 @@ static void end_modal(AwtPeer *data)
     monitorNotifyAll((unsigned int)awt_lock);
 }
 static void shell_destroyed(Widget widget,XtPointer closure,XtPointer call)
-{ AwtPeer *data=(AwtPeer *)closure; end_modal(data); data->shell=NULL; }
+{ AwtPeer *data=(AwtPeer *)closure; awt118_end_modal(data); data->shell=NULL; }
 static void close_dialog(Widget widget,XtPointer closure,XtPointer call)
 { execute_java_dynamic_method(EE(),(HObject *)closure,"handleQuit","()V"); awt118_callback_done(); }
 static void shell_event(Widget widget,XtPointer closure,XEvent *event,Boolean *dispatch)
@@ -57,7 +57,7 @@ void sun_awt_motif_MDialogPeer_create(Hsun_awt_motif_MDialogPeer *self,Hsun_awt_
         if (bounds->bottom<0) bounds->bottom=0;
         if (bounds->left<0) bounds->left=0;
         if (bounds->right<0) bounds->right=0;
-        data->cleanup=end_modal;
+        data->cleanup=awt118_end_modal;
         data->shell=XtVaCreatePopupShell("dialog",xmDialogShellWidgetClass,owner->shell,
             XtNvisual,awt_visInfo.visual,XtNdepth,awt_visInfo.depth,XtNcolormap,awt_cmap,
             XtNtransientFor,owner->shell,XtNallowShellResize,True,XtNmappedWhenManaged,False,
@@ -102,7 +102,7 @@ void sun_awt_motif_MDialogPeer_pHide(Hsun_awt_motif_MDialogPeer *self)
 {
     AwtPeer *data;
     AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
-    if (data) { end_modal(data); if (data->shell) XtPopdown(data->shell); }
+    if (data) { awt118_end_modal(data); if (data->shell) XtPopdown(data->shell); }
     XFlush(awt_display); AWT_UNLOCK();
 }
 void sun_awt_motif_MDialogPeer_pDispose(Hsun_awt_motif_MDialogPeer *self)

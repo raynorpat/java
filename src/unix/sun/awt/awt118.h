@@ -39,6 +39,7 @@ void awt118_callback_done(void);
 unsigned long awt118_pixel(unsigned long rgb);
 Widget awt118_menu_widget(HObject *peer);
 int awt118_modal_allows(Widget widget);
+void awt118_end_modal(AwtPeer *data);
 void awt118_register_input(AwtPeer *peer);
 void awt118_forget_input(AwtPeer *peer);
 int awt118_filter_input(XEvent *event);
