@@ -86,6 +86,25 @@ JAVA_PUBLIC_API(stack_item *) Java_Choice115_colorsMatch_stub(stack_item *p,stru
     AWT_UNLOCK();
     return p+1;
 }
+JAVA_PUBLIC_API(stack_item *) Java_Scrollbar115_value_stub(stack_item *p,struct execenv *ee)
+{
+    static const char *properties[]={XmNvalue,XmNsliderSize,XmNincrement,XmNpageIncrement,XmNminimum,XmNmaximum};
+    int value;
+    AWT_LOCK();
+    XtVaGetValues(widget(p[0].p),properties[p[1].i],&value,NULL);
+    p[0].i=value;
+    AWT_UNLOCK();
+    return p+1;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Scrollbar115_press_stub(stack_item *p,struct execenv *ee)
+{
+    AWT_LOCK();
+    if (p[1].i) XWarpPointer(awt_display,None,XtWindow(widget(p[0].p)),0,0,0,0,10,10);
+    XTestFakeButtonEvent(awt_display,Button1,p[1].i!=0,CurrentTime);
+    XFlush(awt_display);
+    AWT_UNLOCK();
+    return p;
+}
 JAVA_PUBLIC_API(stack_item *) Java_List115_topIndex_stub(stack_item *p,struct execenv *ee)
 {
     int value;

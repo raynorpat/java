@@ -69,11 +69,16 @@ void awt118_register_widget(Hsun_awt_motif_MComponentPeer *peer)
 void awt118_dispose_peer(Hsun_awt_motif_MComponentPeer *peer)
 {
     AwtPeer *data=awt118_peer(peer);
+    XEvent event;
     if (!data) return;
+    if (data->widget && !data->shell) XtUnmanageChild(data->widget);
     unhand(peer)->pData=0;
     awt118_forget_input(data);
     cleanup_peer(data);
     if (data->widget) {
+        XFlush(awt_display);
+        if (XtIsRealized(data->widget))
+            while (XCheckWindowEvent(awt_display,XtWindow(data->widget),0xffff,&event)) {}
         XtRemoveEventHandler(data->widget,peer_events,False,canvas_event,peer);
         if (data->content) XtRemoveEventHandler(data->content,peer_events,False,canvas_event,peer);
         if (XtHasCallbacks(data->widget,XmNactivateCallback)!=XtCallbackNoList)

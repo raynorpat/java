@@ -162,3 +162,13 @@ the option menu's foreground/background, as release addItem does, fixes it.
 All thirteen focused Linux Debug tests pass; 74 Motif bindings are implemented.
 New-item font inheritance and multifont strings still belong to the open font
 gate, along with the other previously recorded limitations.
+
+Scrollbar recovery: release 0x26d80..0x27318 implements four bindings and the
+line/page/absolute callbacks. Both orientations pass range, increment, repeat
+release and disposal-while-pressed checks. The latter exposed an OpenMotif/Xt
+keyboard grab targeting a freed scrollbar; GDB located the stale grab during
+RemoveAllPMgr's synthetic key dispatch. Retiring the tracked scrollbar now
+releases its Xt keyboard/pointer grab. Component retirement also restores the
+original unmanage/drain/destroy ordering (debug 0x3ba28, helper 0x6d828).
+Linux Debug: all 14 focused Motif tests pass; 78 native bindings implemented.
+The remaining widget/rendering/demo gates still keep Phase 6 incomplete.

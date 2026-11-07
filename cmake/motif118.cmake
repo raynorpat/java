@@ -60,7 +60,7 @@ if(UNIX AND NOT APPLE)
     src/unix/sun/awt/awt_Button118.c src/unix/sun/awt/awt_Graphics118.c
     src/unix/sun/awt/awt_Input118.c src/unix/sun/awt/awt_Label118.c
     src/unix/sun/awt/awt_Checkbox118.c src/unix/sun/awt/awt_List118.c
-    src/unix/sun/awt/awt_Choice118.c ${toolkit_stubs})
+    src/unix/sun/awt/awt_Choice118.c src/unix/sun/awt/awt_Scrollbar118.c ${toolkit_stubs})
   target_include_directories(awt BEFORE PRIVATE "${motif118_out}/generated")
   target_link_libraries(awt javai Xm Xt X11)
   set_target_properties(awt PROPERTIES LINK_FLAGS "-Wl,--no-undefined")
@@ -113,4 +113,10 @@ if(UNIX AND NOT APPLE)
     "-DLIBDIR=$<TARGET_FILE_DIR:awt>" -DCLASS=Choice115
     -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
   set_tests_properties(motif118-choice PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+  add_test(NAME motif118-scrollbar COMMAND ${CMAKE_COMMAND}
+    "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
+    "-DJAVA=$<TARGET_FILE:java>" "-DJAVAC=$<TARGET_FILE:javac>"
+    "-DLIBDIR=$<TARGET_FILE_DIR:awt>" -DCLASS=Scrollbar115
+    -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
+  set_tests_properties(motif118-scrollbar PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
 endif()

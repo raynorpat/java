@@ -3,6 +3,7 @@
 #include "awt118.h"
 #include "java_awt_AWTEvent.h"
 #include <X11/keysym.h>
+#include <Xm/ScrollBar.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include "awt_Keymap118.h"
@@ -14,6 +15,7 @@ typedef struct NativeEvent {
     struct NativeEvent *next;
 } NativeEvent;
 static AwtPeer *peers, *lastClick;
+static Widget scrollbarGrab;
 static NativeEvent *pendingEvents, *putback, **putbackTail=&putback;
 static unsigned long nextToken;
 static Time lastTime;
@@ -26,6 +28,13 @@ void awt118_forget_input(AwtPeer *peer)
 {
     AwtPeer **link=&peers;
     NativeEvent **event, *old;
+    /* OpenMotif grabs the keyboard while tracking a scrollbar. Xt retains
+     * that widget after destruction unless the grab is explicitly released. */
+    if (scrollbarGrab && (scrollbarGrab==peer->widget || scrollbarGrab==peer->content)) {
+        XtUngrabKeyboard(scrollbarGrab,CurrentTime);
+        XtUngrabPointer(scrollbarGrab,CurrentTime);
+        scrollbarGrab=NULL;
+    }
     while (*link && *link!=peer) link=&(*link)->next;
     if (*link) *link=peer->next;
     peer->next=NULL;
@@ -159,6 +168,15 @@ int awt118_filter_input(XEvent *event)
     if (event->type<KeyPress || event->type>LeaveNotify) return 0;
     widget=XtWindowToWidget(awt_display,event->xany.window);
     if (!widget) return 0;
+    /* Original event loop dispatches scrollbar tracking directly to Xt. */
+    if (XtIsSubclass(widget,xmScrollBarWidgetClass) &&
+        (event->type==ButtonPress || event->type==ButtonRelease ||
+        (event->type==MotionNotify && (event->xmotion.state==Button1Mask ||
+            event->xmotion.state==Button2Mask || event->xmotion.state==Button3Mask)))) {
+        if (event->type==ButtonPress) scrollbarGrab=widget;
+        else if (event->type==ButtonRelease) scrollbarGrab=NULL;
+        return 0;
+    }
     if (widget && (event->type==KeyPress || event->type==KeyRelease)) {
         focus=XmGetFocusWidget(widget);
         if (focus) widget=focus;
