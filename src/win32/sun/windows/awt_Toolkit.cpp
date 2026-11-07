@@ -6,6 +6,152 @@ extern "C" {
 #include "StubPreamble.h"
 }
 
+#ifndef AWT115_QUERIES_ONLY
+#include "awt_Toolkit.h"
+#include "awt_Component.h"
+
+AwtToolkit &AwtToolkit::GetInstance()
+{
+    static AwtToolkit toolkit;
+    return toolkit;
+}
+
+/* DR2-independent Win32 implementation: 10022729/100227A0. */
+BOOL AwtToolkit::Initialize(BOOL standalone)
+{
+    WNDCLASSA wc = {0};
+    if (thread) return FALSE;
+    HDC desktop = GetDC(NULL);
+    if (!desktop) return FALSE;
+    int depth = GetDeviceCaps(desktop,BITSPIXEL) * GetDeviceCaps(desktop,PLANES);
+    ReleaseDC(NULL,desktop);
+    if (depth < 4) return FALSE;
+    wc.lpfnWndProc = WndProc;
+    wc.hInstance = GetModuleHandle(NULL);
+    wc.lpszClassName = "AwtToolkit";
+    if (!RegisterClassA(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) return FALSE;
+    thread = GetCurrentThreadId();
+    window = CreateWindowExA(0, "AwtToolkit", "The AWT Toolkit Window", WS_DISABLED,
+        -1, -1, 0, 0, NULL, NULL, wc.hInstance, NULL);
+    if (!window) { thread = 0; return FALSE; }
+    hook = SetWindowsHookExA(WH_GETMESSAGE, GetMessageHook, NULL, thread);
+    if (!hook) { DestroyWindow(window); window = NULL; thread = 0; return FALSE; }
+    return TRUE;
+}
+
+struct AwtRequest { void (*function)(void *); void *argument; };
+void AwtToolkit::Invoke(void (*function)(void *), void *argument)
+{
+    if (GetCurrentThreadId() == thread) function(argument);
+    else {
+        AwtRequest request = { function, argument };
+        SendMessageA(window, 0x464, 0, (LPARAM)&request);
+    }
+}
+
+LRESULT CALLBACK AwtToolkit::WndProc(HWND hwnd, UINT message, WPARAM w, LPARAM l)
+{
+    if (message == 0x464) {
+        AwtRequest *request = (AwtRequest *)l;
+        request->function(request->argument); return 0;
+    }
+    if (message == 0x466) { GetInstance().Cleanup(); return 0; }
+    return DefWindowProcA(hwnd, message, w, l);
+}
+
+LRESULT CALLBACK AwtToolkit::GetMessageHook(int code, WPARAM w, LPARAM l)
+{
+    /* Peer input preprocessing is supplied with the component implementation. */
+    return CallNextHookEx(GetInstance().hook, code, w, l);
+}
+
+void AwtToolkit::Cleanup()
+{
+    if (!window) return;
+    if (GetCurrentThreadId() != thread) {
+        SendMessageA(window, 0x466, 0, 0); return;
+    }
+    AwtComponent::Cleanup();
+    DestroyWindow(window); window = NULL;
+    UnregisterClassA("AwtToolkit",GetModuleHandle(NULL));
+    UnhookWindowsHookEx(hook); hook = NULL;
+    quit = TRUE;
+    PostQuitMessage(0);
+    thread = 0;
+}
+
+static void awtAtExit() { AwtToolkit::GetInstance().Cleanup(); }
+
+/* WColor.cpp, 10005210: selector is a static native argument, not a receiver. */
+extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WColor_getDefaultColor_stub(
+    stack_item *sp, struct execenv *ee)
+{
+    static const int indices[] = {5,8,6,0,4,7,15,18,13};
+    int selector = sp[0].i;
+    if (selector < 1 || selector > 9) sp[0].p = NULL;
+    else {
+        COLORREF color = GetSysColor(indices[selector - 1]);
+        sp[0].p = execute_java_constructor(ee,"java/awt/Color",NULL,"(III)",
+            (int)GetRValue(color),(int)GetGValue(color),(int)GetBValue(color));
+    }
+    return sp + 1;
+}
+
+void AwtToolkit::EventLoop()
+{
+    MSG message;
+    sysAtexit(awtAtExit);
+    while (!quit) {
+        WaitMessage();
+        while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE)) {
+            if (message.message == WM_QUIT) { quit = TRUE; exitCode = (int)message.wParam; break; }
+            if (message.message != WM_NULL) {
+                TranslateMessage(&message);
+                DispatchMessageA(&message);
+            }
+        }
+    }
+    PostQuitMessage(exitCode);
+}
+
+extern "C" __declspec(dllexport) int AwtInit()
+{ return AwtToolkit::GetInstance().Initialize(FALSE); }
+
+extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WToolkit_init_stub(
+    stack_item *sp, struct execenv *ee)
+{
+    if (!AwtToolkit::GetInstance().Initialize(TRUE))
+        SignalError(ee, "java/lang/InternalError", "Cannot initialize Windows toolkit");
+    return sp;
+}
+
+extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WToolkit_eventLoop_stub(
+    stack_item *sp, struct execenv *ee)
+{ AwtToolkit::GetInstance().EventLoop(); return sp; }
+
+extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WToolkit_makeColorModel_stub(
+    stack_item *sp, struct execenv *ee)
+{
+    HDC dc = GetDC(NULL);
+    int depth = GetDeviceCaps(dc, BITSPIXEL) * GetDeviceCaps(dc, PLANES);
+    ReleaseDC(NULL, dc);
+    if (depth >= 24) depth = 24;
+    /* The true-color constructor recovered at 10019D33. Palette and device
+     * mask initialization are completed with the image subsystem. */
+    sp[0].p = execute_java_constructor(ee, "java/awt/image/DirectColorModel", NULL,
+        "(IIIII)", depth, 0xff, 0xff00, 0xff0000, 0);
+    return sp + 1;
+}
+
+extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WToolkit_sync_stub(
+    stack_item *sp, struct execenv *ee)
+{ GdiFlush(); return sp; }
+
+extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WToolkit_beep_stub(
+    stack_item *sp, struct execenv *ee)
+{ MessageBeep(0); return sp; }
+#endif
+
 extern "C" stack_item *Java_sun_awt_windows_WToolkit_getScreenWidth_stub(
     stack_item *sp, struct execenv *ee)
 {

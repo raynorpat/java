@@ -1,0 +1,6 @@
+LIBRARY winawt
+EXPORTS
+    Java_sun_awt_windows_WToolkit_getScreenWidth_stub
+    Java_sun_awt_windows_WToolkit_getScreenHeight_stub
+    Java_sun_awt_windows_WToolkit_getScreenResolution_stub
+    Java_sun_awt_windows_WToolkit_loadSystemColors_stub

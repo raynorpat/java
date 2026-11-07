@@ -90,3 +90,68 @@ records the current thread ID, creates a toolkit window and installs a
 thread-specific WH_GETMESSAGE hook. eventLoop stub1002DCD8 calls1002354A.
 These dependencies must be recovered together before enabling a toolkit DLL.
 The recovered query subset alone is deliberately not installed as winawt.
+
+## Toolkit, window and component graphics foundation
+
+Implemented init/eventLoop/sync/beep/AwtInit and true-color makeColorModel,
+WComponentPeer methods, WWindowPeer methods, WFramePeer.create, WColor defaults,
+and the component-backed subset of WGraphics. This is a partial DLL, not the
+Phase4 completion gate. Controls, input replay, full graphics/images, printing,
+embedding and demo parity remain open; it is not installed yet.
+
+Initialization uses class AwtToolkit, title The AWT Toolkit Window, WS_DISABLED,
+and a thread-local WH_GETMESSAGE hook (10022729/100227A0). The hook is currently
+pass-through pending input recovery. The hidden window dispatches synchronous
+requests with message 0x464, matching the stack-owned request at100229A4.
+Shutdown uses0x466 and sysAtexit; the event loop uses WaitMessage/PeekMessage.
+Component records are retired on the HWND owner thread and clear Java pData.
+Java's SunToolkit peer map roots live peers; native requests remain on a Java
+thread's stack until their synchronous owner-thread operation returns.
+
+Frame creation10010C30 uses style0x02CF0000/exStyle0x100; window creation10023D0E
+uses0x82000000/exStyle0. Insets10023E70 come from outer/client rectangles.
+Title10024DAF uses Unicode on NT. Front/back10024CCE/10024D46 use SetWindowPos.
+WColor10005210 maps selectors1..9 to5,8,6,0,4,7,15,18,13 and constructs Color(III).
+True-color initialization10018F52 caps depth at24 and uses BGR masks
+0xff/0xff00/0xff0000. Sun's color model returns86/52/18 for0x123456; the oracle
+caught an initially incorrect conventional-RGB expectation. Palette and
+16-bit device masks remain for the image task.
+
+Graphics10011993/10011A5A acquire/reference the component surface and subtract
+top-level insets from the Java origin. Clip1001449C is stored in device
+coordinates;100146BF subtracts the current Java origin on retrieval. Copies
+have independent clipping state. Clear10012672 uses the component background.
+The reconstructed surface record is reference-counted and invalidated before
+HWND destruction so retained Graphics cannot draw into a recycled HWND.
+The full Sun AwtDC implementation and image/print surfaces remain separate work.
+Window paint100245B6 validates the update region, adds insets and calls
+handleExpose(IIII)V. Component paint10007280 and callback1001E341 supplied the
+Java method/exception contracts.
+
+Ruling: serialize native retirement and drawing on the owner thread rather
+than reproduce the original disposal's PostMessage/500ms timeout/delete race
+(10009D38). Cost: a stalled toolkit stalls disposal instead of returning after
+500ms with potentially live queued references. Paint callbacks are queued by
+HWND with accumulated rectangles, without heap-owned event payloads.
+
+Ruling: bring the component-backed graphics foundation forward from Task4.
+The stronger lifecycle test exposed createFromComponent failures on the Java
+event thread during resize repaint. Cost: Task2 and Task4 cannot be verified
+as completely independent units. Only implemented exports are emitted; missing
+menu/icon/image methods are not filled with placeholder success bodies.
+
+Ruling: use the current system hand cursor rather than Sun's HandCursor resource;
+bound getContainerElement indices rather than reading outside the component
+array. Costs: host cursor artwork differs, and malformed calls throw instead
+of accessing unrelated memory. Native font records currently capture face,
+size and style; logical-font/multifont mapping remains in Task4.
+
+Toolkit115 was RED for the missing DLL; Lifecycle115 was RED for create,
+getDefaultColor, createFromComponent, and an explicit initial paint callback.
+Tests now cover repeated/worker window creation, title/bounds/insets,
+show/hide/dispose, resize bursts, GC in paint/resize callbacks, clipping,
+translated graphics copies and graphics retirement after frame disposal.
+Both Sun and reconstructed Release pass Toolkit115, Lifecycle115 and
+Graphics115. Sun does not reliably issue an initial expose on this host, so
+the shared paint contract explicitly requests repaint. The harness rejects
+background exception/error output even when main exits successfully.

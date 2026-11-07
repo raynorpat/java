@@ -493,11 +493,46 @@ add_executable(mach115-condition tests/native/mach115-condition.c
 target_include_directories(mach115-condition BEFORE PRIVATE tests/native/mach115)
 add_test(NAME mach115-condition COMMAND mach115-condition)
 if(WIN32)
+  set(awt_gen "${CMAKE_BINARY_DIR}/awt115-generated")
+  set(awt_classes sun.awt.windows.WComponentPeer sun.awt.windows.WWindowPeer
+    sun.awt.windows.WFramePeer sun.awt.windows.WGraphics java.awt.Component java.awt.Container java.awt.Window
+    java.awt.Frame java.awt.Insets java.awt.Font java.awt.Cursor java.awt.Color java.awt.AWTEvent)
+  set(awt_headers)
+  foreach(clazz ${awt_classes})
+    string(REPLACE "." "_" header ${clazz})
+    list(APPEND awt_headers "${awt_gen}/${header}.h")
+  endforeach()
+  add_custom_command(OUTPUT ${awt_headers}
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${awt_gen}"
+    COMMAND javah -classpath "${JDK115_DIR}/lib/classes.zip" -d "${awt_gen}" ${awt_classes}
+    DEPENDS javah "${JDK115_DIR}/lib/classes.zip")
+  set(awt_stubs)
+  foreach(peer WComponentPeer WWindowPeer)
+    list(APPEND awt_stubs "${awt_gen}/sun_awt_windows_${peer}.c")
+  endforeach()
+  add_custom_command(OUTPUT ${awt_stubs}
+    COMMAND javah -stubs -classpath "${JDK115_DIR}/lib/classes.zip" -d "${awt_gen}"
+      sun.awt.windows.WComponentPeer sun.awt.windows.WWindowPeer
+    DEPENDS javah ${awt_headers})
+  add_library(winawt SHARED src/win32/sun/windows/awt_Toolkit.cpp
+    src/win32/sun/windows/awt_Component.cpp src/win32/sun/windows/awt_Window.cpp
+    src/win32/sun/windows/awt_Frame.cpp src/win32/sun/windows/awt_Graphics.cpp ${awt_headers} ${awt_stubs}
+    src/win32/sun/windows/winawt.def)
+  target_include_directories(winawt BEFORE PRIVATE "${awt_gen}")
+  target_link_libraries(winawt javai user32 gdi32)
   add_executable(winawt115-toolkit tests/native/winawt115-toolkit.c
     src/win32/sun/windows/awt_Toolkit.cpp)
+  target_compile_definitions(winawt115-toolkit PRIVATE AWT115_QUERIES_ONLY)
   target_link_libraries(winawt115-toolkit user32 gdi32)
   add_test(NAME winawt115-toolkit COMMAND winawt115-toolkit
     "${JDK115_DIR}/bin/winawt$<$<CONFIG:Debug>:_g>.dll")
+  foreach(awt_test Toolkit115 Lifecycle115 Graphics115)
+  add_test(NAME awt-${awt_test} COMMAND ${CMAKE_COMMAND}
+    -DROOT=${CMAKE_SOURCE_DIR} -DJAVA=$<TARGET_FILE:java> -DJAVAC=$<TARGET_FILE:javac>
+    -DJDK=${JDK115_DIR} -DLIBDIR=$<TARGET_FILE_DIR:winawt>
+    -DOUT=${CMAKE_BINARY_DIR}/awt115-$<CONFIG> -DCLASS=${awt_test}
+    -P ${CMAKE_SOURCE_DIR}/tests/awt/run115.cmake)
+  endforeach()
 endif()
 add_executable(mach115-condvar tests/native/mach115-condvar.c
   src/unix/java/runtime/condvar_md.c)

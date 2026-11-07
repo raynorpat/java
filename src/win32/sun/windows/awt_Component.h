@@ -1,0 +1,42 @@
+/* Component ownership recovered from winawt_g, awt_Component.cpp. */
+#ifndef AWT_COMPONENT_H
+#define AWT_COMPONENT_H
+#include "awt_Toolkit.h"
+extern "C" {
+#include "sun_awt_windows_WComponentPeer.h"
+#include "java_awt_Component.h"
+#include "java_awt_Font.h"
+#include "java_awt_Cursor.h"
+#include "java_awt_AWTEvent.h"
+}
+struct Hjava_awt_Insets;
+struct AwtSurface;
+class AwtComponent {
+public:
+    AwtComponent(Hsun_awt_windows_WComponentPeer *peer);
+    virtual ~AwtComponent();
+    BOOL Create(const char *name, DWORD style, DWORD exStyle, HWND parent);
+    virtual LRESULT WindowProc(UINT message, WPARAM w, LPARAM l);
+    virtual void UpdateInsets(Hjava_awt_Insets *insets) {}
+    void Dispose();
+    static void Cleanup();
+    HWND GetHWnd() const { return hwnd; }
+    Hsun_awt_windows_WComponentPeer *GetPeer() const { return peer; }
+    Hjava_awt_Component *GetTarget() const { return (Hjava_awt_Component *)unhand(peer)->target; }
+    static AwtComponent *Get(Hsun_awt_windows_WComponentPeer *peer);
+    static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+    COLORREF foreground, background;
+    HFONT font;
+    HCURSOR cursor;
+    BOOL started;
+    AwtSurface *surface;
+    RECT pendingPaint;
+    BOOL paintPending;
+protected:
+    HWND hwnd;
+    Hsun_awt_windows_WComponentPeer *peer;
+    AwtComponent *next;
+    static AwtComponent *components;
+};
+WCHAR *awtUnicode(Hjava_lang_String *string);
+#endif
