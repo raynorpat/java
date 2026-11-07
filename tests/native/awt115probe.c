@@ -288,7 +288,8 @@ __declspec(dllexport) stack_item *Java_WinAwtProbe_inkLeft_stub(stack_item *sp,s
     HWND window = test_window((struct Hjava_lang_String *)sp[0].p);
     struct Hjava_lang_String *label = (struct Hjava_lang_String *)sp[1].p;
     WCHAR text[256]; struct window_search search; int length, x, y, left = -1;
-    RECT rect; HDC dc;
+    RECT rect; HDC dc,copy;
+    BITMAPINFO info; HBITMAP bitmap; HGDIOBJ old; DWORD *pixels;
     if (!window || !label || (length = javaStringLength(label)) > 255) {
         SignalError(ee,"java/lang/RuntimeException","invalid label search"); sp[0].i = -1; return sp+1;
     }
@@ -301,10 +302,27 @@ __declspec(dllexport) stack_item *Java_WinAwtProbe_inkLeft_stub(stack_item *sp,s
         ShowWindow(window,SW_SHOW);
         RedrawWindow(search.window,NULL,NULL,RDW_INVALIDATE|RDW_UPDATENOW|RDW_ERASE);
         GetClientRect(search.window,&rect); dc = GetDC(search.window);
-        for (x = 0; dc && x < rect.right && left < 0; x++) for (y = 0; y < rect.bottom; y++) {
-            COLORREF pixel = GetPixel(dc,x,y);
-            if (GetRValue(pixel)<128 && GetGValue(pixel)<128 && GetBValue(pixel)<128) { left = x; break; }
+        /* Capture once: screen GetPixel synchronizes every sample and can
+         * exhaust the timeout before scanning a right-aligned label. */
+        ZeroMemory(&info,sizeof(info)); info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);
+        info.bmiHeader.biWidth=rect.right; info.bmiHeader.biHeight=-rect.bottom;
+        info.bmiHeader.biPlanes=1; info.bmiHeader.biBitCount=32;
+        copy=dc ? CreateCompatibleDC(dc) : NULL;
+        bitmap=copy ? CreateDIBSection(dc,&info,DIB_RGB_COLORS,(void **)&pixels,NULL,0) : NULL;
+        if(bitmap) {
+            old=SelectObject(copy,bitmap);
+            if(BitBlt(copy,0,0,rect.right,rect.bottom,dc,0,0,SRCCOPY)) {
+                GdiFlush();
+                for(x=0;x<rect.right && left<0;x++) for(y=0;y<rect.bottom;y++) {
+                    DWORD pixel=pixels[y*rect.right+x];
+                    if((pixel&255)<128 && ((pixel>>8)&255)<128 && ((pixel>>16)&255)<128) {
+                        left=x; break;
+                    }
+                }
+            }
+            SelectObject(copy,old); DeleteObject(bitmap);
         }
+        if(copy) DeleteDC(copy);
         if (dc) ReleaseDC(search.window,dc);
     }
     sp[0].i = left; return sp+1;
