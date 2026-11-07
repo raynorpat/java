@@ -16,7 +16,10 @@ public:
     AwtComponent(Hsun_awt_windows_WComponentPeer *peer);
     virtual ~AwtComponent();
     BOOL Create(const char *name, DWORD style, DWORD exStyle, HWND parent);
+    BOOL CreateControl(const WCHAR *name, const WCHAR *text, DWORD style, HWND parent);
     virtual LRESULT WindowProc(UINT message, WPARAM w, LPARAM l);
+    virtual void Command(WORD code) {}
+    virtual void DrawItem(DRAWITEMSTRUCT *item) {}
     virtual void UpdateInsets(Hjava_awt_Insets *insets) {}
     void Dispose();
     static void Cleanup();
@@ -37,6 +40,7 @@ protected:
     Hsun_awt_windows_WComponentPeer *peer;
     AwtComponent *next;
     static AwtComponent *components;
+    WNDPROC originalProc;
 };
 WCHAR *awtUnicode(Hjava_lang_String *string);
 #endif

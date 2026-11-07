@@ -16,7 +16,7 @@ WCHAR *awtUnicode(Hjava_lang_String *string)
 AwtComponent *AwtComponent::components = NULL;
 AwtComponent::AwtComponent(Hsun_awt_windows_WComponentPeer *p)
     : foreground(GetSysColor(COLOR_WINDOWTEXT)), background(GetSysColor(COLOR_WINDOW)),
-      font(NULL), cursor(LoadCursor(NULL, IDC_ARROW)), started(FALSE), surface(NULL), paintPending(FALSE), hwnd(NULL), peer(p), next(NULL) {}
+      font(NULL), cursor(LoadCursor(NULL, IDC_ARROW)), started(FALSE), surface(NULL), paintPending(FALSE), hwnd(NULL), peer(p), next(NULL), originalProc(NULL) {}
 AwtComponent::~AwtComponent() { if (font) DeleteObject(font); }
 AwtComponent *AwtComponent::Get(Hsun_awt_windows_WComponentPeer *p)
 { return p ? (AwtComponent *)unhand(p)->pData : NULL; }
@@ -38,6 +38,18 @@ BOOL AwtComponent::Create(const char *name, DWORD style, DWORD exStyle, HWND par
 
 void AwtComponent::Cleanup()
 { while (components) components->Dispose(); }
+
+BOOL AwtComponent::CreateControl(const WCHAR *name, const WCHAR *text, DWORD style, HWND parent)
+{
+    Classjava_awt_Component *target = unhand(GetTarget());
+    hwnd = CreateWindowExW(0,name,text,style,target->x,target->y,target->width,target->height,
+        parent,NULL,GetModuleHandle(NULL),NULL);
+    if (!hwnd) return FALSE;
+    SetWindowLong(hwnd,GWL_USERDATA,(LONG)this);
+    originalProc = (WNDPROC)SetWindowLongW(hwnd,GWL_WNDPROC,(LONG)WndProc);
+    unhand(peer)->pData = (long)this; next = components; components = this;
+    return TRUE;
+}
 
 void AwtComponent::Dispose()
 {
@@ -64,13 +76,50 @@ LRESULT CALLBACK AwtComponent::WndProc(HWND window, UINT message, WPARAM w, LPAR
     }
     if (!component) return DefWindowProcA(window, message, w, l);
     LRESULT result = component->WindowProc(message, w, l);
-    if (message == WM_NCDESTROY) SetWindowLongA(window, GWL_USERDATA, 0);
+    if (message == WM_NCDESTROY) {
+        component->started = FALSE;
+        if (component->surface) {
+            component->surface->component = NULL;
+            component->surface->Release(); component->surface = NULL;
+        }
+        component->hwnd = NULL;
+        SetWindowLongA(window, GWL_USERDATA, 0);
+    }
     return result;
 }
 
 LRESULT AwtComponent::WindowProc(UINT message, WPARAM w, LPARAM l)
 {
-    if (message == WM_PAINT) {
+    if (message == WM_COMMAND && l) {
+        AwtComponent *child = (AwtComponent *)GetWindowLong((HWND)l,GWL_USERDATA);
+        if (child) { child->Command(HIWORD(w)); return 0; }
+    }
+    if (message == WM_DRAWITEM && l) {
+        DRAWITEMSTRUCT *item = (DRAWITEMSTRUCT *)l;
+        AwtComponent *child = (AwtComponent *)GetWindowLong(item->hwndItem,GWL_USERDATA);
+        if (child) { child->DrawItem(item); return TRUE; }
+    }
+    if (started && (message == WM_SETFOCUS || message == WM_KILLFOCUS)) {
+        BOOL temporary = FALSE;
+        if (message == WM_KILLFOCUS) {
+            HWND other = (HWND)w, current = hwnd, otherRoot = other, currentRoot = current;
+            for (; other && (GetWindowLong(other,GWL_STYLE)&WS_CHILD); other = GetParent(other)) otherRoot = other;
+            for (; current && (GetWindowLong(current,GWL_STYLE)&WS_CHILD); current = GetParent(current)) currentRoot = current;
+            temporary = currentRoot != otherRoot;
+        }
+        PostMessage(hwnd,WM_APP+3,message == WM_SETFOCUS ? 1004 : 1005,temporary);
+    }
+    if (message == WM_APP+3) {
+        if (started) {
+            HObject *event = (HObject *)execute_java_constructor(EE(),"java/awt/event/FocusEvent",NULL,
+                "(Ljava/awt/Component;IZ)",GetTarget(),(int)w,(int)l);
+            if (event && !exceptionOccurred(EE()))
+                execute_java_dynamic_method(EE(),(HObject *)peer,"postEvent","(Ljava/awt/AWTEvent;)V",event);
+            if (exceptionOccurred(EE())) { exceptionDescribe(EE()); exceptionClear(EE()); }
+        }
+        return 0;
+    }
+    if (message == WM_PAINT && !originalProc) {
         RECT rect;
         if (GetUpdateRect(hwnd,&rect,FALSE)) {
             ValidateRect(hwnd,NULL);
@@ -101,7 +150,7 @@ LRESULT AwtComponent::WindowProc(UINT message, WPARAM w, LPARAM l)
         HBRUSH brush = CreateSolidBrush(background);
         FillRect((HDC)w, &rect, brush); DeleteObject(brush); return TRUE;
     }
-    return DefWindowProcA(hwnd, message, w, l);
+    return originalProc ? CallWindowProcW(originalProc,hwnd,message,w,l) : DefWindowProcA(hwnd,message,w,l);
 }
 
 enum ComponentOperation { SHOW, HIDE, ENABLE, DISABLE, DISPOSE, RESHAPE,
@@ -125,9 +174,17 @@ static void componentRequest(void *argument)
     case ENABLE: EnableWindow(window, TRUE); break;
     case DISABLE: EnableWindow(window, FALSE); break;
     case DISPOSE: c->Dispose(); break;
-    case RESHAPE:
-        SetWindowPos(window, NULL, r->values[0], r->values[1], r->values[2], r->values[3],
+    case RESHAPE: {
+        long x = r->values[0], y = r->values[1];
+        HWND parent = GetParent(window);
+        if ((GetWindowLong(window,GWL_STYLE) & WS_CHILD) && parent &&
+            !(GetWindowLong(parent,GWL_STYLE) & WS_CHILD)) {
+            RECT outer; POINT origin = {0,0}; GetWindowRect(parent,&outer);
+            ClientToScreen(parent,&origin); x -= origin.x-outer.left; y -= origin.y-outer.top;
+        }
+        SetWindowPos(window, NULL, x, y, r->values[2], r->values[3],
                      SWP_NOACTIVATE | SWP_NOZORDER); c->UpdateInsets(NULL); break;
+    }
     case FOREGROUND:
     case BACKGROUND: {
         long value = r->values[0];

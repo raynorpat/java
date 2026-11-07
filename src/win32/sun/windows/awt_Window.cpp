@@ -2,6 +2,41 @@
 #include "awt_Window.h"
 #include <stdlib.h>
 
+/* Geometry100243F7/1002447C, closing100243A4; event constructors10024131/1002425D. */
+LRESULT AwtWindow::WindowProc(UINT message, WPARAM w, LPARAM l)
+{
+    if (started && (message == WM_MOVE || message == WM_SIZE)) {
+        RECT bounds; GetWindowRect(hwnd,&bounds);
+        Classjava_awt_Component *target = unhand(GetTarget());
+        if (message == WM_MOVE && !IsIconic(hwnd) &&
+            (target->x != bounds.left || target->y != bounds.top)) {
+            target->x = bounds.left; target->y = bounds.top;
+            PostMessage(hwnd,WM_APP+2,100,0);
+        }
+        if (message == WM_SIZE && w != SIZE_MINIMIZED &&
+            (target->width != bounds.right-bounds.left || target->height != bounds.bottom-bounds.top)) {
+            target->width = bounds.right-bounds.left; target->height = bounds.bottom-bounds.top;
+            UpdateInsets(NULL); PostMessage(hwnd,WM_APP+2,101,0);
+        }
+    }
+    if (message == WM_CLOSE) {
+        if (started) PostMessage(hwnd,WM_APP+2,201,0);
+        return 0;
+    }
+    if (message == WM_APP+2) {
+        if (started) {
+            HObject *event = (HObject *)execute_java_constructor(EE(),
+                w < 200 ? "java/awt/event/ComponentEvent" : "java/awt/event/WindowEvent",NULL,
+                w < 200 ? "(Ljava/awt/Component;I)" : "(Ljava/awt/Window;I)",GetTarget(),(int)w);
+            if (event && !exceptionOccurred(EE()))
+                execute_java_dynamic_method(EE(),(HObject *)peer,"postEvent","(Ljava/awt/AWTEvent;)V",event);
+            if (exceptionOccurred(EE())) { exceptionDescribe(EE()); exceptionClear(EE()); }
+        }
+        return 0;
+    }
+    return AwtComponent::WindowProc(message,w,l);
+}
+
 void AwtWindow::UpdateInsets(Hjava_awt_Insets *extra)
 {
     RECT outer, client;

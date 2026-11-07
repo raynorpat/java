@@ -155,3 +155,39 @@ Both Sun and reconstructed Release pass Toolkit115, Lifecycle115 and
 Graphics115. Sun does not reliably issue an initial expose on this host, so
 the shared paint contract explicitly requests repaint. The harness rejects
 background exception/error output even when main exits successfully.
+
+## Native events and first child controls
+
+WindowEvents115 uses a small native test driver to move and close only HWNDs
+belonging to its own process. The initial test failed on missing native
+geometry events. Move100243F7 updates target x/y and posts ComponentEvent100;
+resize1002447C updates width/height and posts101. Close100243A4 posts
+WindowEvent201 and does not destroy the HWND. Constructors10024131/1002425D
+and postEvent1001E4AF supply the Java callback signatures. Native events are
+queued by HWND before making Java calls, avoiding callbacks inside synchronous
+cross-thread geometry requests. Window.dispose already posts202 in Java.
+
+Canvas/Panel creation100031C7 ->10002DF6 uses child style0x46000000. Native
+child reshape accounts for its top-level parent's non-client origin. The
+Canvas115 test first failed at create, then checks nested Panel/Canvas
+coordinates, repeated disposal, retained graphics and focus changes. Sun's
+reshape is asynchronous, so the comparison waits for the resulting location.
+Focus10006F9D/10006FC9 ->10009078 creates FocusEvent with signature
+(Ljava/awt/Component;IZ), IDs1004/1005 and the recovered temporary-focus rule.
+The focus test was RED for missing focus gained before these callbacks.
+WM_NCDESTROY also invalidates surviving graphics surfaces, including when
+Windows destroys children as part of parent HWND destruction.
+
+Button115 was RED at create. Creation10002435 uses BUTTON with0x4400000B
+(owner-drawn). BN_CLICKED100025B5 calls handleAction()V. Draw100025F2 fills the
+background, draws raised/sunken edges, centers text, adds the focus rectangle,
+and calls handlePaint. The reconstruction uses a subclassed native BUTTON and
+keeps native drawing and action dispatch on the toolkit owner thread.
+The test drives BM_CLICK against process-owned controls, verifies labels
+including accented text, default/custom action commands, GC in the listener
+and retirement. This is a control-action test, not mouse/key replay coverage.
+Font-segment painting and disabled-text visual parity remain Task4 work.
+
+All six Java AWT tests pass against the original Sun Release VM and current
+reconstruction. Native window/input activation, modal dialogs, the other
+controls, full raster/font/image tests and the demo gate remain open.

@@ -11,6 +11,7 @@ class AwtWindow : public AwtComponent {
 public:
     AwtWindow(Hsun_awt_windows_WComponentPeer *peer) : AwtComponent(peer) {}
     virtual void UpdateInsets(Hjava_awt_Insets *insets);
+    virtual LRESULT WindowProc(UINT message, WPARAM w, LPARAM l);
 };
 class AwtFrame : public AwtWindow {
 public:
