@@ -146,3 +146,19 @@ multiple/single selection, insertion/deletion, native item counts, native scroll
 position, mouse selection, Return activation, clearing and disposal. The partial
 native inventory has 66 entries. Locale-aware item strings and menu/modal input
 remain separate open gates.
+
+## Choice checkpoint
+
+Release 0x2625c..0x26b80 and debug Choice_callback at 0x4c1c0 establish an option
+menu with a separately owned pulldown and indexed push-button items. The native
+record retires its item array and pulldown before the public widget; a destroy
+callback also handles a pulldown already destroyed with its parent. Selection,
+removal and callback indices follow the unchanged Java peer boundary.
+
+Choice115 failed at missing create, then passed popup keyboard selection,
+removal, clear/regrowth to 50 items, and six disposal cycles. An added native
+color check failed for newly added items after recoloring. Explicitly copying
+the option menu's foreground/background, as release addItem does, fixes it.
+All thirteen focused Linux Debug tests pass; 74 Motif bindings are implemented.
+New-item font inheritance and multifont strings still belong to the open font
+gate, along with the other previously recorded limitations.

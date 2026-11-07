@@ -46,6 +46,46 @@ JAVA_PUBLIC_API(stack_item *) Java_List115_itemCount_stub(stack_item *p,struct e
     AWT_UNLOCK();
     return p+1;
 }
+JAVA_PUBLIC_API(stack_item *) Java_Choice115_selected_stub(stack_item *p,struct execenv *ee)
+{
+    Widget selected;
+    XtPointer index=NULL;
+    AWT_LOCK();
+    XtVaGetValues(widget(p[0].p),XmNmenuHistory,&selected,NULL);
+    if (selected) XtVaGetValues(selected,XmNuserData,&index,NULL);
+    p[0].i=(long)index-1;
+    AWT_UNLOCK();
+    return p+1;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Choice115_itemCount_stub(stack_item *p,struct execenv *ee)
+{
+    Widget menu;
+    Cardinal count;
+    AWT_LOCK();
+    XtVaGetValues(widget(p[0].p),XmNsubMenuId,&menu,NULL);
+    XtVaGetValues(menu,XtNnumChildren,&count,NULL);
+    p[0].i=count;
+    AWT_UNLOCK();
+    return p+1;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Choice115_colorsMatch_stub(stack_item *p,struct execenv *ee)
+{
+    Widget menu,w;
+    WidgetList children;
+    Cardinal count,i;
+    Pixel foreground,background,fg,bg;
+    int matches=1;
+    AWT_LOCK(); w=widget(p[0].p);
+    XtVaGetValues(w,XmNsubMenuId,&menu,XmNforeground,&foreground,XmNbackground,&background,NULL);
+    XtVaGetValues(menu,XtNnumChildren,&count,XtNchildren,&children,NULL);
+    for (i=0;i<count;i++) {
+        XtVaGetValues(children[i],XmNforeground,&fg,XmNbackground,&bg,NULL);
+        if (fg!=foreground || bg!=background) matches=0;
+    }
+    p[0].i=matches;
+    AWT_UNLOCK();
+    return p+1;
+}
 JAVA_PUBLIC_API(stack_item *) Java_List115_topIndex_stub(stack_item *p,struct execenv *ee)
 {
     int value;

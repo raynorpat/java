@@ -24,6 +24,7 @@ typedef struct AwtPeer {
     int references;
     Hsun_awt_motif_MComponentPeer *javaPeer;
     struct AwtPeer *next;
+    void (*cleanup)(struct AwtPeer *);
 } AwtPeer;
 AwtPeer *awt118_peer(Hsun_awt_motif_MComponentPeer *peer);
 AwtPeer *awt118_new_peer(Hsun_awt_motif_MComponentPeer *peer);

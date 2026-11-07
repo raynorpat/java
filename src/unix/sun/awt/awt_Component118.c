@@ -30,10 +30,18 @@ void awt118_callback_done(void)
     if (exceptionOccurred(EE())) { exceptionDescribe(EE()); exceptionClear(EE()); }
 }
 
+static void cleanup_peer(AwtPeer *data)
+{
+    void (*cleanup)(AwtPeer *)=data->cleanup;
+    data->cleanup=NULL;
+    if (cleanup) cleanup(data);
+}
+
 static void destroyed(Widget widget,XtPointer closure,XtPointer call)
 {
     AwtPeer *data=(AwtPeer *)closure;
     awt118_forget_input(data);
+    cleanup_peer(data);
     data->widget=NULL;
     data->content=NULL;
 }
@@ -64,6 +72,7 @@ void awt118_dispose_peer(Hsun_awt_motif_MComponentPeer *peer)
     if (!data) return;
     unhand(peer)->pData=0;
     awt118_forget_input(data);
+    cleanup_peer(data);
     if (data->widget) {
         XtRemoveEventHandler(data->widget,peer_events,False,canvas_event,peer);
         if (data->content) XtRemoveEventHandler(data->content,peer_events,False,canvas_event,peer);
