@@ -2,6 +2,9 @@
 /* Invocation API reconstructed from javai_g.dll 10026fcd--100278ed. */
 #include <stdlib.h>
 #include <string.h>
+#ifndef XP_PC
+#include <sys/stat.h>
+#endif
 #include "jni_impl.h"
 #include "threads.h"
 #include "javaString.h"
@@ -47,7 +50,7 @@ void sysGetDefaultJavaVMInitArgs(void *opaque)
     args->maxHeapSize = 16 * 1024 * 1024;
     if (!defaultClasspath) {
         const char *home = sysJavaHome();
-        defaultClasspath = malloc(5 * strlen(home) + 100);
+        defaultClasspath = malloc(6 * strlen(home) + 132);
         if (!defaultClasspath) { out_of_memory(); return; }
         /* Primary 10002527: boot archives only; java_main prepends CLASSPATH.
          * deviation: use normalized home and the host's path separators. */
@@ -57,6 +60,19 @@ void sysGetDefaultJavaVMInitArgs(void *opaque)
                 home, LOCAL_DIR_SEPARATOR, LOCAL_DIR_SEPARATOR, PATH_SEPARATOR,
                 home, LOCAL_DIR_SEPARATOR, LOCAL_DIR_SEPARATOR, PATH_SEPARATOR,
                 home, LOCAL_DIR_SEPARATOR, LOCAL_DIR_SEPARATOR);
+#ifndef XP_PC
+        {
+            char *peers = malloc(strlen(home) + 32);
+            struct stat info;
+            if (!peers) { out_of_memory(); return; }
+            sprintf(peers, "%s/lib/motif-peers.zip", home);
+            if (stat(peers, &info) == 0 && S_ISREG(info.st_mode)) {
+                strcat(defaultClasspath, ":");
+                strcat(defaultClasspath, peers);
+            }
+            free(peers);
+        }
+#endif
     }
     args->classpath = defaultClasspath;
 }

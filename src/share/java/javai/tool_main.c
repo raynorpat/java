@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 #else
     if (!oldpath) oldpath = ".";
 #endif
-    path = malloc(strlen(oldpath) + 2 * strlen(home) + 64);
+    path = malloc(strlen(oldpath) + 3 * strlen(home) + 96);
     if (!path) {
         free(args);
         return 1;
@@ -72,6 +72,17 @@ int main(int argc, char **argv)
     /* deviation: platform separators for the pthreads port. */
     sprintf(path, "CLASSPATH=%s%s%s/classes:%s/lib/classes.zip",
             oldpath, *oldpath ? ":" : "", home, home);
+    {
+        char *peers = malloc(strlen(home) + 32);
+        struct stat peer_info;
+        if (!peers) { free(args); free(path); return 1; }
+        sprintf(peers, "%s/lib/motif-peers.zip", home);
+        if (stat(peers, &peer_info) == 0 && S_ISREG(peer_info.st_mode)) {
+            strcat(path, ":");
+            strcat(path, peers);
+        }
+        free(peers);
+    }
 #endif
     putenv(path);
 #endif

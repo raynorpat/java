@@ -460,3 +460,5 @@ are a documented host adaptation, not a claim of Solaris palette/dither parity.
 Forced-default 8-bit and 16-bit Xvfb visuals pass exact primary/gray drawing,
 producer conversion, offscreen delivery and repeated flush/GC checks. The 24-bit
 toolkit/raster/image tests plus both visual tests pass together (5/5, 12.02 seconds).
+
+Installed image: the default Unix JNI and tool classpaths include lib/motif-peers.zip when present; explicit java -classpath still overrides the default. CMake installs reconstructed libawt, the separate peer archive, Solaris font properties and notices. Installed115 compiles/runs using installed javac/java with CLASSPATH, JAVA_HOME and LD_LIBRARY_PATH unset. RED missing MToolkit -> GREEN motif118-installed (19.30s). Demo and full regression gates remain open.

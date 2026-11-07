@@ -100,9 +100,16 @@ sysGetClassPath(void)
 		/* 	Grab the environment variable containting the list of class paths
 			and make a copy of it for local munging. */
 		if ((cps = (char*)CLASSPATH()) == 0 && (cps = getenv("CLASSPATH")) == 0) {
-			/* Like the JDK: .:<java home>/lib/classes.zip */
-			static char def[MAXPATHLEN + 32];
+			/* The optional Linux peer archive supplements the baseline classes. */
+			static char def[2 * MAXPATHLEN + 64];
+			char peers[MAXPATHLEN + 32];
+			struct stat info;
 			sprintf(def, ".:%s/lib/classes.zip", sysJavaHome());
+			sprintf(peers, "%s/lib/motif-peers.zip", sysJavaHome());
+			if (stat(peers, &info) == 0 && S_ISREG(info.st_mode)) {
+				strcat(def, ":");
+				strcat(def, peers);
+			}
 			cps = def;
 		}
 		if (CLASSPATH() == 0) {

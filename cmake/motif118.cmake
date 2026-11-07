@@ -71,6 +71,17 @@ if(UNIX AND NOT APPLE)
   target_link_libraries(awt javai Xm Xt X11)
   set_target_properties(awt PROPERTIES LINK_FLAGS "-Wl,--no-undefined")
   add_dependencies(awt motif118-peers)
+  install(TARGETS awt LIBRARY DESTINATION lib)
+  install(FILES "${motif118_out}/motif-peers.zip" DESTINATION lib)
+  install(DIRECTORY "${motif118_out}/home/lib/" DESTINATION lib
+    FILES_MATCHING PATTERN "font.properties*")
+  install(FILES "${SOLARIS118_DIR}/LICENSE"
+    "${SOLARIS118_DIR}/SUNWjvrt/reloc/usr/java1.1/COPYRIGHT"
+    DESTINATION legal/solaris-1.1.8)
+  add_test(NAME motif118-installed COMMAND ${CMAKE_COMMAND}
+    "-DBUILD=${CMAKE_BINARY_DIR}" "-DROOT=${CMAKE_SOURCE_DIR}"
+    -P "${CMAKE_SOURCE_DIR}/tests/awt118/installed.cmake")
+  set_tests_properties(motif118-installed PROPERTIES TIMEOUT 120 RUN_SERIAL TRUE)
   add_library(motif118xprobe SHARED tests/native/motif118xprobe.c)
   target_include_directories(motif118xprobe BEFORE PRIVATE "${motif118_out}/generated" src/unix/sun/awt)
   target_link_libraries(motif118xprobe awt Xtst)
