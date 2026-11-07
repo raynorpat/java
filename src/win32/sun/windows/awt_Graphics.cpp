@@ -14,7 +14,7 @@ AwtSurface::~AwtSurface()
 {
     if (dc && oldBitmap) SelectObject(dc,oldBitmap);
     if (palette && oldPalette) SelectPalette(dc,oldPalette,FALSE);
-    if (palette) DeleteObject(palette);
+    if (palette) awtReleaseImagePalette();
     if (bitmap) DeleteObject(bitmap);
     if (dc && ownsDC) DeleteDC(dc);
     free(alpha); free(coverage); free(rows); free(ditherErrors);
@@ -55,7 +55,7 @@ BOOL awtGraphicsDC(Hsun_awt_windows_WGraphics *peer,AwtDC *lease)
     if(palette){SelectPalette(lease->dc,palette,FALSE);RealizePalette(lease->dc);}
     if (g->clipped) IntersectClipRect(lease->dc,g->clip.left,g->clip.top,g->clip.right,g->clip.bottom);
     SetBkMode(lease->dc,TRANSPARENT); SetROP2(lease->dc,g->xormode ? R2_XORPEN : R2_COPYPEN);
-    SetTextColor(lease->dc,g->color); SetPolyFillMode(lease->dc,ALTERNATE);
+    SetTextColor(lease->dc,g->color|0x02000000); SetPolyFillMode(lease->dc,ALTERNATE);
     return TRUE;
 }
 void awtReleaseDC(AwtDC *lease)
@@ -144,7 +144,7 @@ static void graphicsRequest(void *argument)
     }
     AwtDC lease; if (!awtGraphicsDC(r->peer,&lease)) return; HDC dc = lease.dc;
     COLORREF color = awtGraphicsColor(r->peer);
-    HBRUSH brush = CreateSolidBrush(color); HPEN pen = CreatePen(PS_SOLID,1,color);
+    HBRUSH brush = CreateSolidBrush(color|0x02000000); HPEN pen = CreatePen(PS_SOLID,1,color|0x02000000);
     SelectObject(dc,brush); SelectObject(dc,pen);
     DWORD rop = g->xormode ? 0x5a0049 : PATCOPY;
     int x = r->v[0]+ox, y = r->v[1]+oy, w = r->v[2], h = r->v[3];
@@ -152,7 +152,7 @@ static void graphicsRequest(void *argument)
     case CLEAR_RECT:
         if (w > 0 && h > 0) {
             AwtSurface *s = g->surface;
-            HBRUSH bg = CreateSolidBrush(s->component ? s->component->background : s->background);
+            HBRUSH bg = CreateSolidBrush((s->component ? s->component->background : s->background)|0x02000000);
             RECT rect = {x,y,x+w,y+h}; FillRect(dc,&rect,bg); DeleteObject(bg);
         } break;
     case FILL_RECT: if (w > 0 && h > 0) PatBlt(dc,x,y,w,h,rop); break;

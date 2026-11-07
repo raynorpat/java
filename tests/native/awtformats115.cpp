@@ -2,6 +2,7 @@
 #include "../../src/win32/sun/windows/awt_PixelFormat.h"
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 static int failures;
 #define CHECK(value) do { if (!(value)) { printf("line %d failed: %s\n",__LINE__,#value); failures++; } } while (0)
 static void be16(BYTE *p,unsigned value) { p[0]=(BYTE)(value>>8); p[1]=(BYTE)value; }
@@ -41,13 +42,23 @@ static void pixelFormatTests()
     DWORD cubeHash=2166136261u;
     for(int r=0;r<256;r+=8)for(int g=0;g<256;g+=8)for(int b=0;b<256;b+=8)cubeHash=(cubeHash^awtPaletteIndex(r,g,b))*16777619u;
     CHECK(cubeHash==0xe51377db); /* Independently extracted from 1003BF68. */
+    DWORD ordered=2166136261u,diffuse=2166136261u;int errors[16*3+6]={0};
+    for(int y=0;y<8;y++){int carry[3]={0,0,0};for(int x=0;x<16;x++){
+        int r=(x*17+y*3)&255,g=(x*13+y*29)&255,b=(x*7+y*31)&255;
+        ordered=(ordered^awtOrderedPaletteIndex(r,g,b,x,y))*16777619u;
+        diffuse=(diffuse^awtDiffusePaletteIndex(r,g,b,errors+3*x,carry))*16777619u;
+    }}
+    CHECK(ordered==0xc8683e99 && diffuse==0xb88c1094); /* Binary-table/reference arithmetic fixtures. */
     RGBQUAD colors[256];awtPaletteEntries(colors);DWORD hash[3]={2166136261u,2166136261u,2166136261u};
     for(int i=0;i<256;i++){hash[0]=(hash[0]^colors[i].rgbRed)*16777619u;hash[1]=(hash[1]^colors[i].rgbGreen)*16777619u;hash[2]=(hash[2]^colors[i].rgbBlue)*16777619u;}
     CHECK(hash[0]==0x58edb65f && hash[1]==0xe468fda0 && hash[2]==0x4d87cd27);
     for(int depth=8;depth<=32;depth+=8){f.depth=depth;f.redMask=0xf800;f.greenMask=0x7e0;f.blueMask=0x1f;void *bits=NULL;int stride=0;
         HDC dc=CreateCompatibleDC(NULL);HBITMAP bitmap=awtCreateImageDIB(dc,f,3,2,&bits,&stride);CHECK(bitmap && bits);CHECK(stride==((3*(depth/8)+3)&~3));
-        if(bitmap){HGDIOBJ old=SelectObject(dc,bitmap);f.Write((BYTE *)bits+stride,2,f.Encode(0x123456));CHECK(f.Read((BYTE *)bits+stride,2)==f.Decode(f.Encode(0x123456)));SelectObject(dc,old);DeleteObject(bitmap);}DeleteDC(dc);
+        if(bitmap){HGDIOBJ old=SelectObject(dc,bitmap);f.Write((BYTE *)bits+stride,2,f.Encode(0x123456));CHECK(f.Read((BYTE *)bits+stride,2)==f.Decode(f.Encode(0x123456)));
+            GdiFlush();DWORD rgb=f.Decode(f.Encode(0x123456));COLORREF actual=GetPixel(dc,2,1);
+            CHECK(actual==RGB((rgb>>16)&255,(rgb>>8)&255,rgb&255));SelectObject(dc,old);DeleteObject(bitmap);}DeleteDC(dc);
     }
+    void *invalidBits=NULL;int invalidStride=0;CHECK(!awtCreateImageDIB(NULL,f,INT_MAX,2,&invalidBits,&invalidStride));
     HPALETTE palette=awtCreateImagePalette();PALETTEENTRY entries[256];CHECK(palette && GetPaletteEntries(palette,0,256,entries)==256);CHECK(entries[0].peFlags==0 && entries[10].peFlags==PC_NOCOLLAPSE && entries[255].peFlags==0);DeleteObject(palette);
 }
 int main() { fontDataTests();pixelFormatTests();if(failures)return 1;puts("font cmap, EUDC, RGB555/565, palette cube and DIB fixtures passed");return 0; }

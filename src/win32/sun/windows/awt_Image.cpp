@@ -12,18 +12,30 @@ extern "C" {
 #include <limits.h>
 
 static HPALETTE componentPalette;
-static BOOL paletteInitialized;
+static BOOL paletteInitialized,paletteRetired;
+static unsigned paletteReferences;
 HPALETTE awtImagePalette()
 {
     if(!paletteInitialized){
         AwtPixelFormat format;awtDisplayPixelFormat(&format);
         if(format.depth==8)componentPalette=awtCreateImagePalette();
-        paletteInitialized=TRUE;
+        paletteInitialized=TRUE;paletteRetired=FALSE;
     }
     return componentPalette;
 }
+HPALETTE awtRetainImagePalette()
+{ HPALETTE palette=awtImagePalette();if(palette)++paletteReferences;return palette; }
+void awtReleaseImagePalette()
+{
+    if(paletteReferences && !--paletteReferences && paletteRetired){
+        DeleteObject(componentPalette);componentPalette=NULL;paletteInitialized=FALSE;
+    }
+}
 void awtCleanupImagePalette()
-{ if(componentPalette)DeleteObject(componentPalette);componentPalette=NULL;paletteInitialized=FALSE; }
+{
+    paletteRetired=TRUE;
+    if(!paletteReferences){if(componentPalette)DeleteObject(componentPalette);componentPalette=NULL;paletteInitialized=FALSE;}
+}
 static HObject *imageColorModel(ExecEnv *ee,int depth,DWORD red,DWORD green,DWORD blue)
 {
     if(depth<=8){
@@ -58,7 +70,7 @@ AwtSurface *awtImageSurface(Hsun_awt_image_ImageRepresentation *image,BOOL creat
     s->bitmap=awtCreateImageDIB(s->dc,s->format,w,h,(void **)&s->bits,&s->stride);
     if(!s->dc || !s->bitmap){delete s;return NULL;}
     s->oldBitmap=SelectObject(s->dc,s->bitmap);
-    if(s->format.depth==8){s->palette=awtCreateImagePalette();if(!s->palette){delete s;return NULL;}s->oldPalette=SelectPalette(s->dc,s->palette,FALSE);RealizePalette(s->dc);}
+    if(s->format.depth==8){s->palette=awtRetainImagePalette();if(!s->palette){delete s;return NULL;}s->oldPalette=SelectPalette(s->dc,s->palette,FALSE);RealizePalette(s->dc);}
     ZeroMemory(s->bits,(size_t)s->stride*h);
     s->coverage=(BYTE *)calloc((size_t)w*h,1);s->remaining=w*h;
     if(!s->coverage){delete s;return NULL;}
@@ -74,6 +86,7 @@ struct ImageRequest {
     BOOL result;
     BOOL background;
     COLORREF color;
+    BOOL failed;
 };
 static void imageRequest(void *argument)
 {
@@ -82,20 +95,20 @@ static void imageRequest(void *argument)
     if (r->operation == DISPOSE_IMAGE) {
         unhand(r->peer)->pData=0; if (s) s->Release(); r->result=TRUE; return;
     }
-    if (!s) return;
+    if (!s) { r->failed=TRUE; return; }
     switch (r->operation) {
     case INIT:
         free(s->coverage); s->coverage=NULL; s->remaining=0;
         free(s->rows); s->rows=NULL;
         s->background=r->color;
-        for(int y=0;y<s->height;y++)for(int x=0;x<s->width;x++)s->Store(x,y,s->format.Encode(RGB(GetBValue(r->color),GetGValue(r->color),GetRValue(r->color))));
+        { RECT rect={0,0,s->width,s->height};HBRUSH brush=CreateSolidBrush(r->color|0x02000000);FillRect(s->dc,&rect,brush);DeleteObject(brush);GdiFlush(); }
         unhand(r->peer)->availinfo=43; r->result=TRUE; break;
     case PIXELS: {
         int sw=unhand(r->peer)->srcW,sh=unhand(r->peer)->srcH;
         if (sw <= 0) sw=s->width; if (sh <= 0) sh=s->height;
-        if((s->imageHints&4) && !s->rows){s->rows=(BYTE *)calloc(s->height,1);if(!s->rows)return;}
+        if((s->imageHints&4) && !s->rows){s->rows=(BYTE *)calloc(s->height,1);if(!s->rows){r->failed=TRUE;return;}}
         BOOL diffuse=s->format.depth==8 && ((s->imageHints&2)||s->finished) && !getenv("NOFSDITHER");
-        if(diffuse && !s->ditherErrors){s->ditherErrors=(int *)calloc((size_t)s->width*3+6,sizeof(int));if(!s->ditherErrors)return;}
+        if(diffuse && !s->ditherErrors){s->ditherErrors=(int *)calloc((size_t)s->width*3+6,sizeof(int));if(!s->ditherErrors){r->failed=TRUE;return;}}
         int finalCarry[3]={0,0,0};
         GdiFlush(); int firstY=s->height,lastY=0,firstX=s->width,lastX=0;
         for (int y=0;y<s->height;y++) {
@@ -123,7 +136,7 @@ static void imageRequest(void *argument)
                 BOOL opaque=(pixel>>24)+dither[x&7][y&7] >= 255;
                 if (!opaque && !s->alpha) {
                     s->alpha=(BYTE *)malloc((size_t)s->width*s->height);
-                    if (!s->alpha) return;
+                    if (!s->alpha) { r->failed=TRUE; return; }
                     memset(s->alpha,255,(size_t)s->width*s->height);
                 }
                 if (s->alpha) s->alpha[y*s->width+x]=opaque?255:0;
@@ -154,7 +167,7 @@ static void imageRequest(void *argument)
             unhand(rect)->width=max(0,lastX-firstX);
             unhand(rect)->height=max(0,lastY-firstY);
         }
-        r->result=TRUE; break;
+        r->result=firstX<lastX && firstY<lastY; break;
     }
     case FINISH: r->result=!r->v[0] && !s->finished; s->finished=TRUE; free(s->ditherErrors);s->ditherErrors=NULL;free(s->rows);s->rows=NULL;break;
     case SNAPSHOT:
@@ -186,7 +199,7 @@ static void imageRequest(void *argument)
         BOOL xormode=awtGraphicsXOR(r->graphics);
         COLORREF xorColor=awtGraphicsXORColor(r->graphics);
         HBRUSH xorBrush=NULL; HGDIOBJ oldBrush=NULL;
-        if (xormode) { xorBrush=CreateSolidBrush(xorColor); oldBrush=SelectObject(lease.dc,xorBrush); }
+        if (xormode) { xorBrush=CreateSolidBrush(xorColor|0x02000000); oldBrush=SelectObject(lease.dc,xorBrush); }
         SetStretchBltMode(lease.dc,COLORONCOLOR);
         if (!s->alpha && !s->coverage) {
             StretchBlt(lease.dc,dx,dy,dw,dh,s->dc,sx,sy,sw,sh,xormode?0x960000:SRCCOPY);
@@ -255,7 +268,7 @@ static stack_item *setPixels(stack_item *sp,execenv *ee,BOOL bytes)
                 }
                 if (!exceptionOccurred(ee)) invokeImage(&r);
                 free(r.pixels);
-                if (!exceptionOccurred(ee) && !r.result) SignalError(ee,"java/lang/OutOfMemoryError",NULL);
+                if (!exceptionOccurred(ee) && r.failed) SignalError(ee,"java/lang/OutOfMemoryError",NULL);
             }
         }
     }
@@ -313,6 +326,3 @@ extern "C" __declspec(dllexport) stack_item *Java_sun_awt_image_OffScreenImageSo
     }
     free(r.pixels); return sp;
 }
-
-
-

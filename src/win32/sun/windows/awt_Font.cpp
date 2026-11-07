@@ -9,6 +9,8 @@ extern "C" {
 }
 #include <stdlib.h>
 #include <wchar.h>
+#include <locale.h>
+#include <string.h>
 
 static HArrayOfObject *fontDescriptors(Hjava_awt_Font *font)
 {
@@ -154,10 +156,15 @@ static BOOL fontContains(HDC dc,WCHAR ch)
 }
 static BOOL eudcContains(const WCHAR *name,WCHAR ch)
 {
-    WCHAR keyName[32],face[MAX_PATH],facePath[MAX_PATH]={0},defaultPath[MAX_PATH]={0};
-    wsprintfW(keyName,L"EUDC\\%u",GetACP());
+    WCHAR face[MAX_PATH],facePath[MAX_PATH]={0},defaultPath[MAX_PATH]={0};
+    /* 1000FCEB uses the user-default C locale's codepage suffix. It can
+     * differ from GetACP when the user's locale and system locale differ. */
+    const char *locale=setlocale(LC_CTYPE,"");
+    const char *codepage=locale?strrchr(locale,'.'):NULL;
+    if(!codepage)return FALSE;
+    char keyName[80];_snprintf(keyName,sizeof(keyName),"EUDC\\%s",codepage+1);keyName[sizeof(keyName)-1]=0;
     HKEY key;
-    if (RegOpenKeyExW(HKEY_CURRENT_USER,keyName,0,KEY_QUERY_VALUE,&key)!=ERROR_SUCCESS) return FALSE;
+    if(RegOpenKeyExA(HKEY_CURRENT_USER,keyName,0,KEY_QUERY_VALUE,&key)!=ERROR_SUCCESS)return FALSE;
     int length=(int)wcscspn(name,L","); if (length>=MAX_PATH) length=MAX_PATH-1;
     wcsncpy(face,name,length); face[length]=0;
     DWORD bytes=sizeof(facePath)-sizeof(WCHAR),type=0;

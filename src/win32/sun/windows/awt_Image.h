@@ -7,5 +7,7 @@ extern "C" {
 AwtSurface *awtImageSurface(Hsun_awt_image_ImageRepresentation *, BOOL create);
 HObject *awtImageColorModel(struct execenv *);
 HPALETTE awtImagePalette();
+HPALETTE awtRetainImagePalette();
+void awtReleaseImagePalette();
 void awtCleanupImagePalette();
 #endif
