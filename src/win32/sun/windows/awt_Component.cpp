@@ -1,6 +1,7 @@
 /* Reconstructed Win32 peer foundation. See Phase4 evidence for addresses. */
 #include "awt_Component.h"
 #include "awt_Graphics.h"
+#include "awt_Font.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -204,11 +205,7 @@ static void componentRequest(void *argument)
         break;
     }
     case FONT: {
-        LOGFONTW info = {0};
-        info.lfHeight = -r->values[0]; info.lfWeight = r->values[1] & 1 ? FW_BOLD : FW_NORMAL;
-        info.lfItalic = (BYTE)((r->values[1] & 2) != 0); info.lfCharSet = DEFAULT_CHARSET;
-        if (r->object) lstrcpynW(info.lfFaceName, (WCHAR *)r->object, LF_FACESIZE);
-        HFONT font = CreateFontIndirectW(&info);
+        HFONT font = CreateFontIndirectW((LOGFONTW *)r->object);
         if (font) { SendMessage(window, WM_SETFONT, (WPARAM)font, TRUE);
             if (c->font) DeleteObject(c->font); c->font = font; }
         break;
@@ -251,9 +248,9 @@ extern "C" void sun_awt_windows_WComponentPeer_setCursor(Hsun_awt_windows_WCompo
 extern "C" void sun_awt_windows_WComponentPeer_setFont(Hsun_awt_windows_WComponentPeer *p,Hjava_awt_Font *font)
 {
     if (!font) { SignalError(NULL,"java/lang/NullPointerException","null font"); return; }
-    WCHAR *name = awtUnicode(unhand(font)->name);
-    ComponentRequest r = {p,FONT,{unhand(font)->size,unhand(font)->style},name,FALSE};
-    invokeComponent(&r); free(name);
+    LOGFONTW info;
+    if (!awtFontInfo(font,NULL,&info)) { SignalError(NULL,"java/lang/OutOfMemoryError",NULL); return; }
+    ComponentRequest r = {p,FONT,{0},&info,FALSE}; invokeComponent(&r);
 }
 extern "C" void sun_awt_windows_WComponentPeer_setZOrderPosition(Hsun_awt_windows_WComponentPeer *p,Hsun_awt_windows_WComponentPeer *after)
 { ComponentRequest r = {p,ZORDER,{0},after,FALSE}; invokeComponent(&r); }

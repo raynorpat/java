@@ -9,9 +9,22 @@ execute_process(COMMAND "${JAVAC}" -d "${OUT}" "${CLASS}.java"
 if(NOT compiled EQUAL 0)
   message(FATAL_ERROR "AWT test compile failed: ${output}${errors}")
 endif()
-execute_process(COMMAND "${JAVA}" -classpath "${OUT};${JDK}/lib/classes.zip" "${CLASS}"
+if(ORACLE)
+  set(java_options "-Djava.home=${JDK}")
+else()
+  set(java_options "-Dawt.correctedBounds=true")
+endif()
+execute_process(COMMAND "${JAVA}" ${java_options} -classpath "${OUT};${JDK}/lib/classes.zip" "${CLASS}"
   RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 30)
 if(NOT status EQUAL 0 OR NOT output MATCHES "passed" OR errors MATCHES "Exception|Error")
   message(FATAL_ERROR "AWT test failed (${status}): ${output}${errors}")
+endif()
+if(COMPARE_ORACLE)
+  execute_process(COMMAND "${JDK}/bin/java.exe" "-Djava.home=${JDK}"
+    -classpath "${OUT};${JDK}/lib/classes.zip" "${CLASS}"
+    RESULT_VARIABLE oracle_status OUTPUT_VARIABLE oracle_output ERROR_VARIABLE oracle_errors TIMEOUT 30)
+  if(NOT oracle_status EQUAL 0 OR oracle_errors MATCHES "Exception|Error" OR NOT output STREQUAL oracle_output)
+    message(FATAL_ERROR "AWT oracle mismatch (${oracle_status}): ours=${output}${errors} Sun=${oracle_output}${oracle_errors}")
+  endif()
 endif()
 message(STATUS "${output}")

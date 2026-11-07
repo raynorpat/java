@@ -494,9 +494,12 @@ target_include_directories(mach115-condition BEFORE PRIVATE tests/native/mach115
 add_test(NAME mach115-condition COMMAND mach115-condition)
 if(WIN32)
   set(awt_gen "${CMAKE_BINARY_DIR}/awt115-generated")
+  configure_file("${JDK115_DIR}/lib/font.properties" "${CMAKE_BINARY_DIR}/lib/font.properties" COPYONLY)
+  install(FILES "${JDK115_DIR}/lib/font.properties" DESTINATION lib)
   set(awt_classes sun.awt.windows.WComponentPeer sun.awt.windows.WWindowPeer
     sun.awt.windows.WFramePeer sun.awt.windows.WGraphics java.awt.Component java.awt.Container java.awt.Window
-    java.awt.Frame java.awt.Button java.awt.Insets java.awt.Font java.awt.Cursor java.awt.Color java.awt.AWTEvent)
+    java.awt.Frame java.awt.Button java.awt.Insets java.awt.Font java.awt.Cursor java.awt.Color java.awt.AWTEvent
+    sun.awt.windows.WFontMetrics sun.awt.windows.WDefaultFontCharset sun.awt.FontDescriptor sun.awt.PlatformFont)
   set(awt_headers)
   foreach(clazz ${awt_classes})
     string(REPLACE "." "_" header ${clazz})
@@ -517,7 +520,8 @@ if(WIN32)
   add_library(winawt SHARED src/win32/sun/windows/awt_Toolkit.cpp
     src/win32/sun/windows/awt_Component.cpp src/win32/sun/windows/awt_Window.cpp
     src/win32/sun/windows/awt_Frame.cpp src/win32/sun/windows/awt_Graphics.cpp
-    src/win32/sun/windows/awt_Canvas.cpp src/win32/sun/windows/awt_Button.cpp ${awt_headers} ${awt_stubs}
+    src/win32/sun/windows/awt_Canvas.cpp src/win32/sun/windows/awt_Button.cpp
+    src/win32/sun/windows/awt_Font.cpp ${awt_headers} ${awt_stubs}
     src/win32/sun/windows/winawt.def)
   target_include_directories(winawt BEFORE PRIVATE "${awt_gen}")
   target_link_libraries(winawt javai user32 gdi32)
@@ -529,11 +533,12 @@ if(WIN32)
   target_link_libraries(winawt115-toolkit user32 gdi32)
   add_test(NAME winawt115-toolkit COMMAND winawt115-toolkit
     "${JDK115_DIR}/bin/winawt$<$<CONFIG:Debug>:_g>.dll")
-  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 Canvas115 Button115)
+  foreach(awt_test Toolkit115 Lifecycle115 Graphics115 WindowEvents115 Canvas115 Button115 Fonts115)
   add_test(NAME awt-${awt_test} COMMAND ${CMAKE_COMMAND}
     -DROOT=${CMAKE_SOURCE_DIR} -DJAVA=$<TARGET_FILE:java> -DJAVAC=$<TARGET_FILE:javac>
     -DJDK=${JDK115_DIR} -DLIBDIR=$<TARGET_FILE_DIR:winawt>
     -DOUT=${CMAKE_BINARY_DIR}/awt115-$<CONFIG> -DCLASS=${awt_test}
+    -DCOMPARE_ORACLE=ON
     -P ${CMAKE_SOURCE_DIR}/tests/awt/run115.cmake)
   endforeach()
 endif()

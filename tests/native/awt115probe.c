@@ -37,7 +37,6 @@ __declspec(dllexport) stack_item *Java_WinAwtProbe_close_stub(stack_item *sp,str
         SignalError(ee,"java/lang/RuntimeException","cannot close test window");
     return sp;
 }
-
 __declspec(dllexport) stack_item *Java_WinAwtProbe_click_stub(stack_item *sp,struct execenv *ee)
 {
     HWND window = test_window((struct Hjava_lang_String *)sp[0].p);
@@ -53,4 +52,3 @@ __declspec(dllexport) stack_item *Java_WinAwtProbe_click_stub(stack_item *sp,str
     else SendMessage(search.window,BM_CLICK,0,0);
     return sp;
 }
-

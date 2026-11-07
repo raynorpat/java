@@ -191,3 +191,51 @@ Font-segment painting and disabled-text visual parity remain Task4 work.
 All six Java AWT tests pass against the original Sun Release VM and current
 reconstruction. Native window/input activation, modal dialogs, the other
 controls, full raster/font/image tests and the demo gate remain open.
+
+## Font metrics and corrected oracle home
+
+Font metrics init1000E216 ->1000D2AF obtains the primary font's GDI metrics,
+allocates256 integer widths, uses GetCharWidthA and computes fallback maxima.
+Font descriptor selection1000DC4A defaults to index0 for an unknown descriptor;
+creation1000C63B/1000CB6D and charset parsing1000CEB7 specify native face/style,
+negative pixel height and charset. With font.properties absent, the recovered
+fallback Dialog/DialogInput face is MS Sans Serif. With properties present,
+the unchanged Java PlatformFont supplies Arial/Courier New and symbol segments.
+needsConversion1000E864 recognizes NEED_CONVERTED; segment widths1000E5F8 use
+GetTextExtentPoint32A for converted bytes and W for UTF-16. Component/native
+graphics font setup now uses that same recovered descriptor mapping.
+
+The Fonts115 test was RED at init. It compares exact metrics and Unicode-string
+widths for seven logical/legacy font names and four styles, plus glyph coverage
+probes. A first oracle comparison differed in every profile: Sun's launcher
+was reading java.home from the machine registry, pointing at an installed
+JDK21 without font.properties. Pinning the oracle's java.home to vendor/jdk1.1.5
+made all28 profiles match exactly. The build/install copies the unchanged
+Windows font.properties. Every AWT CTest now also runs the Sun oracle with its
+home pinned and compares output, while checking both processes for exceptions.
+
+canConvert10010380 ->100100E0/100101AA uses font coverage tables.
+The standard table1000F3B4 ->1000ED7B selects Microsoft Unicode cmap platform3,
+encoding1, format4. Membership1000F163 tests segment starts/ends and excludes
+FFFF; it does not check glyph IDs. A provisional GetGlyphIndices implementation
+failed the symbol-font comparison because GDI performs additional remapping.
+It was replaced with the recovered cmap segment algorithm and checked offsets.
+EUDC file/registry fallback1000FDC8 remains open; it is not silently claimed as
+implemented by the standard-font tests. Font handles are currently scoped to
+each measurement rather than retained in Sun's process-wide font cache.
+
+Ruling: bytesWidth treats input bytes as unsigned indices and validates ranges
+without offset+count overflow. Original1000E515 sign-extends byte indices and
+can read before its256-entry table. A reconstruction-only assertion for233
+was observed RED with the signed index and GREEN with the fix. Costs: malformed
+ranges now throw consistently; high-bit byte widths use their actual table
+entry instead of unrelated memory. MF segment bounds are also checked before
+GDI calls. Unsafe malformed-input tests are not sent to the Sun oracle.
+
+Ruling: missing/truncated Unicode cmap data returns false rather than parsing
+the header as format4 at offset0. Sun's release Symbol/SYMBOL_CHARSET probe
+reports character0 present after its missing-Unicode-table assertion; debug
+1000ED7B explicitly asserts the table exists. The safe implementation rejects
+that unsupported table. Cost: this out-of-contract symbol-font query differs;
+normal symbol text uses the converted FontDescriptor path, which matches the
+Unicode width oracle. The test checks this corrected case only on ours.

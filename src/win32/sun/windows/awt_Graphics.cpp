@@ -1,6 +1,7 @@
 /* Component graphics foundation, recovered from winawt_g awt_Graphics.cpp.
  * All native state and GDI access are serialized on the toolkit owner thread. */
 #include "awt_Graphics.h"
+#include "awt_Font.h"
 extern "C" {
 #include "sun_awt_windows_WGraphics.h"
 }
@@ -104,11 +105,8 @@ STUB(pSetForeground) {
 STUB(pSetFont) {
     Hjava_awt_Font *font = (Hjava_awt_Font *)sp[1].p;
     if (!font) { SignalError(ee,"java/lang/NullPointerException",NULL); return sp; }
-    LOGFONTW info = {0}; info.lfHeight = -unhand(font)->size;
-    info.lfWeight = unhand(font)->style & 1 ? FW_BOLD : FW_NORMAL;
-    info.lfItalic = (BYTE)((unhand(font)->style & 2) != 0);
-    WCHAR *name = awtUnicode(unhand(font)->name);
-    if (name) { lstrcpynW(info.lfFaceName,name,LF_FACESIZE); free(name); }
+    LOGFONTW info;
+    if (!awtFontInfo(font,NULL,&info)) { SignalError(ee,"java/lang/OutOfMemoryError",NULL); return sp; }
     GraphicsRequest r = {PEER,FONT,&info,{0},FALSE}; invokeGraphics(&r); return sp;
 }
 STUB(changeClip) {
