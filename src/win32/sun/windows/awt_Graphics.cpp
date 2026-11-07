@@ -172,7 +172,7 @@ static void graphicsRequest(void *argument)
         if (w > 0 && h > 0) {
             RECT dest = {x+r->v[4],y+r->v[5],x+r->v[4]+w,y+r->v[5]+h};
             if (!g->clipped || IntersectRect(&dest,&dest,&g->clip)) {
-                SelectClipRgn(dc,NULL);
+                /* BitBlt clips only the destination; preserve the supplied DC clip. */
                 BitBlt(dc,dest.left,dest.top,dest.right-dest.left,dest.bottom-dest.top,dc,
                     dest.left-r->v[4],dest.top-r->v[5],g->xormode ? SRCINVERT : SRCCOPY);
             }

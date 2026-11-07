@@ -23,9 +23,17 @@ __declspec(dllexport) stack_item *Java_GraphicsHDC115_create_stub(stack_item *sp
     sp[0].i=(long)graphics_dc;
     return sp+1;
 }
+__declspec(dllexport) stack_item *Java_GraphicsHDC115_smallClip_stub(stack_item *sp,struct execenv *ee)
+{
+    HRGN left=CreateRectRgn(8,2,10,6),bottom=CreateRectRgn(10,4,12,6);
+    CombineRgn(left,left,bottom,RGN_OR);SelectClipRgn(graphics_dc,left);
+    DeleteObject(left);DeleteObject(bottom);return sp;
+}
 __declspec(dllexport) stack_item *Java_GraphicsHDC115_pixel_stub(stack_item *sp,struct execenv *ee)
 {
-    GdiFlush(); sp[0].i=GetPixel(graphics_dc,sp[0].i,sp[1].i); return sp+1;
+    int saved=SaveDC(graphics_dc);COLORREF pixel;
+    GdiFlush();SelectClipRgn(graphics_dc,NULL);pixel=GetPixel(graphics_dc,sp[0].i,sp[1].i);
+    RestoreDC(graphics_dc,saved);sp[0].i=pixel;return sp+1;
 }
 __declspec(dllexport) stack_item *Java_GraphicsHDC115_close_stub(stack_item *sp,struct execenv *ee)
 {
