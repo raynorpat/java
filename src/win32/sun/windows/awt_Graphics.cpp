@@ -13,9 +13,11 @@ extern "C" {
 AwtSurface::~AwtSurface()
 {
     if (dc && oldBitmap) SelectObject(dc,oldBitmap);
+    if (palette && oldPalette) SelectPalette(dc,oldPalette,FALSE);
+    if (palette) DeleteObject(palette);
     if (bitmap) DeleteObject(bitmap);
     if (dc && ownsDC) DeleteDC(dc);
-    free(alpha); free(coverage); free(rows);
+    free(alpha); free(coverage); free(rows); free(ditherErrors);
 }
 struct AwtGraphics {
     AwtSurface *surface;
@@ -49,6 +51,8 @@ BOOL awtGraphicsDC(Hsun_awt_windows_WGraphics *peer,AwtDC *lease)
     }
     if (!lease->dc) return FALSE;
     lease->saved = SaveDC(lease->dc);
+    HPALETTE palette=s->palette?s->palette:awtImagePalette();
+    if(palette){SelectPalette(lease->dc,palette,FALSE);RealizePalette(lease->dc);}
     if (g->clipped) IntersectClipRect(lease->dc,g->clip.left,g->clip.top,g->clip.right,g->clip.bottom);
     SetBkMode(lease->dc,TRANSPARENT); SetROP2(lease->dc,g->xormode ? R2_XORPEN : R2_COPYPEN);
     SetTextColor(lease->dc,g->color); SetPolyFillMode(lease->dc,ALTERNATE);
@@ -80,7 +84,12 @@ static void graphicsRequest(void *argument)
     AwtGraphics *g = getGraphics(r->peer);
     if (r->operation == FROM_COMPONENT) {
         AwtComponent *c = AwtComponent::Get((Hsun_awt_windows_WComponentPeer *)r->object);
-        if (!c || !IsWindow(c->GetHWnd())) { r->failed = TRUE; return; }
+        if (!r->object) { r->failed = TRUE; return; }
+        /* A queued paint can retain its Java peer while native retirement has
+         * already cleared pData. Such graphics must remain safely inert. */
+        if (!c || !IsWindow(c->GetHWnd())) {
+            unhand(r->peer)->pData=(long)new AwtGraphics; return;
+        }
         if (!c->surface) c->surface = new AwtSurface(c);
         g = new AwtGraphics; g->surface = c->surface; g->surface->references++;
         g->color = c->foreground;

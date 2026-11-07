@@ -1,6 +1,7 @@
 #ifndef AWT_GRAPHICS_H
 #define AWT_GRAPHICS_H
 #include "awt_Component.h"
+#include "awt_PixelFormat.h"
 extern "C" {
 #include "sun_awt_windows_WGraphics.h"
 }
@@ -12,15 +13,22 @@ struct AwtSurface {
     HDC dc;
     HBITMAP bitmap;
     HGDIOBJ oldBitmap;
-    DWORD *bits;
+    DWORD *bits; /* raw DIB address; consult format.depth and stride */
+    AwtPixelFormat format;
+    int stride;
+    int *ditherErrors;
+    unsigned imageHints;
+    HPALETTE palette,oldPalette;
     BYTE *alpha, *coverage, *rows;
     unsigned remaining;
     int width, height;
     COLORREF background;
     BOOL ownsDC, finished;
     AwtSurface(AwtComponent *c) : component(c), references(1), dc(NULL),
-        bitmap(NULL), oldBitmap(NULL), bits(NULL), alpha(NULL), coverage(NULL), rows(NULL), remaining(0), width(0), height(0),
+        bitmap(NULL), oldBitmap(NULL), bits(NULL), stride(0), ditherErrors(NULL), imageHints(0), palette(NULL), oldPalette(NULL), alpha(NULL), coverage(NULL), rows(NULL), remaining(0), width(0), height(0),
         background(RGB(255,255,255)), ownsDC(FALSE), finished(FALSE) {}
+    DWORD Pixel(int x,int y) const { return format.Read((BYTE *)bits+y*stride,x); }
+    void Store(int x,int y,DWORD pixel) { format.Write((BYTE *)bits+y*stride,x,pixel); }
     ~AwtSurface();
     void Release() { if (!--references) delete this; }
 };

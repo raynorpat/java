@@ -1,5 +1,6 @@
 /* Font records/metrics recovered from winawt_g1000C63B..1000E864. */
 #include "awt_Font.h"
+#include "awt_FontData.h"
 extern "C" {
 #include "sun_awt_PlatformFont.h"
 #include "sun_awt_windows_WFontMetrics.h"
@@ -142,36 +143,33 @@ STUB(getMFCharSegmentWidth)
     }
     sp[0].i = size.cx; return sp+1;
 }
-static unsigned be16(const BYTE *p) { return ((unsigned)p[0]<<8)|p[1]; }
-static DWORD be32(const BYTE *p) { return ((DWORD)p[0]<<24)|((DWORD)p[1]<<16)|((DWORD)p[2]<<8)|p[3]; }
-/* 1000ED7B/1000F163 use Unicode cmap format4 segment membership, not GDI's
- * symbol-character remapping or glyph-index fallback. Validate every offset. */
+/* GDI and EUDC file tables share the recovered Unicode format-4 parser. */
 static BOOL fontContains(HDC dc,WCHAR ch)
 {
-    if (ch == 0xffff) return FALSE;
-    DWORD size = GetFontData(dc,0x70616d63,0,NULL,0);
-    if (size == GDI_ERROR || size < 4) return FALSE;
-    BYTE *data = (BYTE *)malloc(size);
-    if (!data) return FALSE;
-    BOOL result = FALSE;
-    if (GetFontData(dc,0x70616d63,0,data,size) == size) {
-        unsigned count = be16(data+2);
-        if (count <= (size-4)/8) for (unsigned i = 0; i < count; i++) {
-            const BYTE *record = data+4+8*i;
-            if (be16(record) != 3 || be16(record+2) != 1) continue;
-            DWORD offset = be32(record+4);
-            if (offset > size || size-offset < 14) break;
-            const BYTE *table = data+offset;
-            unsigned length = be16(table+2), segments = be16(table+6)/2;
-            if (be16(table) != 4 || length > size-offset || length < 16 || segments > (length-16)/4) break;
-            for (unsigned j = 0; j < segments; j++) {
-                unsigned end = be16(table+14+2*j), start = be16(table+16+2*segments+2*j);
-                if (ch >= start && ch <= end) { result = TRUE; break; }
-            }
-            break;
-        }
-    }
+    DWORD size=GetFontData(dc,0x70616d63,0,NULL,0);
+    if (size==GDI_ERROR || size<4) return FALSE;
+    BYTE *data=(BYTE *)malloc(size); if (!data) return FALSE;
+    BOOL result=GetFontData(dc,0x70616d63,0,data,size)==size && awtCmapContains(data,size,ch);
     free(data); return result;
+}
+static BOOL eudcContains(const WCHAR *name,WCHAR ch)
+{
+    WCHAR keyName[32],face[MAX_PATH],facePath[MAX_PATH]={0},defaultPath[MAX_PATH]={0};
+    wsprintfW(keyName,L"EUDC\\%u",GetACP());
+    HKEY key;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER,keyName,0,KEY_QUERY_VALUE,&key)!=ERROR_SUCCESS) return FALSE;
+    int length=(int)wcscspn(name,L","); if (length>=MAX_PATH) length=MAX_PATH-1;
+    wcsncpy(face,name,length); face[length]=0;
+    DWORD bytes=sizeof(facePath)-sizeof(WCHAR),type=0;
+    BOOL faceFound=RegQueryValueExW(key,face,NULL,&type,(BYTE *)facePath,&bytes)==ERROR_SUCCESS;
+    BOOL defaultFound=FALSE;
+    if (!faceFound) {
+        bytes=sizeof(defaultPath)-sizeof(WCHAR);
+        defaultFound=RegQueryValueExW(key,L"SystemDefaultEUDCFont",NULL,&type,(BYTE *)defaultPath,&bytes)==ERROR_SUCCESS;
+    }
+    RegCloseKey(key);
+    const WCHAR *path=awtEudcChoice(faceFound,facePath,defaultFound,defaultPath);
+    return path && awtEudcFileContains(path,ch);
 }
 extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WDefaultFontCharset_canConvert_stub(stack_item *sp,struct execenv *ee)
 {
@@ -179,7 +177,7 @@ extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WDefaultFontCh
     WCHAR ch = (WCHAR)sp[1].i; BOOL result = FALSE;
     WCHAR *name = awtUnicode(unhand(peer)->fontName);
     if (name) {
-        LOGFONTW info; namedFontInfo(name,0,20,&info); free(name);
+        LOGFONTW info; namedFontInfo(name,0,20,&info);
         HFONT font = CreateFontIndirectW(&info); HDC dc = GetDC(NULL);
         if (font && dc) {
             HGDIOBJ old = SelectObject(dc,font);
@@ -187,6 +185,8 @@ extern "C" __declspec(dllexport) stack_item *Java_sun_awt_windows_WDefaultFontCh
             SelectObject(dc,old);
         }
         if (font) DeleteObject(font); if (dc) ReleaseDC(NULL,dc);
+        if (!result) result=eudcContains(name,ch);
+        free(name);
     }
     sp[0].i = result; return sp+1;
 }

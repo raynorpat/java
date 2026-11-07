@@ -11,6 +11,37 @@ extern "C" {
 #include <string.h>
 #include <limits.h>
 
+static HPALETTE componentPalette;
+static BOOL paletteInitialized;
+HPALETTE awtImagePalette()
+{
+    if(!paletteInitialized){
+        AwtPixelFormat format;awtDisplayPixelFormat(&format);
+        if(format.depth==8)componentPalette=awtCreateImagePalette();
+        paletteInitialized=TRUE;
+    }
+    return componentPalette;
+}
+void awtCleanupImagePalette()
+{ if(componentPalette)DeleteObject(componentPalette);componentPalette=NULL;paletteInitialized=FALSE; }
+static HObject *imageColorModel(ExecEnv *ee,int depth,DWORD red,DWORD green,DWORD blue)
+{
+    if(depth<=8){
+        HArrayOfByte *r=(HArrayOfByte *)ArrayAlloc(T_BYTE,256),*g=(HArrayOfByte *)ArrayAlloc(T_BYTE,256),*b=(HArrayOfByte *)ArrayAlloc(T_BYTE,256);
+        if(!r || !g || !b){SignalError(ee,"java/lang/OutOfMemoryError",NULL);return NULL;}
+        RGBQUAD colors[256];awtPaletteEntries(colors);
+        for(int i=0;i<256;i++){unhand(r)->body[i]=(char)colors[i].rgbRed;unhand(g)->body[i]=(char)colors[i].rgbGreen;unhand(b)->body[i]=(char)colors[i].rgbBlue;}
+        return execute_java_constructor(ee,"java/awt/image/IndexColorModel",NULL,"(II[B[B[B)",8,256,r,g,b);
+    }
+    if(depth>=24){depth=24;red=0xff;green=0xff00;blue=0xff0000;}
+    return execute_java_constructor(ee,"java/awt/image/DirectColorModel",NULL,"(IIIII)",depth,red,green,blue,0);
+}
+HObject *awtImageColorModel(ExecEnv *ee)
+{
+    AwtPixelFormat format;awtDisplayPixelFormat(&format);
+    return imageColorModel(ee,format.depth,format.redMask,format.greenMask,format.blueMask);
+}
+
 AwtSurface *awtImageSurface(Hsun_awt_image_ImageRepresentation *image,BOOL create)
 {
     if (!image) return NULL;
@@ -19,18 +50,18 @@ AwtSurface *awtImageSurface(Hsun_awt_image_ImageRepresentation *image,BOOL creat
     int w=unhand(image)->width,h=unhand(image)->height;
     if (w <= 0 || h <= 0 || (size_t)w > INT_MAX/4/(size_t)h) return NULL;
     s=new AwtSurface(NULL); s->width=w; s->height=h;
-    BITMAPINFO info; ZeroMemory(&info,sizeof(info));
-    info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER); info.bmiHeader.biWidth=w;
-    info.bmiHeader.biHeight=-h; info.bmiHeader.biPlanes=1;
-    info.bmiHeader.biBitCount=32; info.bmiHeader.biCompression=BI_RGB;
-    s->dc=CreateCompatibleDC(NULL); s->ownsDC=TRUE;
-    s->bitmap=CreateDIBSection(s->dc,&info,DIB_RGB_COLORS,(void **)&s->bits,NULL,0);
-    if (!s->dc || !s->bitmap) { delete s; return NULL; }
+    awtDisplayPixelFormat(&s->format);s->imageHints=unhand(image)->hints;
+    if(unhand(image)->offscreen && s->format.depth==24){
+        HDC display=GetDC(NULL);if(GetDeviceCaps(display,BITSPIXEL)==32)s->format.depth=32;ReleaseDC(NULL,display);
+    }
+    s->dc=CreateCompatibleDC(NULL);s->ownsDC=TRUE;
+    s->bitmap=awtCreateImageDIB(s->dc,s->format,w,h,(void **)&s->bits,&s->stride);
+    if(!s->dc || !s->bitmap){delete s;return NULL;}
     s->oldBitmap=SelectObject(s->dc,s->bitmap);
-    ZeroMemory(s->bits,(size_t)w*h*4);
-    s->coverage=(BYTE *)calloc((size_t)w*h,1); s->remaining=w*h;
-    if (!s->coverage) { delete s; return NULL; }
-    if (unhand(image)->hints&4) { s->rows=(BYTE *)calloc(h,1); if (!s->rows) { delete s; return NULL; } }
+    if(s->format.depth==8){s->palette=awtCreateImagePalette();if(!s->palette){delete s;return NULL;}s->oldPalette=SelectPalette(s->dc,s->palette,FALSE);RealizePalette(s->dc);}
+    ZeroMemory(s->bits,(size_t)s->stride*h);
+    s->coverage=(BYTE *)calloc((size_t)w*h,1);s->remaining=w*h;
+    if(!s->coverage){delete s;return NULL;}
     unhand(image)->pData=(long)s; return s;
 }
 enum ImageOperation { INIT, PIXELS, FINISH, DISPOSE_IMAGE, SNAPSHOT, DRAW, STRETCH };
@@ -57,22 +88,28 @@ static void imageRequest(void *argument)
         free(s->coverage); s->coverage=NULL; s->remaining=0;
         free(s->rows); s->rows=NULL;
         s->background=r->color;
-        for (int i=0;i<s->width*s->height;i++) s->bits[i]=RGB(GetBValue(r->color),GetGValue(r->color),GetRValue(r->color));
+        for(int y=0;y<s->height;y++)for(int x=0;x<s->width;x++)s->Store(x,y,s->format.Encode(RGB(GetBValue(r->color),GetGValue(r->color),GetRValue(r->color))));
         unhand(r->peer)->availinfo=43; r->result=TRUE; break;
     case PIXELS: {
         int sw=unhand(r->peer)->srcW,sh=unhand(r->peer)->srcH;
         if (sw <= 0) sw=s->width; if (sh <= 0) sh=s->height;
+        if((s->imageHints&4) && !s->rows){s->rows=(BYTE *)calloc(s->height,1);if(!s->rows)return;}
+        BOOL diffuse=s->format.depth==8 && ((s->imageHints&2)||s->finished) && !getenv("NOFSDITHER");
+        if(diffuse && !s->ditherErrors){s->ditherErrors=(int *)calloc((size_t)s->width*3+6,sizeof(int));if(!s->ditherErrors)return;}
+        int finalCarry[3]={0,0,0};
         GdiFlush(); int firstY=s->height,lastY=0,firstX=s->width,lastX=0;
         for (int y=0;y<s->height;y++) {
             int sy=(int)(((__int64)2*y+1)*sh/(2*s->height));
             if (sy < r->v[1] || sy-r->v[1] >= r->v[3]) continue;
-            firstY=min(firstY,y); lastY=y+1;
+            firstY=min(firstY,y); lastY=y+1;int carry[3]={0,0,0};BOOL firstPixel=TRUE;
             for (int x=0;x<s->width;x++) {
                 int sx=(int)(((__int64)2*x+1)*sw/(2*s->width));
                 if (sx < r->v[0] || sx-r->v[0] >= r->v[2]) continue;
                 firstX=min(firstX,x); lastX=max(lastX,x+1);
                 DWORD pixel=r->pixels[(sy-r->v[1])*r->v[2]+sx-r->v[0]];
-                s->bits[y*s->width+x]=pixel&0xffffff;
+                if(firstPixel && x && diffuse)memcpy(carry,s->ditherErrors,sizeof(carry));firstPixel=FALSE;
+                DWORD encoded=s->format.depth==8?(diffuse?awtDiffusePaletteIndex((pixel>>16)&255,(pixel>>8)&255,pixel&255,s->ditherErrors+3*x,carry):awtOrderedPaletteIndex((pixel>>16)&255,(pixel>>8)&255,pixel&255,x,y)):s->format.Encode(pixel);
+                s->Store(x,y,encoded);
                 if (s->coverage && !s->coverage[y*s->width+x]) {
                     s->coverage[y*s->width+x]=1; --s->remaining;
                 }
@@ -91,12 +128,14 @@ static void imageRequest(void *argument)
                 }
                 if (s->alpha) s->alpha[y*s->width+x]=opaque?255:0;
             }
+            memcpy(finalCarry,carry,sizeof(carry));
         }
+        if(diffuse && firstX>0 && firstX<s->width)memcpy(s->ditherErrors,finalCarry,sizeof(finalCarry));
         /* 10017071 replicates a top-down scanline into preceding missing
          * rows, giving interlaced decoders their coarse-to-fine display. */
         if (s->rows && firstY<lastY && firstX<lastX) {
             for (int y=firstY-1;y>=0 && !s->rows[y];y--) {
-                memcpy(s->bits+y*s->width,s->bits+firstY*s->width,s->width*4);
+                memcpy((BYTE *)s->bits+y*s->stride,(BYTE *)s->bits+firstY*s->stride,s->stride);
                 if (s->alpha) memcpy(s->alpha+y*s->width,s->alpha+firstY*s->width,s->width);
                 if (s->coverage) for (int x=0;x<s->width;x++) {
                     if (!s->coverage[y*s->width+x]) { s->coverage[y*s->width+x]=1; --s->remaining; }
@@ -117,11 +156,18 @@ static void imageRequest(void *argument)
         }
         r->result=TRUE; break;
     }
-    case FINISH: r->result=!r->v[0] && !s->finished; s->finished=TRUE; break;
+    case FINISH: r->result=!r->v[0] && !s->finished; s->finished=TRUE; free(s->ditherErrors);s->ditherErrors=NULL;free(s->rows);s->rows=NULL;break;
     case SNAPSHOT:
         GdiFlush();
         r->pixels=(DWORD *)malloc((size_t)s->width*s->height*4);
-        if (r->pixels) { memcpy(r->pixels,s->bits,(size_t)s->width*s->height*4); r->v[0]=s->width; r->v[1]=s->height; r->result=TRUE; }
+        if(r->pixels){
+            for(int y=0;y<s->height;y++)for(int x=0;x<s->width;x++){
+                const BYTE *row=(BYTE *)s->bits+y*s->stride;
+                r->pixels[y*s->width+x]=s->format.depth==8?row[x]:s->format.depth==16?((const WORD *)row)[x]:s->Pixel(x,y);
+            }
+            r->v[0]=s->width;r->v[1]=s->height;r->v[2]=s->format.depth;
+            r->v[3]=s->format.redMask;r->v[4]=s->format.greenMask;r->v[5]=s->format.blueMask;r->result=TRUE;
+        }
         break;
     case DRAW: case STRETCH: {
         if ((unhand(r->peer)->availinfo&11) != 11) break;
@@ -156,12 +202,12 @@ static void imageRequest(void *argument)
                 DWORD bg=RGB(GetBValue(r->color),GetGValue(r->color),GetRValue(r->color));
                 DWORD xorPixel=RGB(GetBValue(xorColor),GetGValue(xorColor),GetRValue(xorColor));
                 if (xormode || (r->background && !s->coverage)) {
-                    for (int i=0;i<s->width*s->height;i++) bits[i]=(s->coverage && !s->coverage[i])?xorPixel:(!s->alpha || s->alpha[i])?s->bits[i]:(xormode?xorPixel:bg);
+                    for (int i=0;i<s->width*s->height;i++) bits[i]=(s->coverage && !s->coverage[i])?xorPixel:(!s->alpha || s->alpha[i])?s->Pixel(i%s->width,i/s->width):(xormode?xorPixel:bg);
                     StretchBlt(lease.dc,dx,dy,dw,dh,temp,sx,sy,sw,sh,xormode?0x960000:SRCCOPY);
                 } else {
                     for (int i=0;i<s->width*s->height;i++) bits[i]=(!s->coverage || s->coverage[i]) && (r->background || !s->alpha || s->alpha[i])?0:0xffffff;
                     StretchBlt(lease.dc,dx,dy,dw,dh,temp,sx,sy,sw,sh,SRCAND); GdiFlush();
-                    for (int i=0;i<s->width*s->height;i++) bits[i]=(s->coverage && !s->coverage[i])?0:(!s->alpha || s->alpha[i])?s->bits[i]:r->background?bg:0;
+                    for (int i=0;i<s->width*s->height;i++) bits[i]=(s->coverage && !s->coverage[i])?0:(!s->alpha || s->alpha[i])?s->Pixel(i%s->width,i/s->width):r->background?bg:0;
                     StretchBlt(lease.dc,dx,dy,dw,dh,temp,sx,sy,sw,sh,SRCPAINT);
                 }
                 GdiFlush(); SelectObject(temp,old); DeleteObject(bitmap);
@@ -244,25 +290,25 @@ extern "C" __declspec(dllexport) stack_item *Java_sun_awt_image_OffScreenImageSo
     if ((unhand(image)->availinfo&43) != 43) { SignalError(ee,"java/lang/IllegalAccessError",NULL); return sp; }
     ImageRequest r={image,SNAPSHOT,NULL,{0},NULL,FALSE}; invokeImage(&r);
     if (!r.result) { SignalError(ee,"java/lang/OutOfMemoryError",NULL); return sp; }
-    HObject *model=(HObject *)execute_java_constructor(ee,"java/awt/image/DirectColorModel",NULL,"(IIIII)",24,0xff,0xff00,0xff0000,0);
-    HArrayOfInt *row=(HArrayOfInt *)ArrayAlloc(T_INT,r.v[0]);
-    if (!model || !row) SignalError(ee,"java/lang/OutOfMemoryError",NULL);
-    else {
+    HObject *model=imageColorModel(ee,r.v[2],r.v[3],r.v[4],r.v[5]);
+    BOOL indexed=r.v[2]<=8;
+    HArrayOfInt *row=(HArrayOfInt *)ArrayAlloc(indexed?T_BYTE:T_INT,r.v[0]);
+    if(!model || !row)SignalError(ee,"java/lang/OutOfMemoryError",NULL);
+    else{
         HObject *consumer=(HObject *)unhand(source)->theConsumer;
-        if (consumer) execute_java_dynamic_method(ee,consumer,"setColorModel","(Ljava/awt/image/ColorModel;)V",model);
+        if(consumer)execute_java_dynamic_method(ee,consumer,"setColorModel","(Ljava/awt/image/ColorModel;)V",model);
         consumer=(HObject *)unhand(source)->theConsumer;
-        if (consumer && !exceptionOccurred(ee)) execute_java_dynamic_method(ee,consumer,"setHints","(I)V",30);
-        for (int y=0;y<r.v[1] && !exceptionOccurred(ee);y++) {
-            consumer=(HObject *)unhand(source)->theConsumer; if (!consumer) break;
-            /* 10018F52 initializes channel shifts only for <=16 bpp. The
-             * 32-bpp sendPixels branch at 10018C6B consequently repeats blue
-             * into all three channels. Preserve this observable legacy bug. */
-            HDC display=GetDC(NULL); int depth=GetDeviceCaps(display,BITSPIXEL); ReleaseDC(NULL,display);
-            for (int x=0;x<r.v[0];x++) {
-                DWORD rgb=r.pixels[y*r.v[0]+x];
-                unhand(row)->body[x]=depth==32 ? (rgb&255)*0x10101 : ((rgb&255)<<16)|(rgb&0xff00)|((rgb>>16)&255);
+        if(consumer && !exceptionOccurred(ee))execute_java_dynamic_method(ee,consumer,"setHints","(I)V",30);
+        for(int y=0;y<r.v[1] && !exceptionOccurred(ee);y++){
+            consumer=(HObject *)unhand(source)->theConsumer;if(!consumer)break;
+            for(int x=0;x<r.v[0];x++){
+                DWORD pixel=r.pixels[y*r.v[0]+x];
+                if(indexed)unhand((HArrayOfByte *)row)->body[x]=(char)pixel;
+                else if(r.v[2]==16)unhand(row)->body[x]=pixel;
+                /* 10018C6B retains the historical zero-shift 32-bpp quirk. */
+                else unhand(row)->body[x]=r.v[2]==32?(pixel&255)*0x10101:((pixel&255)<<16)|(pixel&0xff00)|((pixel>>16)&255);
             }
-            execute_java_dynamic_method(ee,consumer,"setPixels","(IIIILjava/awt/image/ColorModel;[III)V",0,y,r.v[0],1,model,row,0,r.v[0]);
+            execute_java_dynamic_method(ee,consumer,"setPixels",indexed?"(IIIILjava/awt/image/ColorModel;[BII)V":"(IIIILjava/awt/image/ColorModel;[III)V",0,y,r.v[0],1,model,row,0,r.v[0]);
         }
     }
     free(r.pixels); return sp;
