@@ -1116,3 +1116,21 @@ check-textfield, check-component-state, check-window, check-input, check-keyboar
 check-dispatch and check-toolkit pass. The test-only library has 122 JNI entries.
 Dialogs, clipboard, complete graphics and full installed-image acceptance remain
 pending; this is not Phase 7 completion.
+
+### Phase 7 clipboard checkpoint
+
+AwtClipboard (54003fc0--54004180) and four RClipboard bindings
+(540120fc--540123c4) exchange NSStringPboardType through the general pasteboard.
+Native requests lazily call the original Java stringValue method; ownership
+changes call lostOwnership. Unsupported native types return the donor literal
+"Data not readable by Java". The unchanged peer converts Transferable exceptions
+to their string representation. Replacing owned contents preserves the donor's
+duplicate notification from Java setContents and the native ownership change.
+
+Donor and reconstruction pass Unicode/multiline/empty text, repeated import/export,
+local Transferable identity, exception text and ownership callbacks. Lazy delivery
+and ownership callbacks reenter AppKit and run GC. A native post-init failure
+releases its partial object and global peer; retry succeeds. The toolkit caches
+one clipboard for process lifetime; the original peer has no disposal entry.
+Fresh check-clipboard, check-menu, check-dispatch and check-toolkit pass. The
+test-only library has 126 JNI entries; remaining Phase 7 gates are unchanged.

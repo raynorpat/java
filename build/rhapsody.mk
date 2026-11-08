@@ -378,7 +378,8 @@ AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_ScrollingText.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Scroller.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_ScrollView.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_ScrollingList.m
-AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Menu.m
+AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Menu.m src/rhapsody/sun/awt/awt_Clipboard.m
+AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Menu.h src/rhapsody/sun/awt/awt_Clipboard.h
 AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Container.h src/rhapsody/sun/awt/awt_Graphics.h src/rhapsody/sun/awt/awt_Window.h src/rhapsody/sun/awt/awt_Component.h
 
 # Partial AWT is confined to tests until the complete peer surface is recovered.
@@ -601,3 +602,10 @@ $(BUILD)/tests/toolkit/libmenu115.dylib: tests/awt-dr2/menu115.m $(BUILD)/tests/
 .PHONY: check-menu
 check-menu: image $(BUILD)/tests/toolkit/libmenu115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-menu.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libclipboard115.dylib: tests/awt-dr2/clipboard115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/clipboard115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-clipboard
+check-clipboard: image $(BUILD)/tests/toolkit/libclipboard115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-clipboard.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
