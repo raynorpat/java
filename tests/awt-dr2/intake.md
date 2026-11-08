@@ -88,3 +88,10 @@ AppKit bootstrap namespace and thread/Objective-C bridge state. No reconstructed
 native code was loaded in these probes. The owned snapshot was stopped through
 QMP after query-name verification; base image remains untouched. Reboot and
 resync the small private probes for the next session.
+
+Final merged-code Linux Debug verification: 161 passed, one unavailable audio-device
+skip, 224.35 seconds (out/rhapsody115/merged-linux-debug.log). An earlier run
+hit an intermittent Choice popup-selection failure during guest activity; it
+then passed three consecutive isolated repeats and this full run. No native
+change was made to suppress that failure. The Phase 7 commit adds only audit
+tooling and documentation; Windows/Linux native implementation is unchanged.
