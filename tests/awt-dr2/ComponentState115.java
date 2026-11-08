@@ -6,6 +6,7 @@ public class ComponentState115 {
     static native boolean focused(ComponentPeer peer);
     static native boolean cursor(ComponentPeer peer, int type);
     static native boolean repaint(ComponentPeer peer);
+    static native void fractionalSize(ComponentPeer peer);
     static void require(boolean value, String message) { if (!value) throw new Error(message); }
     public static void main(String[] args) {
         try {
@@ -35,6 +36,8 @@ public class ComponentState115 {
                     first.setCursor(new Cursor(type)); require(cursor(peer, type), "cursor " + type);
                 }
                 require(repaint(peer), "native repaint invalidation");
+                fractionalSize(peer);
+                require(peer.getPreferredSize().equals(new Dimension(41, 31)), "fractional preferred size rounds up");
                 Toolkit.getDefaultToolkit().sync(); System.gc(); frame.dispose();
             }
             System.out.println("DR2 component coordinates, sizing, focus, cursors and repaint agree");

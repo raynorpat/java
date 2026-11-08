@@ -867,3 +867,17 @@ unfinished; no partial native library is installed.
 Fresh native check-checkbox, check-button, check-component-state, check-child-views,
 check-window, check-input, check-keyboard, check-dispatch and check-toolkit all pass
 with clean streamed output.
+
+### Phase 7 preferred-size rounding correction
+
+Further donor disassembly showed that RComponentPeer.getPreferredSize (54012c60)
+passes the round-up flag to nsSizeToJavaDimension (5401f724). The reconstruction
+had truncated both dimensions. ComponentState115 now gives the native view
+fractional bounds of 40.25 by 30.75 and requires Java Dimension(41,31): this
+passes on the donor and failed before the correction. The conversion now uses
+ceil for both dimensions, preserving integer-size behavior while avoiding
+undersized preferred geometry.
+
+Fresh native check-component-state, check-button and check-checkbox all pass
+with the rounding correction, including the fractional donor comparison and
+tracked button/checkbox callback disposal.

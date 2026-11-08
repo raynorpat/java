@@ -4,8 +4,10 @@
 + (BOOL)focused:(int)address;
 + (BOOL)cursor:(int)address type:(int)type;
 + (BOOL)repaint:(int)address peer:(int)peer;
++ (void)fractionalSize:(int)address;
 @end
 @implementation ComponentStateProbe
++ (void)fractionalSize:(int)address { [(NSView *)address setBoundsSize:NSMakeSize(40.25, 30.75)]; }
 + (BOOL)focused:(int)address { NSView *view = (NSView *)address; return [[view window] firstResponder] == view; }
 + (BOOL)cursor:(int)address type:(int)type
 {
@@ -38,6 +40,12 @@ JNIEXPORT jboolean JNICALL Java_ComponentState115_focused(JNIEnv *env, jclass cl
     id pool = [[NSAutoreleasePool alloc] init];
     BOOL result = [[ComponentStateProbe appkitProxy] focused:viewAddress(env, peer)];
     [pool release]; return result;
+}
+JNIEXPORT void JNICALL Java_ComponentState115_fractionalSize(JNIEnv *env, jclass cls, jobject peer)
+{
+    id pool = [[NSAutoreleasePool alloc] init];
+    [[ComponentStateProbe appkitProxy] fractionalSize:viewAddress(env, peer)];
+    [pool release];
 }
 JNIEXPORT jboolean JNICALL Java_ComponentState115_cursor(JNIEnv *env, jclass cls, jobject peer, jint type)
 {

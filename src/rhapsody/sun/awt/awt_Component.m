@@ -5,6 +5,7 @@
 #import "awt_Exception.h"
 #import "awt_ThreadContext.h"
 #import "awt_Container.h"
+#include <math.h>
 
 /* 540124f8/540112e0/54013344 share construction for View/Canvas/Container. */
 static jint createChildView(JNIEnv *env, jobject peer, Class viewClass, const char *reason,
@@ -113,7 +114,8 @@ JNIEXPORT jobject JNICALL Java_com_apple_rhapsody_awt_RComponentPeer_getPreferre
         if (!cls) [AwtException raiseUsingEnv:env];
         ctor = (*env)->GetMethodID(env, cls, "<init>", "(II)V");
         if (!ctor) [AwtException raiseUsingEnv:env];
-        result = (*env)->NewObject(env, cls, ctor, (int)size.width, (int)size.height);
+        /* 54012c60 requests upward rounding from nsSizeToJavaDimension. */
+        result = (*env)->NewObject(env, cls, ctor, (int)ceil(size.width), (int)ceil(size.height));
         (*env)->DeleteLocalRef(env, cls);
         if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
     NS_HANDLER
