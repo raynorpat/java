@@ -40,6 +40,7 @@
 - (void)strokePolyLine:(NSData *)points count:(int)count andClose:(BOOL)close andFill:(BOOL)fill;
 - (void)drawString:(NSString *)string atPoint:(NSPoint)point;
 - (void)drawImage:(id)image atPoint:(NSPoint)point;
+- (void)drawImage:(id)image fromRect:(NSRect)source toRect:(NSRect)destination;
 @end
 @interface AwtScreenGraphics : AwtGraphics {
     unsigned int _flags;

@@ -16,6 +16,8 @@
 - (void *)getDataAndRowBytes:(int *)rowBytes;
 - (id)sendPixels:(void *)source;
 - (id)drawAtPoint:(NSPoint)point;
+- (void)prepareForDrawing;
+- (id)drawSubrect:(NSRect)source inRect:(NSRect)destination;
 - (NSRect)awtBounds;
 - (NSRect)awtVisibleBounds;
 - (BOOL)awtCanDraw;

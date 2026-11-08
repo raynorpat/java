@@ -218,7 +218,24 @@
 - (void)drawImage:(id)image atPoint:(NSPoint)point
 {
     if (image && [self _beginDrawingWithPaint:YES]) {
-        [(AwtImage *)image drawAtPoint:point];
+        NS_DURING
+            [(AwtImage *)image drawAtPoint:point];
+        NS_HANDLER
+            [self _endDrawing];
+            [localException raise];
+        NS_ENDHANDLER
+        [self _endDrawing];
+    }
+}
+- (void)drawImage:(id)image fromRect:(NSRect)source toRect:(NSRect)destination
+{
+    if (image && [self _beginDrawingWithPaint:YES]) {
+        NS_DURING
+            [(AwtImage *)image drawSubrect:source inRect:destination];
+        NS_HANDLER
+            [self _endDrawing];
+            [localException raise];
+        NS_ENDHANDLER
         [self _endDrawing];
     }
 }

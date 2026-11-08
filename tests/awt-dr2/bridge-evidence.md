@@ -1296,3 +1296,24 @@ MemoryImageSource catches its exception and reports the error through MediaTrack
 
 Fresh check-producer-image, check-image, check-primitives, check-window,
 check-dispatch and check-toolkit pass. Scaling and remaining Phase 7 work are pending.
+
+## Image scaling and drawing cleanup
+
+Recovered imageStretch at 54022564, AwtImage drawSubrect:inRect: at 540216f4 and
+the cached-window PostScript routine at 5401fb98. The binary PostScript sequence
+was decoded into readable source: it uses windowdeviceround, a saved source gstate
+and an ImageType 2 dictionary, then clears that gstate with nulldevice. Bitmap
+representations use NSDrawBitmap; equal-sized copies use native compositing.
+
+ScalingImage115 initially failed on imageStretch. Its 32 donor checksums now match
+for offscreen and producer images: unscaled drawing, enlargement, cropped scaling,
+source/destination horizontal mirroring, vertical mirroring, equal-sized crops and
+zero-width destinations. The second producer lifetime starts with scaled drawing.
+Tracked images are all released. A bitmap source-range guard avoids raw reads
+outside the allocation when native calls bypass Java's clipping.
+
+An injected drawing exception reproduced an unmatched begin/end drawing pair.
+Image drawing now releases focus before propagating native exceptions. The tracked
+test verifies balanced drawing afterward and continues with the full raster cases.
+Fresh check-scaling-image, check-producer-image, check-image, check-primitives,
+check-window, check-dispatch and check-toolkit pass. Phase 7 is still incomplete.

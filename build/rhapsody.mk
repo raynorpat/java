@@ -659,3 +659,7 @@ check-image: image $(BUILD)/tests/toolkit/libimage115.dylib $(BUILD)/tests/toolk
 .PHONY: check-producer-image
 check-producer-image: image $(BUILD)/tests/toolkit/libimage115.dylib $(BUILD)/tests/toolkit/libraster115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-producer-image.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+.PHONY: check-scaling-image
+check-scaling-image: image $(BUILD)/tests/toolkit/libimage115.dylib $(BUILD)/tests/toolkit/libprimitives115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-scaling-image.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

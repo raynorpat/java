@@ -48,3 +48,10 @@ Java_sun_awt_image_OffScreenImageSource_sendPixels_stub(stack_item *args, struct
     sun_awt_image_OffScreenImageSource_sendPixels(args[0].p);
     return args;
 }
+JAVA_PUBLIC_API(stack_item *)
+Java_sun_awt_image_ImageRepresentation_imageStretch_stub(stack_item *args, struct execenv *ee)
+{
+    sun_awt_image_ImageRepresentation_imageStretch(args[0].p, args[1].p,
+        args[2].i, args[3].i, args[4].i, args[5].i, args[6].i, args[7].i, args[8].i, args[9].i, args[10].p);
+    return args;
+}

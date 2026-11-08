@@ -3,6 +3,7 @@
 #import "awt_Graphics.h"
 #import "awt_ThreadContext.h"
 #import "awt_Exception.h"
+#import <AppKit/dpsclient.h>
 #include "sun_awt_image_ImageRepresentation.h"
 #include "sun_awt_image_OffScreenImageSource.h"
 #include "com_apple_rhapsody_awt_RGraphics.h"
@@ -79,7 +80,7 @@ extern BOOL _NSCreateEightBitMeshedBitmap(unsigned char **, unsigned char *, int
     return [NSColor colorWithDeviceRed:((color >> 16) & 255) / 255.0
         green:((color >> 8) & 255) / 255.0 blue:(color & 255) / 255.0 alpha:1];
 }
-- (id)drawAtPoint:(NSPoint)point
+- (void)prepareForDrawing
 {
     if (!offscreen && object) {
         Classsun_awt_image_ImageRepresentation *ir = unhand((Hsun_awt_image_ImageRepresentation *)object);
@@ -92,8 +93,77 @@ extern BOOL _NSCreateEightBitMeshedBitmap(unsigned char **, unsigned char *, int
             newDataReceived = NO; [self recache];
         }
     }
+}
+- (id)drawAtPoint:(NSPoint)point
+{
+    [self prepareForDrawing];
     point.y += height;
     [self compositeToPoint:point operation:NSCompositeSourceOver];
+    return self;
+}
+- (id)drawSubrect:(NSRect)source inRect:(NSRect)destination
+{
+    double xScale = (double)wide / width, yScale = (double)high / height;
+    [self prepareForDrawing];
+    source.origin.x *= xScale; source.size.width *= xScale;
+    source.origin.y *= yScale; source.size.height *= yScale;
+    if (!source.size.width || !source.size.height || !destination.size.width || !destination.size.height) return self;
+    if (source.size.width == destination.size.width && source.size.height == destination.size.height) {
+        if (destination.size.width < 0) {
+            destination.origin.x += destination.size.width;
+            source.origin.x += source.size.width; source.size.width = -source.size.width;
+        }
+        if (destination.size.height < 0) {
+            destination.origin.y += destination.size.height; destination.size.height = -destination.size.height;
+            source.origin.y += source.size.height; source.size.height = -source.size.height;
+        }
+        destination.origin.y += destination.size.height;
+        [self compositeToPoint:destination.origin fromRect:source operation:NSCompositeSourceOver];
+    } else {
+        NSImageRep *representation = [self bestRepresentationForDevice:nil];
+        if (!representation) return self;
+        if (source.size.width < 0) {
+            source.origin.x += source.size.width; source.size.width = -source.size.width;
+            destination.origin.x += destination.size.width; destination.size.width = -destination.size.width;
+        }
+        if (source.size.height < 0) {
+            source.origin.y += source.size.height; source.size.height = -source.size.height;
+            destination.origin.y += destination.size.height; destination.size.height = -destination.size.height;
+        }
+        if ([representation isKindOfClass:[NSCachedImageRep class]]) {
+            unsigned int window;
+            NSConvertWindowNumberToGlobal([[(NSCachedImageRep *)representation window] windowNumber], &window);
+            /* Decoded psw_drawOffScreenSubrect, 5401fb98. Its ImageType 2
+             * dictionary samples the cached window through a saved gstate. */
+            DPSPrintf(DPSGetCurrentContext(),
+                "gsave %u windowdeviceround %u currentwindowbounds dup 0 exch translate pop pop pop pop "
+                "1 -1 scale gstate grestore gsave %.9g %.9g translate 7 dict dup begin "
+                "/ImageType 2 def /XOrigin %.9g def /YOrigin %.9g def /Width %.9g def /Height %.9g def "
+                "/ImageMatrix [%.9g %.9g div 0 0 %.9g %.9g div 0 0] def /DataSource 2 index def "
+                "end image grestore gsave nulldevice currentgstate pop grestore\n",
+                window, window, destination.origin.x, destination.origin.y,
+                source.origin.x, source.origin.y, source.size.width, source.size.height,
+                source.size.width, destination.size.width, source.size.height, destination.size.height);
+        } else {
+            unsigned char *buffer = data;
+            int stride = rb;
+            if ((!buffer || !stride) && [representation isKindOfClass:[NSBitmapImageRep class]]) {
+                buffer = [(NSBitmapImageRep *)representation bitmapData];
+                stride = [(NSBitmapImageRep *)representation bytesPerRow];
+            }
+            if (buffer && stride) {
+                const unsigned char *planes[5] = {NULL, NULL, NULL, NULL, NULL};
+                /* Java normally clips source coordinates. Guard the raw bitmap
+                 * path as well, since a native entry can bypass that clipping. */
+                if (source.origin.x < 0 || source.origin.y < 0 ||
+                    source.origin.x + source.size.width > wide || source.origin.y + source.size.height > high)
+                    [NSException raise:NSInvalidArgumentException format:@"Image source rectangle outside bitmap"];
+                planes[0] = buffer + (int)source.origin.y * stride + (int)source.origin.x * 4;
+                NSDrawBitmap(destination, (int)source.size.width, (int)source.size.height,
+                    8, hasAlpha ? 4 : 3, 32, stride, NO, hasAlpha, NSDeviceRGBColorSpace, planes);
+            }
+        }
+    }
     return self;
 }
 - (id)sendPixels:(void *)source
@@ -329,6 +399,25 @@ void sun_awt_image_ImageRepresentation_imageDraw(Hsun_awt_image_ImageRepresentat
         AwtImage *image = (AwtImage *)unhand(self)->pData;
         AwtGraphics *target = (AwtGraphics *)unhand((Hcom_apple_rhapsody_awt_RGraphics *)graphics)->nNativeGraphics;
         [target drawImage:image atPoint:NSMakePoint(x, y)];
+    NS_HANDLER
+        imageException(localException);
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(NULL, pool);
+}
+
+void sun_awt_image_ImageRepresentation_imageStretch(Hsun_awt_image_ImageRepresentation *self,
+    struct Hjava_awt_Graphics *graphics, long dx1, long dy1, long dx2, long dy2,
+    long sx1, long sy1, long sx2, long sy2, Hjava_awt_Color *background)
+{
+    AwtAutoreleasePool *pool;
+    if (!self || !unhand(self) || !graphics) { SignalError(EE(), "java/lang/NullPointerException", NULL); return; }
+    if ((unhand(self)->availinfo & 11) != 11) return;
+    pool = NativeMethodEnter(NULL);
+    NS_DURING
+        AwtImage *image = imageForRepresentation(self, NULL);
+        AwtGraphics *target = (AwtGraphics *)unhand((Hcom_apple_rhapsody_awt_RGraphics *)graphics)->nNativeGraphics;
+        [target drawImage:image fromRect:NSMakeRect(sx1, sy1, (float)sx2 - sx1, (float)sy2 - sy1)
+            toRect:NSMakeRect(dx1, dy1, (float)dx2 - dx1, (float)dy2 - dy1)];
     NS_HANDLER
         imageException(localException);
     NS_ENDHANDLER

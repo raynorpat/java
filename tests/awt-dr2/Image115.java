@@ -6,6 +6,7 @@ public class Image115 {
     static native void track();
     static native int live();
     static native void failNext();
+    static native boolean hasFocus();
     static native void release(Image image);
     static native boolean upload(Image image, boolean bytes, int x, int y, int width, int height,
         ColorModel model, Object pixels, int offset, int scan);

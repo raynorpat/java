@@ -1,6 +1,14 @@
 #import "../../src/rhapsody/sun/awt/awt_Image.h"
+#import "../../src/rhapsody/sun/awt/awt_Graphics.h"
 #include "jni.h"
-static int liveImages, failNext;
+static int liveImages, failNext, drawingBalance;
+@interface ImageGraphicsProbe : AwtScreenGraphics
+@end
+@implementation ImageGraphicsProbe
+- (BOOL)_beginDrawingWithPaint:(BOOL)paint
+{ BOOL result = [super _beginDrawingWithPaint:paint]; if (result) drawingBalance++; return result; }
+- (void)_endDrawing { drawingBalance--; [super _endDrawing]; }
+@end
 @interface ImageLifetimeProbe : AwtImage
 @end
 @implementation ImageLifetimeProbe
@@ -18,11 +26,17 @@ static int liveImages, failNext;
     if (failNext) { failNext = 0; [NSException raise:NSInvalidArgumentException format:@"image constructor failure"]; }
     return self;
 }
+- (id)drawSubrect:(NSRect)source inRect:(NSRect)destination
+{
+    if (failNext) { failNext = 0; [NSException raise:NSInvalidArgumentException format:@"image drawing failure"]; }
+    return [super drawSubrect:source inRect:destination];
+}
 @end
 JNIEXPORT void JNICALL Java_Image115_track(JNIEnv *env, jclass cls)
-{ [ImageLifetimeProbe poseAsClass:[AwtImage class]]; }
+{ [ImageLifetimeProbe poseAsClass:[AwtImage class]]; [ImageGraphicsProbe poseAsClass:[AwtScreenGraphics class]]; }
 JNIEXPORT jint JNICALL Java_Image115_live(JNIEnv *env, jclass cls) { return liveImages; }
 JNIEXPORT void JNICALL Java_Image115_failNext(JNIEnv *env, jclass cls) { failNext = 1; }
+JNIEXPORT jboolean JNICALL Java_Image115_hasFocus(JNIEnv *env, jclass cls) { return drawingBalance != 0 || [NSView focusView] != nil; }
 JNIEXPORT void JNICALL Java_Image115_release(JNIEnv *env, jclass cls, jobject image)
 {
     jclass imageClass = (*env)->FindClass(env, "sun/awt/image/Image");
