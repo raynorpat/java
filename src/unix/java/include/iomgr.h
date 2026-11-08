@@ -9,10 +9,18 @@
 
 /* Sockets block; each Java thread is a native thread. */
 #define sysConnect(a,b,c)		connect(a,b,c)
+#ifdef JDK115_CTHREADS
+#define sysAccept(a,b,c)         accept(a,b,(int *)(c))
+#else
 #define sysAccept(a,b,c)		accept(a,b,(socklen_t *)(c))
+#endif
 #define sysRecv(a,b,c,d)		recv(a,b,c,d)
 #define sysSend(a,b,c,d)		send(a,b,c,d)
+#ifdef JDK115_CTHREADS
+#define sysRecvFrom(a,b,c,d,e,f)  recvfrom(a,b,c,d,e,(int *)(f))
+#else
 #define sysRecvFrom(a,b,c,d,e,f)	recvfrom(a,b,c,d,e,(socklen_t *)(f))
+#endif
 #define sysSendTo(a,b,c,d,e,f)		sendto(a,b,c,d,e,f)
 
 #define sysBind(a,b,c)			bind(a,b,c)

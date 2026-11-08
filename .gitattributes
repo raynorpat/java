@@ -8,3 +8,6 @@ third_party/zlib-1.0.4/trees.c -text
 src/unix/java/include/cthreads/threads_md.h -text
 src/unix/java/include/cthreads/monitor_md.h -text
 tests/awt118/with-wm.sh text eol=lf
+build/rhapsody.mk text eol=lf
+tools/builtin-natives.awk text eol=lf
+tests/awt-dr2/*.sh text eol=lf

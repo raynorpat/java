@@ -4,6 +4,9 @@
 #include <string.h>
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(JDK115_CTHREADS)
+#include <mach-o/dyld.h>
+#include <mach/cthreads.h>
 #else
 #include <dlfcn.h>
 #include <pthread.h>
@@ -62,6 +65,9 @@ int main(int argc, char **argv)
 #ifdef _WIN32
     HMODULE library;
     HANDLE thread;
+#elif defined(JDK115_CTHREADS)
+    int library;
+    cthread_t thread;
 #else
     void *library;
     pthread_t thread;
@@ -70,6 +76,9 @@ int main(int argc, char **argv)
 #ifdef _WIN32
     library = LoadLibraryA(argv[1]);
 #define SYMBOL(name) GetProcAddress(library, name)
+#elif defined(JDK115_CTHREADS)
+    library = NSAddLibrary(argv[1]);
+#define SYMBOL(name) NSAddressOfSymbol(NSLookupAndBindSymbol("_" name))
 #else
     library = dlopen(argv[1], RTLD_NOW | RTLD_GLOBAL);
 #define SYMBOL(name) dlsym(library, name)
@@ -120,6 +129,9 @@ int main(int argc, char **argv)
     thread = CreateThread(NULL, 0, hostThread, NULL, 0, NULL);
     WaitForSingleObject(thread, INFINITE);
     CloseHandle(thread);
+#elif defined(JDK115_CTHREADS)
+    thread = cthread_fork(hostThread, NULL);
+    cthread_join(thread);
 #else
     pthread_create(&thread, NULL, hostThread, NULL);
     pthread_join(thread, NULL);

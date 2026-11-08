@@ -3,6 +3,7 @@
  * See tests/native/monitor-cache115-evidence.md for the binary contract. */
 #include "threads.h"
 #include "threads_md.h"
+#include "monitor_md.h"
 #include "monitor.h"
 #include "monitor_cache.h"
 #include "log.h"

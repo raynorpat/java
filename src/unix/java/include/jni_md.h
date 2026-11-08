@@ -3,7 +3,7 @@
 
 /* deviation: Unix uses the existing pthreads port's fixed-width integer
  * convention; no Sun Unix JNI platform header is available in this tree. */
-#include <stdint.h>
+#include "inttypes_md.h"
 
 #define JNIEXPORT
 #define JNICALL

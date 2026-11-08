@@ -309,9 +309,12 @@ java_net_PlainSocketImpl_socketConnect(struct Hjava_net_PlainSocketImpl *this, s
 	if (ee && exceptionOccurred(ee)) {
 	    return;
 	}
+#ifdef EPROTO
 	if (errno == EPROTO) {
 	    SignalError(0, JAVANETPKG "ProtocolException", strerror(errno));
-	} else {
+	} else
+#endif
+	{
 	    SignalError(0, JAVANETPKG "SocketException", strerror(errno));
 	}
 	return;

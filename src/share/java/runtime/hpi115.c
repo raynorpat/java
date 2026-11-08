@@ -8,6 +8,10 @@
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
+#ifdef JDK115_CTHREADS
+#include <mach/mach.h>
+#include <mach/host_info.h>
+#endif
 #endif
 
 int sysAvailable(int fd, long *bytes)
@@ -67,6 +71,12 @@ int sysIsMP(void)
     SYSTEM_INFO info;
     GetSystemInfo(&info);
     return info.dwNumberOfProcessors > 1;
+#elif defined(JDK115_CTHREADS)
+    struct host_basic_info info;
+    unsigned int count = HOST_BASIC_INFO_COUNT;
+    if (host_info(host_self(), HOST_BASIC_INFO, (host_info_t)&info, &count))
+        return 1;
+    return info.avail_cpus > 1;
 #else
     return sysconf(_SC_NPROCESSORS_ONLN) > 1;
 #endif
@@ -78,6 +88,8 @@ void sysMemoryFlush(void)
 #ifdef XP_PC
     /* Sun Win32 sysmacros_md.h uses this full locked instruction. */
     __asm { lock xor DWORD PTR [esp], 0 }
+#elif defined(JDK115_CTHREADS) && defined(__i386__)
+    __asm__ volatile ("lock; addl $0,0(%%esp)" : : : "memory", "cc");
 #else
     __sync_synchronize();
 #endif
@@ -87,7 +99,9 @@ void sysMemoryFlush(void)
 #ifndef sysStoreBarrier
 void sysStoreBarrier(void)
 {
-#ifndef XP_PC
+#if defined(JDK115_CTHREADS) && defined(__i386__)
+    __asm__ volatile ("" : : : "memory");
+#elif !defined(XP_PC)
     __atomic_thread_fence(__ATOMIC_RELEASE);
 #endif
 }

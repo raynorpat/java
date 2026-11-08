@@ -91,7 +91,7 @@ Execute(char **command, char *alternate);
    If st == 0, then doesn't even bother trying to open the file.
    Instead, it just does the source file thing. */
 
-#ifndef XP_PC
+#if !defined(XP_PC) && !defined(JDK115_CTHREADS)
 int
 OpenCode(char *fn, char *sfn, char *dir, struct stat * st)
 {

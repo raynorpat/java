@@ -11,7 +11,6 @@
 
 int mach115_spawn(pid_t *pid, char **argv, char **env, int *pipes)
 {
-    extern char **environ;
     const char *path, *end;
     char *program;
     int channel[2], error = ENOENT, i, status;
@@ -48,7 +47,8 @@ int mach115_spawn(pid_t *pid, char **argv, char **env, int *pipes)
             error = errno;
         else {
             for (i = 0; i < 6; i++) if (pipes[i] > 2) close(pipes[i]);
-            execve(program, argv, env ? env : environ);
+            if (env) execve(program, argv, env);
+            else execv(program, argv);
             error = errno;
         }
         while (write(channel[1], &error, sizeof(error)) < 0 && errno == EINTR) {}

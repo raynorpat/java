@@ -5,13 +5,12 @@
 #include <sys/types.h>
 /* Required before the original sys_api.h stat prototypes. */
 #include <sys/stat.h>
-#include <stdint.h>
+#include "inttypes_md.h"
 #include <stdlib.h>
 #include <time.h>
 
 /*
- * Java longs need a 64-bit integer; <stdint.h> provides one even in C89
- * mode on every Unix this targets.
+ * Java longs need a 64-bit integer, supplied by the platform type adapter.
  */
 #define HAVE_LONG_LONG
 

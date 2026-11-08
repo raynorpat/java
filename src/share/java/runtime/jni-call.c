@@ -59,8 +59,12 @@ __declspec(naked) static void nativeCall(void *function, stack_item *args,
 extern void jniNativeCall(void *, stack_item *, int, void *, jobject, int, stack_item *);
 __asm__(
 ".text\n"
+#ifdef __APPLE__
+"_jniNativeCall:\n"
+#else
 ".type jniNativeCall,@function\n"
 "jniNativeCall:\n"
+#endif
 "pushl %ebp\n movl %esp,%ebp\n pushl %ebx\n pushl %esi\n pushl %edi\n"
 /* Contemporary i386 C compilers require 16-byte alignment before CALL. */
 "movl 16(%ebp),%eax\n incl %eax\n cmpl $0,24(%ebp)\n je 7f\n incl %eax\n"
@@ -75,7 +79,10 @@ __asm__(
 "4: fstps (%edi)\n jmp 6f\n"
 "5: fstpl (%edi)\n"
 "6: popl %edi\n popl %esi\n popl %ebx\n popl %ebp\n ret\n"
-".size jniNativeCall,.-jniNativeCall\n");
+#ifndef __APPLE__
+".size jniNativeCall,.-jniNativeCall\n"
+#endif
+);
 #define nativeCall jniNativeCall
 #endif
 
