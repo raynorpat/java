@@ -63,12 +63,19 @@ static int gifImage(stack_item *sp,ExecEnv *ee)
     int interlace=sp[5].i!=0;
     HArrayOfByte *block=(HArrayOfByte *)sp[7].p,*line=(HArrayOfByte *)sp[8].p;
     Hjava_awt_image_IndexColorModel *model=(Hjava_awt_image_IndexColorModel *)sp[9].p;
+    HArrayOfShort *prefix;
+    HArrayOfByte *suffix,*output;
+    struct GifInput input;
+    int clear,end,codeSize,maxCode,mask,freeCode,tableMask;
+    int oldCode=0,previous=0,bits=0,offset=0,row=0;
+    unsigned data=0;
+    int step=interlace?8:1,replicate=step;
     if (!decoder || !block || !line || !model || !unhand(decoder)->input ||
         !unhand(decoder)->prefix || !unhand(decoder)->suffix || !unhand(decoder)->outCode) {
         SignalError(ee,"java/lang/NullPointerException",NULL); return FALSE;
     }
-    HArrayOfShort *prefix=unhand(decoder)->prefix;
-    HArrayOfByte *suffix=unhand(decoder)->suffix,*output=unhand(decoder)->outCode;
+    prefix=unhand(decoder)->prefix;
+    suffix=unhand(decoder)->suffix; output=unhand(decoder)->outCode;
     if (obj_length(prefix)!=4096 || obj_length(suffix)!=4096 || obj_length(output)!=4097 ||
         obj_length(block)<256 || width>obj_length(line)) {
         SignalError(ee,"java/lang/ArrayIndexOutOfBoundsException",NULL); return FALSE;
@@ -76,12 +83,12 @@ static int gifImage(stack_item *sp,ExecEnv *ee)
     if (initial<2 || initial>8 || width<=0 || height<=0) {
         SignalError(ee,"java/lang/IllegalArgumentException",NULL); return FALSE;
     }
-    struct GifInput input={decoder,block,ee,0,0,FALSE};
-    int clear=1<<initial,end=clear+1,codeSize=initial+1,maxCode=1<<codeSize,mask=maxCode-1;
-    int freeCode=clear+2,oldCode=0,previous=0,bits=0,offset=0,row=0;
-    unsigned data=0; int tableMask=unhand(model)->map_size-1;
-    int step=interlace?8:1,replicate=step;
+    input.decoder=decoder; input.block=block; input.ee=ee;
+    input.position=0; input.length=0; input.ended=FALSE;
+    clear=1<<initial; end=clear+1; codeSize=initial+1; maxCode=1<<codeSize; mask=maxCode-1;
+    freeCode=clear+2; tableMask=unhand(model)->map_size-1;
     for (;;) {
+        int code,current,count;
         while (bits<codeSize) {
             int byte=gif_byte(&input);
             if (byte<0) {
@@ -92,14 +99,14 @@ static int gifImage(stack_item *sp,ExecEnv *ee)
             }
             data|=(unsigned)byte<<bits; bits+=8;
         }
-        int code=data&mask; data>>=codeSize; bits-=codeSize;
+        code=data&mask; data>>=codeSize; bits-=codeSize;
         if (code==clear) {
             freeCode=clear+1; codeSize=initial+1; maxCode=1<<codeSize; mask=maxCode-1;
             if (row<height) continue;
             code=end;
         }
         if (code==end) return gif_finish(&input);
-        int current=code,count=4097;
+        current=code; count=4097;
         if (current>=freeCode) {
             if (current>freeCode) return gif_finish(&input);
             current=oldCode; unhand(output)->body[--count]=(char)previous;

@@ -386,15 +386,19 @@ AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Image.h
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Print.m
 AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Print.h
 
-$(BUILD)/awtgen/.stamp: $(BUILD)/bin/javah $(JDK115_DIR)/lib/classes.zip $(RHAPSODY_PEERS)
+$(BUILD)/awtgen/.stamp: $(BUILD)/bin/javah $(JDK115_DIR)/lib/classes.zip $(RHAPSODY_PEERS) build/rhapsody.mk
 	mkdir -p $(@D)
-	$(BUILD)/bin/javah -classpath $(RHAPSODY_PEERS):$(JDK115_DIR)/lib/classes.zip -d $(@D) sun.awt.image.ImageRepresentation sun.awt.image.OffScreenImageSource java.awt.Color java.awt.image.IndexColorModel java.awt.image.DirectColorModel com.apple.rhapsody.awt.RGraphics
+	$(BUILD)/bin/javah -classpath $(RHAPSODY_PEERS):$(JDK115_DIR)/lib/classes.zip -d $(@D) sun.awt.image.ImageRepresentation sun.awt.image.OffScreenImageSource sun.awt.image.GifImageDecoder java.awt.Color java.awt.image.IndexColorModel java.awt.image.DirectColorModel com.apple.rhapsody.awt.RGraphics
 	touch $@
 
 # Partial AWT is confined to tests until the complete peer surface is recovered.
-$(BUILD)/tests/toolkit/libawt.dylib: $(AWT_TOOLKIT_SOURCES) $(AWT_TOOLKIT_HEADERS) $(BUILD)/lib/libjavai.dylib $(BUILD)/awtgen/.stamp build/rhapsody.mk
+$(BUILD)/obj/awt-gif.o: src/share/sun/awt/gifdecoder.c $(BUILD)/awtgen/.stamp
 	mkdir -p $(@D)
-	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -I$(BUILD)/awtgen -dynamiclib $(AWT_TOOLKIT_SOURCES) -framework AppKit -framework Foundation -L$(BUILD)/lib -ljavai -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD)/awtgen $(INCLUDES) -c $< -o $@
+
+$(BUILD)/tests/toolkit/libawt.dylib: $(AWT_TOOLKIT_SOURCES) $(AWT_TOOLKIT_HEADERS) $(BUILD)/lib/libjavai.dylib $(BUILD)/awtgen/.stamp $(BUILD)/obj/awt-gif.o build/rhapsody.mk
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -I$(BUILD)/awtgen -dynamiclib $(AWT_TOOLKIT_SOURCES) $(BUILD)/obj/awt-gif.o -framework AppKit -framework Foundation -L$(BUILD)/lib -ljavai -o $@
 
 $(BUILD)/tests/toolkit/libtoolkitprobe115.dylib: tests/awt-dr2/dispatcher115.m $(BUILD)/tests/toolkit/libawt.dylib
 	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/dispatcher115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
@@ -679,3 +683,14 @@ $(BUILD)/tests/toolkit/libprint115.dylib: tests/awt-dr2/print115.m $(BUILD)/test
 .PHONY: check-print
 check-print: image $(BUILD)/tests/toolkit/libprint115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-print.sh $(BUILD) $(RHAPSODY_PEERS) $(DESKTOP_PID)
+
+$(BUILD)/tests/toolkit/libdispatcherentry115.dylib: tests/awt-dr2/dispatcherentry115.c $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -dynamiclib -Isrc/share/java/include -Isrc/unix/java/include $< -o $@
+
+.PHONY: check-dispatcherentry
+check-dispatcherentry: image $(BUILD)/tests/toolkit/libdispatcherentry115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-dispatcherentry.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+.PHONY: check-codecs
+check-codecs: image $(BUILD)/tests/toolkit/libawt.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-codecs.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

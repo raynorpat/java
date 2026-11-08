@@ -1359,3 +1359,28 @@ The latter intentionally emits one native selector diagnostic, checked separatel
 
 Fresh check-print, check-frameicon, check-image, check-primitives, check-dispatch
 and check-toolkit pass. No public printing capability beyond the donor is claimed.
+
+## GIF decoder and obsolete dispatcher entry
+
+The unchanged GifRaster115 test initially failed on missing parseImage. Donor
+54022b34/5402318c uses the same ten-slot legacy ABI and decoder-owned LZW tables
+as the shared reconstructed decoder. The DR2 build now links that decoder with
+headers generated from the unchanged baseline archive. GCC 2.7 rejected mixed
+declarations; moving declarations to block starts preserves the decoder logic.
+The header stamp now depends on the Makefile so added generated headers are built.
+
+Unchanged GifRaster115 and DecoderImages115 match all donor checksums for palette
+transparency, interlaced/non-interlaced LZW, and baseline/grayscale/progressive JPEG
+rendering. Both GIF hashes are -406802539; JPEG fixtures and the transparent GIF
+are recorded in codecs.expected. These tests retain DR2's earlier readback quirks.
+
+The entry inventory also exposed the missing RDispatcher.run binding (54013dbc).
+Its donor calls runWithEnv:, which the shipped AwtDispatcher does not implement.
+DispatcherEntry115 reproduces that native selector exception in the donor, then
+UnsatisfiedLinkError in the reconstruction. The recovered binding now matches the
+donor exception and permits subsequent toolkit/GC work; no extra dispatch loop
+was invented. All inventoried native entry names now have reconstructed source.
+
+Fresh check-codecs, check-dispatcherentry, check-print, check-scaling-image,
+check-dispatch and check-toolkit pass, as does the real-archive audit. Installed
+demo acceptance, audio and debugger child launch still remain.

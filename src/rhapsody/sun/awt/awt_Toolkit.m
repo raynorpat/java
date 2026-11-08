@@ -2,12 +2,30 @@
 #import "awt_Application.h"
 #import "awt_ThreadContext.h"
 #import "awt_Exception.h"
+#import "awt_Dispatcher.h"
 #include <math.h>
 #import <AppKit/psops.h>
 
 @interface NSThread (AwtDR2)
 - (void)_setThreadName:(NSString *)name;
 @end
+
+@interface AwtDispatcher (ObsoleteDR2Entry)
+- (void)runWithEnv:(JNIEnv *)env;
+@end
+
+/* 54013dbc: the shipped dispatcher has no runWithEnv: implementation.
+ * Preserve its native exception rather than inventing a second dispatch loop. */
+JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RDispatcher_run(JNIEnv *env, jobject dispatcher)
+{
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        [[AwtDispatcher defaultDispatcher] runWithEnv:env];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+}
 
 JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RToolkit_initialize(JNIEnv *env, jclass cls)
 {
