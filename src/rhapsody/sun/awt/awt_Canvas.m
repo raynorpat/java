@@ -6,6 +6,21 @@
 
 /* 5400ff44: inspect the Java field, not getBackground's inherited value. */
 @implementation NSView (AWTBackground)
+/* 5400ffc4: peer decides whether the background is a custom color. */
+- (BOOL)awtComponentUsesCustomColor
+{
+    JNIEnv *env = [NSApp appkitEnv];
+    jclass cls = (*env)->FindClass(env, "com/apple/rhapsody/awt/RComponentPeer");
+    jmethodID method;
+    BOOL result;
+    if (!cls) [AwtException raiseUsingEnv:env];
+    method = (*env)->GetMethodID(env, cls, "counterpartUsesCustomBackgroundColor", "()Z");
+    if (!method) [AwtException raiseUsingEnv:env];
+    result = (*env)->CallBooleanMethod(env, [(AwtView *)self peer], method);
+    (*env)->DeleteLocalRef(env, cls);
+    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    return result;
+}
 - (BOOL)awtComponentGetsBackgroundFromItsContainer
 {
     JNIEnv *env = [NSApp appkitEnv];

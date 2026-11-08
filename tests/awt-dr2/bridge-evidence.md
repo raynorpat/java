@@ -908,3 +908,45 @@ Fresh native check-label, check-component-state, check-button, check-checkbox,
 check-child-views, check-window, check-input, check-dispatch and check-toolkit
 all pass, including tracked constructor/callback cleanup and existing raster
 and window geometry fixtures.
+
+### Phase 7 editable text-field checkpoint
+
+RTextFieldPeer's nine bindings (5401b1e0--5401b9e8) now use the editable
+AwtTextField constructor (5400dccc), AwtTextFieldCell (5400e7e4/5400e860) and
+AwtTextView (5400e8e0--5400ec10). The cell transfers the owning Java peer to
+the per-window shared editor. Selection, caret, text validation, native text
+notifications and Return actions follow the donor paths. Column sizing uses
+the advance of glyph 48 plus six pixels and rounds both dimensions upward.
+The donor echo-character setter (5400e208) is empty; the reconstruction
+preserves that limitation. Enabling the native bezel clears the separate
+border flag, as verified on the donor.
+
+The shared background-color query (5400ffc4) calls the unchanged peer's
+counterpartUsesCustomBackgroundColor method. Testing disposal also exposed
+the missing NSResponder input/focus fallback (54010018): it returns NO when
+AppKit leaves a non-view object as first responder. The native text-field
+fixture reproduced the exception before that fallback was added.
+
+The donor's fieldEditor:forObject: hook (54010f08) is implemented on AwtWindow
+for Java controls; other objects retain NSWindow's original implementation.
+Actual disposal clears the editor's borrowed peer and ends editing before
+the JNI global is released. The thread-dictionary cache releases its editor
+when the window is destroyed. Allocation tracking first detected a retained
+editor (zero controls, one editor), then passed after this cache cleanup.
+
+TextField115 passed on the donor and initially failed on the reconstruction's
+missing constructor. Native typing, Unicode/null text, all nine peer bindings,
+column sizing, selection/caret, editable state, text/Return callbacks with
+reentry and GC, Java/native constructor failures and callback disposal now
+pass. The reconstructed test library has 73 JNI entries; other controls and
+Phase 7 acceptance remain unfinished.
+
+Fresh native check-textfield, check-label, check-component-state, check-button,
+check-checkbox, check-child-views, check-window, check-input, check-keyboard,
+check-dispatch and check-toolkit all pass.
+
+The expanded text-field fixture also passes on the donor and reconstruction:
+switching between two fields preserves each value and callback source, both
+fields share one native editor, programmatic text changes deliver callbacks,
+and making the active field noneditable still permits focus to return to the
+first field. Tracked disposal releases both controls and the shared editor.

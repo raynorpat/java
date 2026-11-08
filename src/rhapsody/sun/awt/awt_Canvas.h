@@ -5,6 +5,7 @@
 
 @interface NSView (AWTBackground)
 - (BOOL)awtComponentGetsBackgroundFromItsContainer;
+- (BOOL)awtComponentUsesCustomColor;
 @end
 
 @interface AwtCanvas : AwtView

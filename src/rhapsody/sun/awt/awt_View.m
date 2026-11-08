@@ -5,6 +5,11 @@
 #import "awt_Exception.h"
 #import "awt_Container.h"
 
+/* 54010018: non-view first responders do not dispatch Java input/focus. */
+@implementation NSResponder (AWTResponderState)
+- (BOOL)dispatchesAwtEventsOfType:(int)type { return NO; }
+@end
+
 /* 54010b20: hitTest accepts coordinates in the content view's superview. */
 @implementation NSWindow (AWTViewTracking)
 - (NSView *)deepestViewUnderLocation:(NSPoint)location dispatchingEventsOfType:(int)type

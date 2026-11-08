@@ -4,6 +4,10 @@
 #import <AppKit/AppKit.h>
 #include "jni.h"
 
+@interface NSResponder (AWTResponderState)
+- (BOOL)dispatchesAwtEventsOfType:(int)type;
+@end
+
 @interface NSView (AWTViewState)
 - (void)setFrame:(NSRect)frame display:(BOOL)display;
 - (NSSize)preferredSize;

@@ -4,6 +4,7 @@
 #import "awt_Application.h"
 #import "awt_Event.h"
 #import "awt_Exception.h"
+#import "awt_TextField.h"
 
 @interface NSWindow (AWTBorderAccess)
 - (id)_borderView;
@@ -32,6 +33,12 @@
 @end
 
 @implementation AwtWindow
+/* 54010f08: Java controls supply their shared AWT field editor. */
+- (NSText *)fieldEditor:(BOOL)create forObject:(id)object
+{
+    if ([object respondsToSelector:@selector(getFieldEditor)]) return [object getFieldEditor];
+    return [super fieldEditor:create forObject:object];
+}
 - (id)commonInitWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled styleMask:(int)style contentView:(NSView *)view
 {
     NSRect content = [NSWindow contentRectForFrameRect:frame styleMask:style];
@@ -59,6 +66,8 @@
 }
 - (void)dealloc
 {
+    [[[NSThread currentThread] threadDictionary] removeObjectForKey:
+        [NSString stringWithFormat:@"AwtFieldEditorForWindow%d", (int)self]];
     [_menuBar release];
     [super dealloc];
 }

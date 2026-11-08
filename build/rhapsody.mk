@@ -546,3 +546,10 @@ $(BUILD)/tests/toolkit/liblabel115.dylib: tests/awt-dr2/label115.m $(BUILD)/test
 .PHONY: check-label
 check-label: image $(BUILD)/tests/toolkit/liblabel115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-label.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libtextfield115.dylib: tests/awt-dr2/textfield115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/textfield115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-textfield
+check-textfield: image $(BUILD)/tests/toolkit/libtextfield115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-textfield.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
