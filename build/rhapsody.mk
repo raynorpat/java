@@ -492,3 +492,13 @@ $(BUILD)/tests/toolkit/libkeyboard115.dylib: tests/awt-dr2/keyboard115.m $(BUILD
 .PHONY: check-keyboard
 check-keyboard: image $(BUILD)/tests/toolkit/libkeyboard115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-keyboard.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libsyntheticvalues115.dylib: tests/awt-dr2/syntheticvalues115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/syntheticvalues115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-synthetic-values check-synthetic-input
+check-synthetic-values: image $(BUILD)/tests/toolkit/libsyntheticvalues115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-synthetic-values.sh "$(BUILD)" "$(DESKTOP_PID)"
+
+check-synthetic-input: image $(BUILD)/tests/toolkit/libsyntheticvalues115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-synthetic-input.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

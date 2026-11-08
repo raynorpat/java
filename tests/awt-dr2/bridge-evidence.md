@@ -656,3 +656,37 @@ check-dispatch and check-window all pass, with clean streamed output. The window
 target includes lifetime failure cleanup and Java painting checks. Command-key
 menu preprocessing, editable widgets, synthetic input and queue peek/get bindings
 remain pending; this is not full keyboard/widget or Phase 7 acceptance.
+
+### Phase 7 synthetic input checkpoint
+
+Recovered SyntheticEvent key/mouse factories (54005878/54005a3c), the native
+modifier inverse (54005cf8), and the key-code lookup (54005e94). Key codes for
+modifiers create flags-changed events. Other key press/release IDs create native
+key events; typed events are omitted. A zero character uses the first native key
+table match, with no inferred alphabetic/digit fallback. Mouse press/release/drag
+map to left-button native events, including when Java Meta is set. Clicked, moved,
+entered and exited events are omitted by these factories. Native timestamps are
+zero, mouse pressure is one, and coordinates are converted through the view.
+
+The donor's five unsupported SyntheticEvent accessors now raise the same AWT
+exception: eventNumber, trackingNumber, userData, isARepeat and keyCode. The
+original Java EventQueue's two posting JNI methods (54013f80/540140ac) convert
+through the view proxy and append non-null native events on the AppKit thread.
+They do not wrap or preserve the original Java event object.
+
+SyntheticValues115 checks 21 donor/reconstruction cases, including factory
+omissions, modifier/key mapping, zero-character fallback, coordinates, pressure,
+time, synthetic identity, unsupported accessors and invalid types. The native
+factory fixture uses a controlled view/window object to isolate conversion.
+SyntheticInput115 separately uses a real Frame and the unchanged EventQueue peer:
+posted keys deliver press/typed/release, posted mouse input delivers press/drag/
+release/click, and omitted types remain omitted. Callbacks validate source and
+values, trigger GC, and re-enter AppKit. The reconstruction first failed for
+missing factories, then for the missing posting JNI entry; both fixtures now pass
+against donor and reconstruction. The partial AWT library has 39 JNI entries and
+remains confined to tests. Queue peek/get bindings and the rest of Phase 7 remain
+unfinished.
+
+Fresh check-synthetic-values, check-synthetic-input, check-keyboard, check-input,
+check-toolkit, check-event-cover and check-window all pass with clean streamed
+output, including window lifetime cleanup and Java painting.

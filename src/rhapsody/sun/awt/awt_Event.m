@@ -8,6 +8,13 @@
 - (jobject)peer;
 @end
 
+static unichar nativeCharacterForKeyCode(int code);
+static void inapplicableSyntheticSelector(SEL selector)
+{
+    [NSException raise:@"AWT error" format:@"Attempt to call non-applicable method \"%@\" on SyntheticEvent!",
+        NSStringFromSelector(selector)];
+}
+
 @implementation NSEvent (AWTEventCover)
 + (id)coverEventForJavaEvent:(jobject)event inEnv:(JNIEnv *)env
 {
@@ -80,13 +87,7 @@
     code = (*env)->CallIntMethod(env, event, method);
     (*env)->DeleteLocalRef(env, cls);
     if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
-    if (modifiers != [self javaModifiers]) {
-        _modifierFlags = 0;
-        if (modifiers & 8) _modifierFlags |= NSAlternateKeyMask;
-        if (modifiers & 2) _modifierFlags |= NSControlKeyMask;
-        if (modifiers & 1) _modifierFlags |= NSShiftKeyMask;
-        if (modifiers & 4) _modifierFlags |= NSCommandKeyMask;
-    }
+    if (modifiers != [self javaModifiers]) _modifierFlags = javaModifiersToNS(modifiers);
     if (character != [self javaCharacter] || code != [self javaKeyCode]) {
         /* Reverse 54026680, taking the first matching Java character. */
         switch (character) {
@@ -110,7 +111,51 @@
 @end
 
 @implementation SyntheticEvent
+/* 54005878: modifier key codes are represented by flags-changed events. */
++ (id)keyEvent:(int)type keyCode:(int)code keyChar:(unichar)character modifiers:(int)modifiers forView:(id)view
+{
+    int nativeType;
+    NSString *characters = nil;
+    if (code == 16 || code == 17 || code == 18 || code == 20 || code == 156 || code == 157)
+        nativeType = NSFlagsChanged;
+    else {
+        if (type == 400) return nil;
+        if (type == 401) nativeType = NSKeyDown;
+        else if (type == 402) nativeType = NSKeyUp;
+        else {
+            [NSException raise:@"AWT error" format:@"Unexpected event type received in SyntheticEvent +keyEvent!"];
+            return nil;
+        }
+        if (!character) character = nativeCharacterForKeyCode(code);
+        characters = [NSString stringWithCharacters:&character length:1];
+    }
+    return [self keyEventWithType:nativeType location:NSMakePoint(0, 0)
+        modifierFlags:javaModifiersToNS(modifiers) timestamp:0 windowNumber:[[view window] windowNumber]
+        context:[NSApp context] characters:characters charactersIgnoringModifiers:characters isARepeat:NO keyCode:0];
+}
+/* 54005a3c: synthetic mouse input always uses the left-button native types. */
++ (id)mouseEvent:(int)type x:(int)x y:(int)y modifiers:(int)modifiers clickCount:(int)clicks forView:(id)view
+{
+    int nativeType;
+    switch (type) {
+        case 500: case 503: case 504: case 505: return nil;
+        case 501: nativeType = NSLeftMouseDown; break;
+        case 502: nativeType = NSLeftMouseUp; break;
+        case 506: nativeType = NSLeftMouseDragged; break;
+        default:
+            [NSException raise:@"AWT error" format:@"Unexpected event type received in SyntheticEvent +mouseEvent!"];
+            return nil;
+    }
+    return [self mouseEventWithType:nativeType location:[view convertPoint:NSMakePoint(x, y) toView:nil]
+        modifierFlags:javaModifiersToNS(modifiers) timestamp:0 windowNumber:[[view window] windowNumber]
+        context:[NSApp context] eventNumber:0 clickCount:clicks pressure:1.0];
+}
 - (BOOL)isSynthetic { return YES; }
+- (int)eventNumber { inapplicableSyntheticSelector(_cmd); return 0; }
+- (int)trackingNumber { inapplicableSyntheticSelector(_cmd); return 0; }
+- (void *)userData { inapplicableSyntheticSelector(_cmd); return NULL; }
+- (BOOL)isARepeat { inapplicableSyntheticSelector(_cmd); return NO; }
+- (unsigned short)keyCode { inapplicableSyntheticSelector(_cmd); return 0; }
 @end
 
 /* 54006634: window lifecycle events use the same owned native cover. */
@@ -204,6 +249,17 @@ int nsModifiersToJava(int flags)
     if (flags & NSShiftKeyMask) result |= 1;
     if (flags & NSCommandKeyMask) result |= 4;
     return result;
+}
+
+/* 54005cf8: unmapped Java bits do not contribute native modifier flags. */
+int javaModifiersToNS(int modifiers)
+{
+    int flags = 0;
+    if (modifiers & 8) flags |= NSAlternateKeyMask;
+    if (modifiers & 2) flags |= NSControlKeyMask;
+    if (modifiers & 1) flags |= NSShiftKeyMask;
+    if (modifiers & 4) flags |= NSCommandKeyMask;
+    return flags;
 }
 
 jobject javaComponentForView(JNIEnv *env, id view)
@@ -339,6 +395,15 @@ static const struct { unsigned int character; int code; BOOL typed; int flags; }
     {63, 47, 1, 131072},
     {0, 0, 0, 0}
 };
+/* 54005e94: first table match; letters/digits have no inferred fallback. */
+static unichar nativeCharacterForKeyCode(int code)
+{
+    int index;
+    for (index = 0; keyTable[index].character; index++)
+        if (keyTable[index].code == code) return keyTable[index].character;
+    return 0;
+}
+
 /* Private Foundation conversion used by the donor (54005d6c). */
 extern void NSConvertToLower(unichar character, unichar *result, int flags);
 void nsCharToJavaVirtualKeyCode(unichar character, int flags, int *code, BOOL *typed)
