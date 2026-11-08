@@ -1,0 +1,17 @@
+instance=-5
+static=109
+inherited=41
+declared-only=1
+static-not-instance=1
+instance-not-static=1
+inherited-static=1
+null-name=1
+signature-optional=1
+long=1336557c,9fbad9f8
+float=2.75
+short-float=3.75
+double=c0040000,00000000
+object=1
+exception=1
+exception-cleared=1,10
+default-env=19

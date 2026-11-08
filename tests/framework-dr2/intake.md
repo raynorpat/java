@@ -161,3 +161,25 @@ duplicates and conflicts, custom banners, once-per-type suppression and reset.
 Banner state and four complaint-type bytes are reconstructed from 0x53d043ac
 and 0x53d04408. Table setup is separate from the later Java selector class/type
 initialization; this test does not claim those Java wrapper classes work yet.
+
+## Raw method lookup and invocation
+
+`check-invocation.sh` compares 17 native cases against the donor. It exercises
+instance/static and inherited lookup, declared-only filtering, optional
+signatures, integers, long and double return words, both float argument layouts,
+object identity and a thrown Java exception followed by a successful call.
+The raw invocation helper returns the Java exception handle separately and
+clears the VM's pending exception; Objective-C exception conversion is a later
+layer and is not claimed by this fixture.
+
+For long/double values, the helper's return is the first VM word and its
+`highBits` output is the second. On i386 the donor's words are not ordered as
+the parameter name suggests: the long fixture returns 1336557c, then 9fbad9f8;
+the double fixture returns c0040000, then 00000000. Callers must reconstruct
+values according to these observed semantics.
+
+Constructor integration remains open: the donor's constructor-vararg entry
+takes a shortFloats flag, whereas the reconstructed common VM entry currently
+has five arguments and always promotes float arguments. An Objective-C
+constructor adapter must account for this before native float constructors
+can be accepted. No runtime constructor behavior was changed in this increment.
