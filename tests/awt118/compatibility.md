@@ -97,6 +97,30 @@ and four existing JNI/javah regressions. Linux Debug/Release pass the five peer
 checks and the same four regressions. The full platform suites and visual demo
 gates remain Task 6; these focused checks establish the Java boundary only.
 
+## Linux host boundary
+
+The reconstructed toolkit targets 32-bit Linux with X11 and OpenMotif. The
+installed image selects MToolkit and finds the separate motif-peers.zip without
+replacing the baseline classes.zip. All 207 generated native entries are
+implemented; installed native libraries are built from this tree.
+
+The verified environments are bare Xvfb and Openbox with EWMH frame extents.
+Decorated window packing requires an EWMH window manager supporting
+_NET_REQUEST_FRAME_EXTENTS; classic non-EWMH window-manager inset guessing is
+not part of this Linux host port. The 1.1.5 Window class lacks the later
+isPacked field used by the Solaris reparenting path. This boundary avoids
+silently changing java.awt.Window while preserving correct packed client
+geometry on the supported host. Full Solaris runtime/WM compatibility remains
+separate work.
+
+Host fonts determine available glyphs and metrics. Latin-1 text, descriptor-based
+Symbol/Dingbats rendering, XIM composition and 8/16/24-bit visuals are exercised;
+this does not assert identical Solaris font rasterization or availability of
+every locale's fonts. The indexed visual uses a deterministic host cube and gray
+ramp rather than Solaris's adaptive palette. Unchanged Java limitations remain,
+including COMPOUND_TEXT-only clipboard flavor discovery described in
+bootstrap-evidence.md; direct transfer of that text is tested.
+
 ## Reproduction and checks
 
 Run from the repository root, substituting the supplied archive path as needed:

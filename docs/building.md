@@ -64,6 +64,57 @@ CC='gcc -m32' cmake -S . -B out/linux115 -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_FLAGS=-isystem/usr/include/x86_64-linux-gnu
 ```
 
+## Linux Motif AWT
+
+Add the extracted Solaris JDK 1.1.8/16 directory as source material. It must
+contain `SUNWjvrt/reloc/usr/java1.1/lib/classes.zip`; both original class archives
+remain unchanged. On Ubuntu the native build needs `libmotif-dev:i386`,
+`libx11-dev:i386` and `libxt-dev:i386`. Tests also need `libxtst-dev:i386`,
+`xvfb`, `xauth`, `openbox`, core X11 fonts and Ghostscript. Demo capture additionally
+uses `xdotool`, `x11-utils` and ImageMagick. Use an EWMH window manager for decorated
+windows; see [the host compatibility boundary](../tests/awt118/compatibility.md).
+
+```sh
+cmake -S . -B out/motif-debug -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32 \
+  -DSOLARIS118_DIR=/path/to/solaris-jdk-1.1.8
+cmake --build out/motif-debug --parallel
+ctest --test-dir out/motif-debug --output-on-failure
+cmake --install out/motif-debug --prefix "$HOME/jdk115-motif"
+```
+
+The installed launcher automatically uses `lib/motif-peers.zip`, reconstructed
+`lib/libawt.so`, and the retained font/print resources and notices. Do not copy
+Solaris native libraries into the image. Use a separate Release build directory.
+Do not rebuild/relink a build tree while its tests are running.
+
+For the unchanged demo gate, generate the existing shared inventory on Windows:
+
+```powershell
+cmake -DROOT=D:/raynorpat/java -DOUT=D:/raynorpat/java/out/demo-inventory115 -P tests/tools/winawt-demos115.cmake
+```
+
+Then run the Linux capture helper against the original demo tree (or a verified
+byte-for-byte copy on WSL's Linux filesystem):
+
+```sh
+xvfb-run -a -s '-screen 0 1280x1024x24 -nolisten tcp' \
+  sh tests/awt118/with-wm.sh python3 tests/awt118/demos.py \
+  out/demo-inventory115/manifest.json vendor/jdk1.1.5/demo \
+  "$HOME/jdk115-motif" out/motif-demo-captures \
+  --probe out/motif-debug/lib/libmotif118xprobe.so
+```
+
+`--select` accepts a case-ID regular expression. Each case records interaction,
+process/close behavior, controls and screenshots of every client window. Review
+the rendering as well as `executionPassed`; screenshots alone are not a visual
+parity assertion. Eight original Frame-only mains intentionally require bounded
+termination, matching the Windows demo policy. The observer and viewer entry
+helper are separate test classes; the test-only native probe identifies each
+Window precisely even when several applets overlap. No demo class or HTML is
+changed. Toolkit initialization precedes loading the probe, so the installed
+runtime and AWT library supply execution.
+
 ## Oracle fixtures
 
 Compile from the fixture directory: Sun's compiler rejects forward-slash source

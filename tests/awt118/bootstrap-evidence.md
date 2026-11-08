@@ -1,7 +1,9 @@
-# Native toolkit bootstrap recovery (in progress)
+# Motif native recovery and verification evidence
 
-Sources are the unchanged Solaris binaries pinned in compatibility.md. This is
-Task 3 evidence, not a completed native implementation or live-window claim.
+Sources are the unchanged Solaris binaries pinned in compatibility.md. The
+entries below are chronological checkpoints; later entries supersede their
+earlier implementation counts and open items. Current scope and reproduction
+instructions are in compatibility.md and docs/building.md.
 
 | Routine | Debug address | Release address |
 | --- | --- | --- |
@@ -568,3 +570,42 @@ Windows Debug 204/204 passed (209.02 seconds), including MotionLifetime115.
 The expanded menu shortcut fixture subsequently passed in 14.63 seconds. Its
 ActionEvent flags are zero, matching baseline MenuItem.handleShortcut's original
 three-argument ActionEvent constructor; native mouse actions retain BUTTON1.
+
+Final visual review found a foreground regression: PictureFrame's explicitly
+red caption appeared black. Widgets115 now checks foreground before and after
+background changes; RED initial foreground overwritten -> GREEN 7.95 seconds.
+Solaris debug changeBackground 3c598 saves XmNforeground, calls XmChangeColor,
+then restores it. Restoring that exact sequence fixes initialization and later
+background changes without disabling Motif's derived shadow/select colors.
+
+The installed demo harness now uses an isolated test native lookup for exact
+Window IDs. Four multi-applet pages overlap at identical screen coordinates;
+the harness checks that all 4/4/3/3 clients receive input, raises each client and
+captures every window. A seven-case rerun including all four pages passed.
+Animation checks require observed pre-click motion and stable post-click pixels;
+i18n applets must open a child demo and change its Choice selection. Spreadsheet
+editing, SymbolTest's exact 2200 input and ImageMap's non-navigating hover are
+checked. Earlier coordinate-only captures are superseded by these checks.
+
+The four alternative PictureFrame mains intentionally show an empty image box:
+their unchanged source asks for Beeper.gif, which is absent from the supplied
+archive (also recorded in the shared Windows inventory). MessageFormatDemo's
+fixed 550x500 opening size clips some labels with the host's larger core fonts;
+resizing to 800x600 reveals the complete layout. This was captured and inspected;
+no demo source or resource was edited to hide either shipped behavior.
+
+Final installed-image acceptance (implementation 4c0be5c): 81/81 execution
+checks and all 96 client views inspected, including exact input targeting for
+all multi-applet clients. The compact case-by-case record and installed native
+SHA256 provenance are in demo-results.json. All nine installed native libraries
+are built locally; none matches a donor native file. The 474 demo files retain
+the original inventory and SHA256 values. Raw captures and process logs remain
+under out/motif118/demos-completion-*; no demo sources were changed.
+
+Final Linux Debug: 161 passed, one unavailable audio-device skip, 207.54 seconds.
+Final Linux Release: 161 passed, one unavailable audio-device skip, 158.16 seconds.
+Windows Debug: 204/204 passed, 209.02 seconds; Windows Release: 199/199 passed,
+169.27 seconds. Later foreground changes affect only Unix code. In total, all
+725 runnable platform checks passed; the two skips require a Linux audio device.
+The exact binding audits and unchanged baseline archive checks are in these suites.
+Fresh whole-branch review remains the final Phase 6 gate.

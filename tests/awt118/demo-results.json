@@ -1,0 +1,2021 @@
+{
+  "implementationCommit": "4c0be5c",
+  "environment": "32-bit Linux, Xvfb 1280x1024x24, Openbox, installed Debug image",
+  "cases": 81,
+  "clientViewsInspected": 96,
+  "unchangedDemoFilesVerified": 474,
+  "limitations": [
+    "Four alternative PictureFrame mains reference absent shipped Beeper.gif; empty image boxes are expected.",
+    "MessageFormat fixed opening size clips labels with host fonts; 800x600 resize verified complete layout.",
+    "Host glyph availability and font metrics differ from Solaris."
+  ],
+  "platformSuites": {
+    "linuxDebug": {
+      "passed": 161,
+      "audioDeviceSkipped": 1,
+      "seconds": 207.54
+    },
+    "linuxRelease": {
+      "passed": 161,
+      "audioDeviceSkipped": 1,
+      "seconds": 158.16
+    },
+    "windowsDebug": {
+      "passed": 204,
+      "seconds": 209.02
+    },
+    "windowsRelease": {
+      "passed": 199,
+      "seconds": 169.27
+    }
+  },
+  "nativeProvenance": {
+    "installed": [
+      {
+        "path": "lib/libawt.so",
+        "sha256": "9d58ab5d5cfb4a910697c0f41afb058e98565361d5a3cb56ee9e53274d8bc312"
+      },
+      {
+        "path": "lib/libmath.so",
+        "sha256": "c441cadf672ba33818e307ce3525b9b344745b7f3f0d40b9730f3b75745ed17c"
+      },
+      {
+        "path": "lib/libsysresource.so",
+        "sha256": "48d222dab0e756c5114bc07113cc977bf64a2305f8857d3fbad5cae630261865"
+      },
+      {
+        "path": "lib/libagent.so",
+        "sha256": "32b7e29fbe0f81263072f7ac7686ef9e3b5532fa5ca085feb9450659623d7fb6"
+      },
+      {
+        "path": "lib/libjavai.so",
+        "sha256": "fe355f63ce42899a33df42dcce5c2ef2202b836dcaf7e87cfe016c4167168923"
+      },
+      {
+        "path": "lib/libjpeg.so",
+        "sha256": "6405a5f49c8c90d66cd313c8786c2e475b2d86c8d562e563a74074e2c3f746c0"
+      },
+      {
+        "path": "lib/libnet.so",
+        "sha256": "e9073cbd8bc1f0ac029891b021b961ee16c04bc4b6dd79849d46ff782c731a86"
+      },
+      {
+        "path": "lib/libmmedia.so",
+        "sha256": "4317655fe6aa627330c695e9a5299cd55d7e4a3fbe757bd746c49482e93e0d5f"
+      },
+      {
+        "path": "lib/libzip.so",
+        "sha256": "8d6f0be6cf8ee1066fc77d746f938a43348960648d2c922f12eb6bbeb8f01e4d"
+      }
+    ],
+    "donorNativeFiles": 22,
+    "verbatimVendorNativeCopies": []
+  },
+  "results": [
+    {
+      "id": "html-Animator_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "pause",
+      "review": "accepted within documented host boundary",
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Animator_1.1_example2",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "pause",
+      "review": "accepted within documented host boundary",
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Animator_1.1_example3",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "pause",
+      "review": "accepted within documented host boundary",
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Animator_1.1_example4",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "move",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Animator_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "pause",
+      "review": "accepted within documented host boundary",
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Animator_example2",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "pause",
+      "review": "accepted within documented host boundary",
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Animator_example3",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "pause",
+      "review": "accepted within documented host boundary",
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Animator_example4",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "move",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-ArcTest_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "button:Fill",
+      "review": "accepted within documented host boundary",
+      "interaction": "button:Fill",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-ArcTest_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "button:Fill",
+      "review": "accepted within documented host boundary",
+      "interaction": "button:Fill",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-awt-1.1_eventmodel_index",
+      "windows": 4,
+      "expectedWindows": 4,
+      "exit": null,
+      "capture": 0,
+      "profile": "move",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "move",
+        "targets": 4,
+        "windows": 4
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        },
+        {
+          "file": "client-1.png",
+          "result": 0
+        },
+        {
+          "file": "client-2.png",
+          "result": 0
+        },
+        {
+          "file": "client-3.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-awt-1.1_lightweight_Gauge_example",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-awt-1.1_lightweight_OpenlookButtons_example",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "openlook",
+      "review": "accepted within documented host boundary",
+      "interaction": "openlook",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-awt-1.1_lightweight_RoundButtons_example",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "round",
+      "review": "accepted within documented host boundary",
+      "interaction": "round",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-awt-1.1_lightweight_Spinner_example",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-awt-1.1_symboltest_index",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "symbol",
+      "review": "accepted within documented host boundary",
+      "interaction": "symbol",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "textChanged": true,
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-BarChart_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-BarChart_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Blink_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Blink_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-CardTest_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "button:next",
+      "review": "accepted within documented host boundary",
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-CardTest_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "button:next",
+      "review": "accepted within documented host boundary",
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Clock_index",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-DitherTest_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "dither",
+      "review": "accepted within documented host boundary",
+      "interaction": "dither",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "choiceChanged": true,
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-DitherTest_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "dither",
+      "review": "accepted within documented host boundary",
+      "interaction": "dither",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "choiceChanged": true,
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-DrawTest_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-DrawTest_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Fractal_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-Fractal_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-GraphicsTest_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "button:next",
+      "review": "accepted within documented host boundary",
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-GraphLayout_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-GraphLayout_example2",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-GraphLayout_example3",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-GraphLayout_example4",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-i18n_Collate_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "i18n-applet",
+      "review": "accepted within documented host boundary",
+      "interaction": "i18n-applet",
+      "nestedDemoChanged": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        },
+        {
+          "file": "client-1.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-i18n_DateTimeFormat_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "i18n-applet",
+      "review": "accepted within documented host boundary",
+      "interaction": "i18n-applet",
+      "nestedDemoChanged": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        },
+        {
+          "file": "client-1.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-i18n_MessageFormat_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "i18n-applet",
+      "review": "accepted within documented host boundary",
+      "interaction": "i18n-applet",
+      "nestedDemoChanged": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        },
+        {
+          "file": "client-1.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-i18n_NumberFormat_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "i18n-applet",
+      "review": "accepted within documented host boundary",
+      "interaction": "i18n-applet",
+      "nestedDemoChanged": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        },
+        {
+          "file": "client-1.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-i18n_TextBound_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "i18n-applet",
+      "review": "accepted within documented host boundary",
+      "interaction": "i18n-applet",
+      "nestedDemoChanged": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        },
+        {
+          "file": "client-1.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-ImageMap_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "imagemap",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "imagemap",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-JumpingBox_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "move",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-JumpingBox_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "move",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-MoleculeViewer_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-MoleculeViewer_example2",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-MoleculeViewer_example3",
+      "windows": 4,
+      "expectedWindows": 4,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 4,
+        "windows": 4
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        },
+        {
+          "file": "client-1.png",
+          "result": 0
+        },
+        {
+          "file": "client-2.png",
+          "result": 0
+        },
+        {
+          "file": "client-3.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-NervousText_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "pause",
+      "review": "accepted within documented host boundary",
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-NervousText_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "pause",
+      "review": "accepted within documented host boundary",
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-SimpleGraph_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-SimpleGraph_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-SortDemo_1.1_example1",
+      "windows": 3,
+      "expectedWindows": 3,
+      "exit": null,
+      "capture": 0,
+      "profile": "click",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "click",
+        "targets": 3,
+        "windows": 3
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        },
+        {
+          "file": "client-1.png",
+          "result": 0
+        },
+        {
+          "file": "client-2.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-SortDemo_example1",
+      "windows": 3,
+      "expectedWindows": 3,
+      "exit": null,
+      "capture": 0,
+      "profile": "click",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "click",
+        "targets": 3,
+        "windows": 3
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        },
+        {
+          "file": "client-1.png",
+          "result": 0
+        },
+        {
+          "file": "client-2.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-SpreadSheet_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "sheet",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "sheet",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-TicTacToe_1.1_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "tic",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "tic",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-TicTacToe_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "tic",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "tic",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-WireFrame_example1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-WireFrame_example2",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-WireFrame_example3",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "html-WireFrame_example4",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-ArcTest_1.0.2_ArcTest",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "button:Fill",
+      "review": "accepted within documented host boundary",
+      "interaction": "button:Fill",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "plain-frame-bounded-termination",
+      "windowsAfterClose": 1,
+      "exitAfterClose": null,
+      "executionPassed": true
+    },
+    {
+      "id": "main-ArcTest_1.1_ArcTest",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "button:Fill",
+      "review": "accepted within documented host boundary",
+      "interaction": "button:Fill",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "plain-frame-bounded-termination",
+      "windowsAfterClose": 1,
+      "exitAfterClose": null,
+      "executionPassed": true
+    },
+    {
+      "id": "main-awt-1.1_eventmodel_Click0",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "move",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-awt-1.1_eventmodel_Click1",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "move",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-awt-1.1_eventmodel_Click2",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "move",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-awt-1.1_eventmodel_Click3",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "move",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-awt-1.1_lightweight_Gauge_alternative_PictureFrame",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-awt-1.1_lightweight_OpenlookButtons_alternative_PictureFrame",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-awt-1.1_lightweight_RoundButtons_alternative_PictureFrame",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-awt-1.1_lightweight_Spinner_alternative_PictureFrame",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "resize",
+      "review": "accepted within documented host boundary",
+      "interaction": "resize",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-awt-1.1_symboltest_SymbolTest",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "symbol",
+      "review": "accepted within documented host boundary",
+      "interaction": "symbol",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "textChanged": true,
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-CardTest_1.0.2_CardTest",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "button:next",
+      "review": "accepted within documented host boundary",
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "plain-frame-bounded-termination",
+      "windowsAfterClose": 1,
+      "exitAfterClose": null,
+      "executionPassed": true
+    },
+    {
+      "id": "main-CardTest_1.1_CardTest",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "button:next",
+      "review": "accepted within documented host boundary",
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "plain-frame-bounded-termination",
+      "windowsAfterClose": 1,
+      "exitAfterClose": null,
+      "executionPassed": true
+    },
+    {
+      "id": "main-DitherTest_1.0.2_DitherTest",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "dither",
+      "review": "accepted within documented host boundary",
+      "interaction": "dither",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "choiceChanged": true,
+      "exitAfterInput": null,
+      "cleanupPolicy": "plain-frame-bounded-termination",
+      "windowsAfterClose": 1,
+      "exitAfterClose": null,
+      "executionPassed": true
+    },
+    {
+      "id": "main-DitherTest_1.1_DitherTest",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "dither",
+      "review": "accepted within documented host boundary",
+      "interaction": "dither",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "choiceChanged": true,
+      "exitAfterInput": null,
+      "cleanupPolicy": "plain-frame-bounded-termination",
+      "windowsAfterClose": 1,
+      "exitAfterClose": null,
+      "executionPassed": true
+    },
+    {
+      "id": "main-DrawTest_1.0.2_DrawTest",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "plain-frame-bounded-termination",
+      "windowsAfterClose": 1,
+      "exitAfterClose": null,
+      "executionPassed": true
+    },
+    {
+      "id": "main-DrawTest_1.1_DrawTest",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "drag",
+      "review": "accepted within documented host boundary",
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "plain-frame-bounded-termination",
+      "windowsAfterClose": 1,
+      "exitAfterClose": null,
+      "executionPassed": true
+    },
+    {
+      "id": "main-GraphicsTest_GraphicsTest",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "button:next",
+      "review": "accepted within documented host boundary",
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-i18n_code_CollateDemo",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "choice",
+      "review": "accepted within documented host boundary",
+      "interaction": "choice",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "choiceChanged": true,
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-i18n_code_DateTimeDemo",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "choice",
+      "review": "accepted within documented host boundary",
+      "interaction": "choice",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "choiceChanged": true,
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-i18n_code_MessageFormatDemo",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "choice",
+      "review": "accepted within documented host boundary",
+      "interaction": "choice",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "choiceChanged": true,
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-i18n_code_NumberFormatDemo",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "choice",
+      "review": "accepted within documented host boundary",
+      "interaction": "choice",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "choiceChanged": true,
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    },
+    {
+      "id": "main-i18n_code_TextBoundDemo",
+      "windows": 1,
+      "expectedWindows": 1,
+      "exit": null,
+      "capture": 0,
+      "profile": "choice",
+      "review": "accepted within documented host boundary",
+      "interaction": "choice",
+      "clientCaptures": [
+        {
+          "file": "client-0.png",
+          "result": 0
+        }
+      ],
+      "choiceChanged": true,
+      "exitAfterInput": null,
+      "cleanupPolicy": "require-close",
+      "windowsAfterClose": 0,
+      "exitAfterClose": 0,
+      "executionPassed": true
+    }
+  ]
+}
