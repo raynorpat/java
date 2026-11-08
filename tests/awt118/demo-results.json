@@ -1,5 +1,5 @@
 {
-  "implementationCommit": "4c0be5c",
+  "implementationCommit": "53f5663",
   "environment": "32-bit Linux, Xvfb 1280x1024x24, Openbox, installed Debug image",
   "cases": 81,
   "clientViewsInspected": 96,
@@ -13,12 +13,12 @@
     "linuxDebug": {
       "passed": 161,
       "audioDeviceSkipped": 1,
-      "seconds": 207.54
+      "seconds": 212.83
     },
     "linuxRelease": {
       "passed": 161,
       "audioDeviceSkipped": 1,
-      "seconds": 158.16
+      "seconds": 164.48
     },
     "windowsDebug": {
       "passed": 204,
@@ -33,7 +33,7 @@
     "installed": [
       {
         "path": "lib/libawt.so",
-        "sha256": "9d58ab5d5cfb4a910697c0f41afb058e98565361d5a3cb56ee9e53274d8bc312"
+        "sha256": "2537a7f4cae57ad3fb43d445e876febb0a81b1168e19f0048583e1bb906c5f59"
       },
       {
         "path": "lib/libmath.so",

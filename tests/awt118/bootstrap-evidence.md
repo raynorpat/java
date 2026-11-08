@@ -609,3 +609,36 @@ Windows Debug: 204/204 passed, 209.02 seconds; Windows Release: 199/199 passed,
 725 runnable platform checks passed; the two skips require a Linux audio device.
 The exact binding audits and unchanged baseline archive checks are in these suites.
 Fresh whole-branch review remains the final Phase 6 gate.
+
+Fresh whole-branch review covered 9beb8ab..e7c353a and found two Important
+issues: WM-driven moves did not update Java coordinates or post COMPONENT_MOVED,
+and minimize/restore did not post WINDOW_ICONIFIED/WINDOW_DEICONIFIED. No Critical
+or separate Minor findings were reported. Both issues were accepted and reproduced
+in Decorated115: Frame/Dialog positions stayed stale with zero movement events,
+and iconification/restoration counts were 0/0 (RED, 12.59 seconds).
+
+Solaris debug shellEH 5e814 confirms synthetic root-relative ConfigureNotify
+coordinates, handleMoved after x/y updates, and iconification state tracking.
+The reconstructed handler now reports actual position/size changes separately
+and tracks ICCCM WM_STATE (including property notification ordering). Ordinary
+withdrawal/hide is not iconification. The supported Frame uses vendorShellWidgetClass;
+dialogs retain their separate shell lifecycle. Expanded Decorated115 passes
+(17.88 seconds): Frame and Dialog moves, negative coordinates, no resize event
+on movement, repeated minimize/restore, hide/show without icon events, and disposal
+from the fourth restoration callback. Baseline Java classes remain unchanged.
+
+The review's explicit evidence limits and all execution rulings are retained in
+decisions.md. Its two earlier audit follow-ups were resolved in Task 2; there are
+no outstanding deferred Minor findings. Post-fix full suites and installed demos
+are recorded below when complete.
+
+Post-review full Linux Debug: 161 passed, one audio-device skip (212.83 seconds).
+Post-review full Linux Release: 161 passed, one audio-device skip (164.48 seconds).
+The fix changes only Unix AWT; the Windows results above remain applicable.
+
+Final post-review installed image (53f5663): 81/81 cases passed; all 96 client
+views inspected again, with no new visual issue. No exception/assertion/fatal
+entries were found in the demo process logs. Updated demo-results.json retains
+the exact case outcomes, post-fix native hashes and full platform counts.
+Raw final captures/logs are out/motif118/demos-reviewed-*. Phase 6 is complete
+within the documented Linux host boundary; no blocking review findings remain.

@@ -177,6 +177,12 @@ function by function"; `include/` gives the structure layouts.
 4. **`winawt`**: Windows AWT reconstruction. Milestone: all applet and awt-1.1 demos on Windows.
 5. **`agent`/`jdb`, `JdbcOdbc`**.
 6. **Motif AWT** for Linux. Milestone: all demos on Linux.
+   **Complete:** 207 native bindings, 81 unchanged installed demo cases and 96
+   inspected client views; Windows/Linux Debug/Release regressions passed.
+   Fresh review's WM movement/iconification gaps were fixed and retested.
+   The verified host is 32-bit X11/OpenMotif with EWMH decorations; host fonts,
+   indexed palettes and preserved donor Java limitations are documented in
+   `tests/awt118/compatibility.md`. Detailed results and decisions accompany it.
 7. **Rhapsody**: build the tree on DR2, reconstruct AppKit `libawt`. Milestone: demos on DR2.
 8. **Port Solaris JDK 1.1.8 changes and fixes into the reconstructed tree** (owner requested).
    Audit the supplied 1.1.8 binaries and classes against the reconstructed 1.1.5 baseline,
