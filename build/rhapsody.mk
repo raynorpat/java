@@ -694,3 +694,16 @@ check-dispatcherentry: image $(BUILD)/tests/toolkit/libdispatcherentry115.dylib 
 .PHONY: check-codecs
 check-codecs: image $(BUILD)/tests/toolkit/libawt.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-codecs.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libmmedia.dylib: src/rhapsody/sun/audio/audio.m src/rhapsody/sun/audio/audio.h $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -dynamiclib -Isrc/share/java/include -Isrc/unix/java/include $< -framework SoundKit -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+$(BUILD)/tests/toolkit/libaudio115.dylib: tests/awt-dr2/audio115.c $(BUILD)/tests/toolkit/libmmedia.dylib
+	$(CC) $(CFLAGS) -dynamiclib -Isrc/share/java/include -Isrc/unix/java/include $< -o $@
+
+$(BUILD)/tests/toolkit/libaudiobackend115.dylib: tests/awt-dr2/audiobackend115.m tests/awt-dr2/audio115.c $(BUILD)/tests/toolkit/libmmedia.dylib
+	$(CC) $(CFLAGS) -dynamiclib -Isrc/share/java/include -Isrc/unix/java/include tests/awt-dr2/audiobackend115.m tests/awt-dr2/audio115.c -framework SoundKit -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lmmedia -lawt -o $@
+
+.PHONY: check-audio
+check-audio: image $(BUILD)/tests/toolkit/libaudio115.dylib $(BUILD)/tests/toolkit/libaudiobackend115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-audio.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

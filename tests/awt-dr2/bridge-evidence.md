@@ -1384,3 +1384,30 @@ was invented. All inventoried native entry names now have reconstructed source.
 Fresh check-codecs, check-dispatcherentry, check-print, check-scaling-image,
 check-dispatch and check-toolkit pass, as does the real-archive audit. Installed
 demo acceptance, audio and debugger child launch still remain.
+
+## SoundKit audio
+
+`audio.m` reconstructs DR2 libmmedia's AudioDevice and its three JNI entries:
+`audioOpen` 0x55401960, `audioClose` 0x55401a74 and `audioWrite` 0x55401b28.
+The native object layout is 40 bytes; open/write/close are at 0x55401374,
+0x5540168c and 0x55401650. Encoding selection prefers mu-law, otherwise uses
+SoundKit conversion from 8012 Hz mono mu-law to the selected 22050 Hz stereo
+format. Preserve the donor's direct mu-law submission and retained-stream reopen
+behavior. Activation timeout returns zero; other activation failures return -1.
+
+Audio115 initially failed against the reconstruction with missing mmedia; the
+original and reconstructed real-device probes now both return -1 twice in this
+VM. This proves unavailable-device handling, not audible playback. The controlled
+SoundKit probe poses device and stream classes while retaining the real SoundKit
+converter. Both implementations produce the six exact hashes in
+`audio-backend.expected`, covering buffer growth and shrinkage. It also checks
+parameters, tags, pause/resume, close/reopen, transient/definitive activation
+failure and retry, and device/stream release. Twelve JNI write-exception/GC/retry
+cycles verify exception translation and continued operation; null, empty,
+negative-length, closed and oversized writes exercise boundary handling.
+
+Safety corrections: failed device initialization releases its allocation;
+conversion/allocation failures raise instead of continuing with invalid buffers;
+write exceptions release converted buffers and JNI byte-array elements before
+leaving the native bridge. These do not change valid donor conversion results.
+`check-audio` additionally runs the unchanged AudioLibrary115 AU parsing fixture.
