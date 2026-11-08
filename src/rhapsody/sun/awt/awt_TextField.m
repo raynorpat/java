@@ -13,12 +13,36 @@
 - (void)_setControlView:(NSView *)view;
 @end
 
+@interface NSInputManager (AWTInputServerAccess)
+- (void)_notifyInputServerIfNeeded;
+@end
+@interface NSInputManager (AWTClientLifetime)
+- (void)awtForgetClient:(id)client;
+@end
+@implementation NSInputManager (AWTClientLifetime)
+- (void)awtForgetClient:(id)client
+{
+    /* DR2 setEnabled: (4335d49c) cannot clear a client after its key window
+     * has disappeared. 43348098 owns the retained _lastClient reference. */
+    if (_currentClient == client) {
+        _currentClient = nil;
+        _flags &= ~0x2001U;
+        _flags |= 0x100000U;
+    }
+    if (_lastClient == client) [self _notifyInputServerIfNeeded];
+}
+@end
+
 /* 5400e8e0--5400ec10: shared native field editor. */
 @implementation AwtTextView
 - (id)initWithPeer:(jobject)peer frame:(NSRect)frame
 { self = [super initWithFrame:frame]; _peer = peer; return self; }
 - (jobject)peer { return _peer; }
-- (void)setPeer:(jobject)peer { _peer = peer; }
+- (void)setPeer:(jobject)peer
+{
+    _peer = peer;
+    if (!peer) [[NSInputManager currentInputManager] awtForgetClient:self];
+}
 - (void)setWantsMouseMotionEvents:(BOOL)enabled { _wantsMouseMotionEvents = enabled; }
 - (BOOL)dispatchesAwtEventsOfType:(int)type
 {

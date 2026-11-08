@@ -971,3 +971,36 @@ inside an item callback, requiring zero remaining native popup controls.
 Fresh native check-choice, check-component-state, check-window, check-keyboard,
 check-dispatch and check-toolkit pass. The test-only library has 77 JNI entries;
 remaining widgets, graphics and installed-demo acceptance are still pending.
+
+### Phase 7 multiline text-area checkpoint
+
+AwtScrollingText (5400bdf8--5400cafc) contains an AwtTextView inside an
+NSScrollView. The ten RTextAreaPeer bindings (5401a838--5401b10c) preserve
+multiline text, insertion/replacement, selection, caret and all four scrollbar
+modes. Preferred size uses glyph 48's advance, text-container padding, the
+first line fragment's height and native scrollbar/border geometry. An empty
+document temporarily receives a space for line-height measurement, then is
+restored. The donor rejects setText(null) with a nil-NSString exception; this
+behavior is retained and tested.
+
+The expanded fixture passes native scrollbar configuration, enabled/editable
+gating, exact donor sizing, typing and Return-key insertion, and text callbacks
+that reenter AppKit and run GC. For 2 rows/4 columns and 5 rows/14 columns, the
+four modes yield 57x49/127x94, 57x34/127x79, 42x49/112x94 and 42x34/112x79.
+Tracked constructor failures and disposal during typing callbacks release
+both the scrolling control and its child text view.
+
+Allocation tracking initially found zero controls but one remaining text view
+after both ordinary and callback disposal. Retain tracing identified DR2
+NSInputManager._lastClient in _notifyInputServerIfNeeded (43348098). Its
+setEnabled: path (4335d49c) cannot clear the current client after the key window
+has disappeared. AwtTextView now clears a matching input client when its peer
+is cleared, and uses the existing input-server notification path to release
+the retained last client. This extends actual disposal beyond the donor's
+no-op native peer disposal. Both normal and callback lifetime tests pass
+after the correction; temporary retain tracing was removed.
+
+Fresh native check-textarea, check-textfield, check-label, check-component-state,
+check-window, check-input, check-keyboard, check-dispatch and check-toolkit pass.
+The test-only library has 87 JNI entries; remaining controls and full Phase 7
+acceptance are still pending.
