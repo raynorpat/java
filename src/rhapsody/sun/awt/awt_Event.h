@@ -14,6 +14,7 @@
 - (void)updateLocationTo:(NSPoint)point;
 - (unichar)javaCharacter;
 - (int)javaKeyCode;
+- (void)updateToMatchJavaEvent:(jobject)event;
 @end
 
 @interface SyntheticEvent : NSEvent
@@ -24,6 +25,7 @@ void nsCharToJavaVirtualKeyCode(unichar character, int flags, int *code, BOOL *t
 void nsFlagsChangedToJavaVirtualKeyCode(int flags, int *code, BOOL *pressed);
 unichar nsCharToJavaChar(unichar character);
 jobject nsKeyEventToJavaEvent(JNIEnv *env, NSEvent *event, jobject source);
+jobject makeKeyTypedEvent(JNIEnv *env, NSEvent *event, id view);
 jobject javaComponentForView(JNIEnv *env, id view);
 jobject makeMouseClickedEvent(JNIEnv *env, NSEvent *event, id view);
 jobject nsMouseEventToJavaEvent(JNIEnv *env, NSEvent *event, jobject source, id view);

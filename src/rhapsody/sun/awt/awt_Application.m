@@ -98,21 +98,25 @@ static IMP originalApplicationMethod(SEL selector)
         NSView *target;
         jobject source, converted;
         BOOL consumed = NO;
-        /* Keyboard conversion is a separate remaining binding group. */
-        if (type < NSLeftMouseDown || type > NSRightMouseDragged) return event;
+        if (type < NSLeftMouseDown || type > NSFlagsChanged ||
+            type == NSMouseEntered || type == NSMouseExited) return event;
         target = [self findAwtTargetForEvent:event];
         if (!target || ![target dispatchesAwtEventsOfType:type] || ![(AwtView *)target peer]) return event;
         source = javaComponentForView(appkitEnv, target);
-        converted = nsMouseEventToJavaEvent(appkitEnv, event, source, target);
+        converted = type >= NSKeyDown ? nsKeyEventToJavaEvent(appkitEnv, event, source) :
+            nsMouseEventToJavaEvent(appkitEnv, event, source, target);
         (*appkitEnv)->DeleteLocalRef(appkitEnv, source);
         if (!converted) return event;
         [target retain];
         NS_DURING
             consumed = [self dispatchJavaEvent:converted isLocalRef:YES];
-            /* Native tracking must still receive button-down events. */
-            if (type == NSLeftMouseDown || type == NSRightMouseDown) consumed = NO;
+            /* 54002c58: native tracking also receives consumed key releases. */
+            if (type == NSLeftMouseDown || type == NSRightMouseDown || type == NSKeyUp) consumed = NO;
             if (![(AwtView *)target peer] || ![target window]) consumed = YES;
-            if (!consumed) [target sendAdditionalJavaEventsFor:event];
+            if (!consumed) {
+                [event updateToMatchJavaEvent:converted];
+                [target sendAdditionalJavaEventsFor:event];
+            }
         NS_HANDLER
             (*appkitEnv)->DeleteLocalRef(appkitEnv, converted);
             [target release];

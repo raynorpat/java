@@ -629,3 +629,30 @@ Java-listener changes propagated back to native key events.
 Fresh key-values, input, toolkit, event-cover, handoff and dispatch checks pass.
 Keyboard/input were also rerun directly with clean output after their earlier
 output was lost from the combined guest log.
+
+### Phase 7 live keyboard checkpoint
+
+NSApplication now routes native key down/up/flags-changed events through Java,
+following sendNSEventThroughJava: (54002c58). A consumed press suppresses native
+handling and typed synthesis; a consumed key release still reaches native
+handling, matching the donor. Listener changes are copied back before derived
+events: updateToMatchJavaEvent: (540057bc/54005638) updates modifier flags and
+replaces both native character strings when Java's character or key code changes.
+Character normalization uses the reverse donor table's first match. Typed events
+(54006178) use the updated native character and modifiers, and are omitted for
+keys the donor marks non-typable. Derived-event JNI references are released even
+when dispatch raises an Objective-C exception.
+
+Keyboard115 posts native events to a real Frame and checks press/typed/release
+order, consumed presses, listener edits to character/code/modifiers, newline
+normalization, arrow-key suppression of typed events, and Shift release followed
+by Alt press/release. Listener callbacks re-enter AppKit and trigger GC. Donor
+and reconstruction pass these sequences; reconstruction initially delivered no
+keys. A reconstruction-only case disposes the Frame from keyPressed and verifies
+that no typed/release Java callback follows and the Java peer is cleared.
+
+Fresh check-keyboard, check-key-values, check-input, check-toolkit, check-handoff,
+check-dispatch and check-window all pass, with clean streamed output. The window
+target includes lifetime failure cleanup and Java painting checks. Command-key
+menu preprocessing, editable widgets, synthetic input and queue peek/get bindings
+remain pending; this is not full keyboard/widget or Phase 7 acceptance.

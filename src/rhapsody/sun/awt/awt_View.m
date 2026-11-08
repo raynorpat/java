@@ -74,27 +74,34 @@
     [(AwtView *)self setWantsMouseMotionEvents:wants];
     [[self window] setAcceptsMouseMovedEvents:wants];
 }
-/* Mouse portion of 5400fbe8; key-typed synthesis is recovered with keyboard input. */
+/* 5400fbe8: derived events follow non-consumed native input. */
 - (void)sendAdditionalJavaEventsFor:(NSEvent *)event
 {
     int type = [event type];
-    if (type == NSLeftMouseUp && [event clickCount]) {
+    if (type == NSKeyDown || (type == NSLeftMouseUp && [event clickCount])) {
         JNIEnv *env = [NSApp appkitEnv];
-        jobject clicked = makeMouseClickedEvent(env, event, self);
-        [NSApp dispatchJavaEvent:clicked isLocalRef:YES];
-        (*env)->DeleteLocalRef(env, clicked);
+        jobject derived = type == NSKeyDown ? makeKeyTypedEvent(env, event, self) : makeMouseClickedEvent(env, event, self);
+        if (!derived) return;
+        NS_DURING
+            [NSApp dispatchJavaEvent:derived isLocalRef:YES];
+        NS_HANDLER
+            (*env)->DeleteLocalRef(env, derived);
+            [localException raise];
+        NS_ENDHANDLER
+        (*env)->DeleteLocalRef(env, derived);
     } else if (type == NSLeftMouseDown || type == NSRightMouseDown)
         [self updateMouseMotionEventStatus];
 }
 - (void)awtContainerChangedBackground { }
-/* Mouse portion of 5400f9a8; keyboard conversion shares this path later. */
+/* 5400f9a8: convert and dispatch input on behalf of a native view. */
 - (void)dispatchNSEventToPeer:(NSEvent *)event
 {
     JNIEnv *env = [NSApp appkitEnv];
     jobject source, javaEvent;
     if (![(AwtView *)self peer]) return;
     source = javaComponentForView(env, self);
-    javaEvent = nsMouseEventToJavaEvent(env, event, source, self);
+    javaEvent = [event type] >= NSKeyDown ? nsKeyEventToJavaEvent(env, event, source) :
+        nsMouseEventToJavaEvent(env, event, source, self);
     (*env)->DeleteLocalRef(env, source);
     if (javaEvent) {
         NS_DURING

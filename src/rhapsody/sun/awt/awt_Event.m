@@ -54,6 +54,54 @@
     return modifiers;
 }
 - (jobject)javaEvent { return (jobject)[self data1]; }
+/* 54005638/540057bc: listener changes become the native key's new state. */
+- (void)updateToMatchJavaEvent:(jobject)event
+{
+    JNIEnv *env;
+    jclass cls;
+    jmethodID method;
+    int modifiers, code;
+    unichar character;
+    NSString *characters;
+    if ([self type] < NSKeyDown || [self type] > NSFlagsChanged) return;
+    env = [NSApp appkitEnv];
+    cls = (*env)->FindClass(env, "java/awt/event/KeyEvent");
+    if (!cls) [AwtException raiseUsingEnv:env];
+    method = (*env)->GetMethodID(env, cls, "getModifiers", "()I");
+    if (!method) [AwtException raiseUsingEnv:env];
+    modifiers = (*env)->CallIntMethod(env, event, method);
+    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    method = (*env)->GetMethodID(env, cls, "getKeyChar", "()C");
+    if (!method) [AwtException raiseUsingEnv:env];
+    character = (*env)->CallCharMethod(env, event, method);
+    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    method = (*env)->GetMethodID(env, cls, "getKeyCode", "()I");
+    if (!method) [AwtException raiseUsingEnv:env];
+    code = (*env)->CallIntMethod(env, event, method);
+    (*env)->DeleteLocalRef(env, cls);
+    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    if (modifiers != [self javaModifiers]) {
+        _modifierFlags = 0;
+        if (modifiers & 8) _modifierFlags |= NSAlternateKeyMask;
+        if (modifiers & 2) _modifierFlags |= NSControlKeyMask;
+        if (modifiers & 1) _modifierFlags |= NSShiftKeyMask;
+        if (modifiers & 4) _modifierFlags |= NSCommandKeyMask;
+    }
+    if (character != [self javaCharacter] || code != [self javaKeyCode]) {
+        /* Reverse 54026680, taking the first matching Java character. */
+        switch (character) {
+            case 10: character = 3; break;
+            case 8: character = 127; break;
+            case 127: character = 63272; break;
+            case 9: character = 25; break;
+        }
+        characters = [NSString stringWithCharacters:&character length:1];
+        [_data.key.keys release];
+        [_data.key.unmodKeys release];
+        _data.key.keys = [characters retain];
+        _data.key.unmodKeys = [characters retain];
+    }
+}
 - (void)releaseJavaEvent:(JNIEnv *)env
 {
     (*env)->DeleteGlobalRef(env, [self javaEvent]);
@@ -351,23 +399,12 @@ unichar nsCharToJavaChar(unichar character)
         default: return character;
     }
 }
-/* 54006060: Java time is wall-clock time, not native event uptime. */
-jobject nsKeyEventToJavaEvent(JNIEnv *env, NSEvent *event, jobject source)
+static jobject newKeyEvent(JNIEnv *env, NSEvent *event, jobject source, int eventID, int code)
 {
-    int type = [event type], code, eventID;
-    BOOL pressed;
     jclass cls;
     jmethodID method;
     jlong when;
     jobject result;
-    if (type == NSFlagsChanged) {
-        nsFlagsChangedToJavaVirtualKeyCode([event modifierFlags], &code, &pressed);
-        if (!code) return NULL;
-        eventID = pressed ? 401 : 402;
-    } else if (type == NSKeyDown || type == NSKeyUp) {
-        code = [event javaKeyCode];
-        eventID = type == NSKeyDown ? 401 : 402;
-    } else return NULL;
     cls = (*env)->FindClass(env, "java/lang/System");
     if (!cls) [AwtException raiseUsingEnv:env];
     method = (*env)->GetStaticMethodID(env, cls, "currentTimeMillis", "()J");
@@ -383,6 +420,37 @@ jobject nsKeyEventToJavaEvent(JNIEnv *env, NSEvent *event, jobject source)
         [event javaModifiers], code, [event javaCharacter]);
     (*env)->DeleteLocalRef(env, cls);
     if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    return result;
+}
+
+/* 54006060: Java time is wall-clock time, not native event uptime. */
+jobject nsKeyEventToJavaEvent(JNIEnv *env, NSEvent *event, jobject source)
+{
+    int type = [event type], code, eventID;
+    BOOL pressed;
+    if (type == NSFlagsChanged) {
+        nsFlagsChangedToJavaVirtualKeyCode([event modifierFlags], &code, &pressed);
+        if (!code) return NULL;
+        eventID = pressed ? 401 : 402;
+    } else if (type == NSKeyDown || type == NSKeyUp) {
+        code = [event javaKeyCode];
+        eventID = type == NSKeyDown ? 401 : 402;
+    } else return NULL;
+    return newKeyEvent(env, event, source, eventID, code);
+}
+
+/* 54006178: only characters marked as typable generate KEY_TYPED. */
+jobject makeKeyTypedEvent(JNIEnv *env, NSEvent *event, id view)
+{
+    int code;
+    BOOL typed;
+    jobject source, result;
+    nsCharToJavaVirtualKeyCode([[event charactersIgnoringModifiers] characterAtIndex:0],
+        [event modifierFlags], &code, &typed);
+    if (!typed) return NULL;
+    source = javaComponentForView(env, view);
+    result = newKeyEvent(env, event, source, 400, 0);
+    (*env)->DeleteLocalRef(env, source);
     return result;
 }
 

@@ -485,3 +485,10 @@ $(BUILD)/tests/toolkit/libkeyvalues115.dylib: tests/awt-dr2/keyvalues115.m $(BUI
 .PHONY: check-key-values
 check-key-values: image $(BUILD)/tests/toolkit/libkeyvalues115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-key-values.sh "$(BUILD)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libkeyboard115.dylib: tests/awt-dr2/keyboard115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/keyboard115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-keyboard
+check-keyboard: image $(BUILD)/tests/toolkit/libkeyboard115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-keyboard.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
