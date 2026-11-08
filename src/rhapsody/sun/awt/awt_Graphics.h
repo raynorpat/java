@@ -4,13 +4,19 @@
 
 @interface AwtGraphics : NSObject {
     id _surface;
+    NSRect _surfaceBounds;
     NSColor *_color;
+    NSColor *_xorColor;
+    int _xorWindowNum;
+    BOOL _inXorDrawingMode;
     NSFont *_font;
-    NSPoint _origin;
-    NSRect _clip;
-    BOOL _flipped;
+    float _fontPointSize;
+    NSDictionary *_textAttributes;
     BOOL _translated;
+    NSPoint _origin;
     BOOL _clipped;
+    BOOL _flipped;
+    NSRect _clip;
     unsigned int _dirtyBits;
 }
 - (id)initWithSurface:(id)surface font:(NSFont *)font flipped:(BOOL)flipped;
@@ -18,14 +24,26 @@
 - (void)_endDrawing;
 - (void)setOrigin:(NSPoint)origin;
 - (void)setColor:(NSColor *)color;
+- (void)setPaintMode;
+- (void)setXORMode:(NSColor *)color;
 - (void)setFont:(NSFont *)font;
 - (void)setClip:(NSRect)clip;
 - (void)unsetClip;
 - (void)drawRect:(NSRect)rect;
 - (void)fillRect:(NSRect)rect;
 - (void)clearRect:(NSRect)rect;
+- (void)copyArea:(NSRect)rect offset:(NSPoint)offset;
+- (void)drawLineFromPoint:(NSPoint)start toPoint:(NSPoint)end;
+- (void)strokeRoundRect:(NSRect)rect arcWidth:(float)width arcHeight:(float)height andFill:(BOOL)fill;
+- (void)strokeOval:(NSRect)rect andFill:(BOOL)fill;
+- (void)strokeArc:(NSRect)rect startAngle:(float)start arcAngle:(float)angle andFill:(BOOL)fill;
+- (void)strokePolyLine:(NSData *)points count:(int)count andClose:(BOOL)close andFill:(BOOL)fill;
+- (void)drawString:(NSString *)string atPoint:(NSPoint)point;
 @end
-@interface AwtScreenGraphics : AwtGraphics
+@interface AwtScreenGraphics : AwtGraphics {
+    unsigned int _flags;
+    BOOL _surfaceIsCanvas;
+}
 - (id)initWithCanvas:(AwtCanvas *)canvas;
 @end
 #endif

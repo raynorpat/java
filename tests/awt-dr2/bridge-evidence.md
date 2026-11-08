@@ -1228,3 +1228,25 @@ is released even when native measurement raises. All 48 cases run GC between the
 Fresh check-fonts, check-font-values, check-label, check-textfield, check-menu and
 check-toolkit pass. The library now supplies 146 JNI entries; the remaining Task 5
 drawing, image and printing work and full Phase 7 acceptance are still pending.
+
+## Graphics primitives and text
+
+Recovered AwtGraphics geometry/text at 54006f28--540078e4 and all remaining
+RGraphics JNI entries through 54017270, plus the complete native graphics layout.
+Primitives115 first failed on nDrawLine, then on nSetXORMode after geometry was
+implemented. Nine raster cases now match the donor over three window lifetimes:
+lines (including a single point), rounded rectangles, ovals, positive/negative/full
+arcs, open/closed/filled polygons, font/color changes and Unicode text, copied
+areas, XOR/paint transitions, and clipped cloned graphics. The fixture hashes
+native bitmap bytes excluding row padding; its expected records come from DR2.
+
+The donor rejects oversized rounded corners without drawing and uses half-pixel
+origins for arcs/rounded rectangles/polygons; those behaviors are preserved.
+Native graphics disposal releases cached text attributes. Tracked runs retain zero
+graphics objects after every window cycle. Polygon tests cover 1024 points and
+invalid input, followed by successful drawing. The Java peer rejects short arrays
+with IllegalArgumentException; native bounds guards protect direct entry calls.
+
+Fresh check-primitives, check-window, check-canvas-draw, check-container-draw,
+check-fonts, check-menu, check-dispatch and check-toolkit pass. There are now 155
+JNI entries. Images, offscreen drawing, printing and final Phase 7 acceptance remain.

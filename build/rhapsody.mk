@@ -634,3 +634,10 @@ check-filedialog: image $(BUILD)/tests/toolkit/libfiledialog115.dylib $(BUILD)/t
 .PHONY: check-fonts
 check-fonts: image $(BUILD)/tests/toolkit/libawt.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-fonts.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libprimitives115.dylib: tests/awt-dr2/primitives115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/primitives115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-primitives
+check-primitives: image $(BUILD)/tests/toolkit/libprimitives115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-primitives.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
