@@ -8,6 +8,7 @@ static int liveImages, failNext, drawingBalance;
 - (BOOL)_beginDrawingWithPaint:(BOOL)paint
 { BOOL result = [super _beginDrawingWithPaint:paint]; if (result) drawingBalance++; return result; }
 - (void)_endDrawing { drawingBalance--; [super _endDrawing]; }
+- (void)_abortDrawing { drawingBalance--; [super _abortDrawing]; }
 @end
 @interface ImageLifetimeProbe : AwtImage
 @end
@@ -56,4 +57,86 @@ JNIEXPORT jboolean JNICALL Java_Image115_upload(JNIEnv *env, jclass cls, jobject
     jmethodID upload = (*env)->GetMethodID(env, representationClass, bytes ? "setBytePixels" : "setIntPixels",
         bytes ? "(IIIILjava/awt/image/ColorModel;[BII)Z" : "(IIIILjava/awt/image/ColorModel;[III)Z");
     return (*env)->CallBooleanMethod(env, representation, upload, x, y, width, height, model, pixels, offset, scan);
+}
+
+/* Inject at the actual DPS boundary, restoring the current thread's table
+ * before raising. The production flush/setup paths remain under test. */
+#import <AppKit/dpsclient.h>
+#import "../../src/rhapsody/sun/awt/awt_ThreadContext.h"
+static const DPSProcsRec *savedProcs;
+static DPSProcsRec failingProcs;
+static int failDrawingStage, writesUntilFailure, surfaceFocus;
+static void failWrite(DPSContext context, const void *bytes, unsigned int count)
+{
+    if (--writesUntilFailure == 0) {
+        context->procs = savedProcs;
+        [NSException raise:NSInvalidArgumentException format:@"injected drawing failure"];
+    }
+    savedProcs->BinObjSeqWrite(context, bytes, count);
+}
+static void failFlush(DPSContext context)
+{
+    context->procs = savedProcs;
+    [NSException raise:NSInvalidArgumentException format:@"injected drawing failure"];
+}
+@interface DrawingFailureColor : NSObject
+- (void)set;
+@end
+@implementation DrawingFailureColor
+- (void)set
+{
+    DPSContext context;
+    [[NSColor redColor] set];
+    if (failDrawingStage == 0)
+        [NSException raise:NSInvalidArgumentException format:@"injected drawing failure"];
+    context = DPSGetCurrentContext(); savedProcs = context->procs;
+    failingProcs = *savedProcs;
+    if (failDrawingStage == 3) failingProcs.FlushContext = failFlush;
+    else {
+        writesUntilFailure = failDrawingStage;
+        failingProcs.BinObjSeqWrite = failWrite;
+    }
+    context->procs = &failingProcs;
+}
+@end
+@interface FocusSurfaceProbe : NSImage
+- (BOOL)awtCanDraw;
+- (BOOL)awtLockFocus;
+- (void)awtUnlockFocus;
+- (NSColor *)awtColor;
+@end
+@implementation FocusSurfaceProbe
+- (BOOL)awtCanDraw { return YES; }
+- (BOOL)awtLockFocus { [self lockFocus]; surfaceFocus++; return YES; }
+- (void)awtUnlockFocus { surfaceFocus--; [self unlockFocus]; }
+- (NSColor *)awtColor { return [NSColor whiteColor]; }
+@end
+JNIEXPORT jint JNICALL Java_Image115_focusExceptions(JNIEnv *env, jclass cls)
+{
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    int stage, failures = 0;
+    for (stage = 0; stage < 4; stage++) {
+        FocusSurfaceProbe *surface = [[FocusSurfaceProbe alloc] initWithSize:NSMakeSize(32, 32)];
+        AwtScreenGraphics *graphics = [[AwtScreenGraphics alloc] initWithImage:surface];
+        DrawingFailureColor *color = [[DrawingFailureColor alloc] init];
+        BOOL volatile caught = NO;
+        failDrawingStage = stage;
+        [graphics setColor:(NSColor *)color];
+        NS_DURING
+            [graphics fillRect:NSMakeRect(0, 0, 16, 16)];
+        NS_HANDLER
+            caught = [[localException reason] isEqual:@"injected drawing failure"];
+        NS_ENDHANDLER
+        if (DPSGetCurrentContext()->procs == &failingProcs)
+            DPSGetCurrentContext()->procs = savedProcs;
+        if (!caught || surfaceFocus || [NSView focusView]) failures |= 1 << stage;
+        /* Permit all stages to report independently on the unfixed library. */
+        while (surfaceFocus) [surface awtUnlockFocus];
+        [graphics setColor:[NSColor blueColor]];
+        [graphics fillRect:NSMakeRect(0, 0, 16, 16)];
+        if (surfaceFocus || [NSView focusView]) failures |= 1 << stage;
+        [graphics release]; [color release]; [surface release];
+    }
+    if (pool) NativeMethodExit(env, pool);
+    return failures;
 }

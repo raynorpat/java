@@ -5,7 +5,11 @@ public class ScalingImage115 {
     public static void main(String[] args) {
         try {
             Frame frame = new Frame(); frame.setBounds(350, 100, 220, 150); frame.show(); Thread.sleep(150);
-            if (args.length != 0) Image115.track();
+            if (args.length != 0) {
+                int failures = Image115.focusExceptions();
+                if (failures != 0) throw new Error("Drawing failure focus stages: " + failures);
+                Image115.track();
+            }
             int[] colors = {0xffff0000, 0xff00ff00, 0xff0000ff, 0xffffffff};
             for (int cycle = 0; cycle < 2; cycle++) for (int source = 0; source < 2; source++) {
                 Image image;

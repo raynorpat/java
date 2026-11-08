@@ -22,6 +22,7 @@
 - (id)initWithSurface:(id)surface font:(NSFont *)font flipped:(BOOL)flipped;
 - (BOOL)_beginDrawingWithPaint:(BOOL)paint;
 - (void)_endDrawing;
+- (void)_abortDrawing;
 - (void)setOrigin:(NSPoint)origin;
 - (void)setColor:(NSColor *)color;
 - (void)setPaintMode;

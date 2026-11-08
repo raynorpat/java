@@ -30,6 +30,7 @@
 /* The donor base is abstract; screen/print subclasses acquire drawing state. */
 - (BOOL)_beginDrawingWithPaint:(BOOL)paint { return NO; }
 - (void)_endDrawing { }
+- (void)_abortDrawing { }
 - (void)setOrigin:(NSPoint)origin
 {
     if (!NSEqualPoints(_origin, origin)) {
@@ -88,23 +89,38 @@
 - (void)drawRect:(NSRect)rect
 {
     if ([self _beginDrawingWithPaint:YES]) {
-        PSrectstroke(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
+        NS_DURING
+            PSrectstroke(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
+        NS_HANDLER
+            [self _abortDrawing];
+            [localException raise];
+        NS_ENDHANDLER
         [self _endDrawing];
     }
 }
 - (void)fillRect:(NSRect)rect
 {
     if ([self _beginDrawingWithPaint:YES]) {
-        PSrectfill(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
+        NS_DURING
+            PSrectfill(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
+        NS_HANDLER
+            [self _abortDrawing];
+            [localException raise];
+        NS_ENDHANDLER
         [self _endDrawing];
     }
 }
 - (void)clearRect:(NSRect)rect
 {
     if ([self _beginDrawingWithPaint:YES]) {
-        NSColor *background = [_surface awtColor];
-        if (![background isEqual:_color]) { [background set]; _dirtyBits |= 1; }
-        PSrectfill(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
+        NS_DURING
+            NSColor *background = [_surface awtColor];
+            if (![background isEqual:_color]) { [background set]; _dirtyBits |= 1; }
+            PSrectfill(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height);
+        NS_HANDLER
+            [self _abortDrawing];
+            [localException raise];
+        NS_ENDHANDLER
         [self _endDrawing];
     }
 }
@@ -112,18 +128,28 @@
 {
     rect = NSIntersectionRect(rect, NSOffsetRect([_surface awtVisibleBounds], -_origin.x, -_origin.y));
     if ([self _beginDrawingWithPaint:NO]) {
-        PScomposite(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height,
-                    1, rect.origin.x + offset.x, rect.origin.y + offset.y, 1);
+        NS_DURING
+            PScomposite(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height,
+                        1, rect.origin.x + offset.x, rect.origin.y + offset.y, 1);
+        NS_HANDLER
+            [self _abortDrawing];
+            [localException raise];
+        NS_ENDHANDLER
         [self _endDrawing];
     }
 }
 - (void)drawLineFromPoint:(NSPoint)start toPoint:(NSPoint)end
 {
     if ([self _beginDrawingWithPaint:YES]) {
-        PSnewpath();
-        PSmoveto(start.x, start.y);
-        PSlineto(end.x, end.y);
-        PSstroke();
+        NS_DURING
+            PSnewpath();
+            PSmoveto(start.x, start.y);
+            PSlineto(end.x, end.y);
+            PSstroke();
+        NS_HANDLER
+            [self _abortDrawing];
+            [localException raise];
+        NS_ENDHANDLER
         [self _endDrawing];
     }
 }
@@ -131,26 +157,31 @@
 {
     if (width > rect.size.width || height > rect.size.height) return;
     if ([self _beginDrawingWithPaint:YES]) {
-        if (width > 0 && height > 0) {
-            float x, y;
-            if (fill) { rect.size.width--; rect.size.height--; }
-            x = 2 * rect.size.width / width;
-            y = 2 * rect.size.height / height;
-            PSgsave();
-            PStranslate(rect.origin.x + 0.5, rect.origin.y + 0.5);
-            PSscale(width / 2, height / 2);
-            PSnewpath();
-            PSmoveto(x / 2, 0);
-            PSarct(x, 0, x, y, 1);
-            PSarct(x, y, 0, y, 1);
-            PSarct(0, y, 0, 0, 1);
-            PSarct(0, 0, x, 0, 1);
-            PSclosepath();
-            PSscale(2 / width, 2 / height);
-            if (fill) PSfill(); else PSstroke();
-            PSgrestore();
-        } else if (fill) [self fillRect:rect];
-        else [self drawRect:rect];
+        NS_DURING
+            if (width > 0 && height > 0) {
+                float x, y;
+                if (fill) { rect.size.width--; rect.size.height--; }
+                x = 2 * rect.size.width / width;
+                y = 2 * rect.size.height / height;
+                PSgsave();
+                PStranslate(rect.origin.x + 0.5, rect.origin.y + 0.5);
+                PSscale(width / 2, height / 2);
+                PSnewpath();
+                PSmoveto(x / 2, 0);
+                PSarct(x, 0, x, y, 1);
+                PSarct(x, y, 0, y, 1);
+                PSarct(0, y, 0, 0, 1);
+                PSarct(0, 0, x, 0, 1);
+                PSclosepath();
+                PSscale(2 / width, 2 / height);
+                if (fill) PSfill(); else PSstroke();
+                PSgrestore();
+            } else if (fill) [self fillRect:rect];
+            else [self drawRect:rect];
+        NS_HANDLER
+            [self _abortDrawing];
+            [localException raise];
+        NS_ENDHANDLER
         [self _endDrawing];
     }
 }
@@ -161,57 +192,72 @@
 - (void)strokeArc:(NSRect)rect startAngle:(float)start arcAngle:(float)angle andFill:(BOOL)fill
 {
     if (angle != 0 && [self _beginDrawingWithPaint:YES]) {
-        float x, y;
-        if (start < 0) start += 360;
-        if (angle < 0) {
-            start += angle;
+        NS_DURING
+            float x, y;
             if (start < 0) start += 360;
-            angle = -angle;
-        }
-        if (fill) { rect.size.width--; rect.size.height--; }
-        x = rect.size.width / 2; y = rect.size.height / 2;
-        PSgsave();
-        PStranslate(rect.origin.x + x + 0.5, rect.origin.y + y + 0.5);
-        PSscale(x > 0 ? x : 0.25, y > 0 ? y : 0.25);
-        PSnewpath();
-        if (fill) PSmoveto(0, 0);
-        PSarcn(0, 0, 1, -start, -start - angle);
-        if (fill) PSclosepath();
-        PSscale(x > 0 ? 1 / x : 4, y > 0 ? 1 / y : 4);
-        if (fill) PSfill(); else PSstroke();
-        PSgrestore();
+            if (angle < 0) {
+                start += angle;
+                if (start < 0) start += 360;
+                angle = -angle;
+            }
+            if (fill) { rect.size.width--; rect.size.height--; }
+            x = rect.size.width / 2; y = rect.size.height / 2;
+            PSgsave();
+            PStranslate(rect.origin.x + x + 0.5, rect.origin.y + y + 0.5);
+            PSscale(x > 0 ? x : 0.25, y > 0 ? y : 0.25);
+            PSnewpath();
+            if (fill) PSmoveto(0, 0);
+            PSarcn(0, 0, 1, -start, -start - angle);
+            if (fill) PSclosepath();
+            PSscale(x > 0 ? 1 / x : 4, y > 0 ? 1 / y : 4);
+            if (fill) PSfill(); else PSstroke();
+            PSgrestore();
+        NS_HANDLER
+            [self _abortDrawing];
+            [localException raise];
+        NS_ENDHANDLER
         [self _endDrawing];
     }
 }
 - (void)strokePolyLine:(NSData *)points count:(int)count andClose:(BOOL)close andFill:(BOOL)fill
 {
     if (count > 0 && [self _beginDrawingWithPaint:YES]) {
-        const NSPoint *point = [points bytes];
-        int index;
-        PSgsave();
-        PStranslate(0.5, 0.5);
-        PSnewpath();
-        PSmoveto(point[0].x, point[0].y);
-        for (index = 0; index < count; index++) PSlineto(point[index].x, point[index].y);
-        if (close) PSclosepath();
-        if (fill) PSeofill(); else PSstroke();
-        PSgrestore();
+        NS_DURING
+            const NSPoint *point = [points bytes];
+            int index;
+            PSgsave();
+            PStranslate(0.5, 0.5);
+            PSnewpath();
+            PSmoveto(point[0].x, point[0].y);
+            for (index = 0; index < count; index++) PSlineto(point[index].x, point[index].y);
+            if (close) PSclosepath();
+            if (fill) PSeofill(); else PSstroke();
+            PSgrestore();
+        NS_HANDLER
+            [self _abortDrawing];
+            [localException raise];
+        NS_ENDHANDLER
         [self _endDrawing];
     }
 }
 - (void)drawString:(NSString *)string atPoint:(NSPoint)point
 {
     if (string && [self _beginDrawingWithPaint:YES]) {
-        if (_dirtyBits & 0x20) {
-            [_textAttributes release];
-            _textAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:_font, NSFontAttributeName,
-                _xorColor ? _xorColor : _color, NSForegroundColorAttributeName, nil] retain];
-            _dirtyBits &= ~0x20;
-        }
-        if (_flipped) { PSscale(1, -1); point.y = -point.y; }
-        point.y -= _fontPointSize;
-        [string drawAtPoint:point withAttributes:_textAttributes];
-        if (_flipped) PSscale(1, -1);
+        NS_DURING
+            if (_dirtyBits & 0x20) {
+                [_textAttributes release];
+                _textAttributes = [[NSDictionary dictionaryWithObjectsAndKeys:_font, NSFontAttributeName,
+                    _xorColor ? _xorColor : _color, NSForegroundColorAttributeName, nil] retain];
+                _dirtyBits &= ~0x20;
+            }
+            if (_flipped) { PSscale(1, -1); point.y = -point.y; }
+            point.y -= _fontPointSize;
+            [string drawAtPoint:point withAttributes:_textAttributes];
+            if (_flipped) PSscale(1, -1);
+        NS_HANDLER
+            [self _abortDrawing];
+            [localException raise];
+        NS_ENDHANDLER
         [self _endDrawing];
     }
 }
@@ -221,7 +267,7 @@
         NS_DURING
             [(AwtImage *)image drawAtPoint:point];
         NS_HANDLER
-            [self _endDrawing];
+            [self _abortDrawing];
             [localException raise];
         NS_ENDHANDLER
         [self _endDrawing];
@@ -233,7 +279,7 @@
         NS_DURING
             [(AwtImage *)image drawSubrect:source inRect:destination];
         NS_HANDLER
-            [self _endDrawing];
+            [self _abortDrawing];
             [localException raise];
         NS_ENDHANDLER
         [self _endDrawing];
@@ -257,25 +303,44 @@
 {
     if (![_surface awtCanDraw]) return NO;
     if ([_surface awtLockFocus]) _dirtyBits |= 0x19;
-    if (paint && (_dirtyBits & 1)) {
-        if (_xorColor) {
-            DPSPrintf(DPSGetCurrentContext(), "1 setrasterop\n");
-            [_xorColor set];
-        } else [_color set];
-        _dirtyBits &= ~1;
-    }
-    if (_translated && (_dirtyBits & 8)) {
-        PStranslate(_origin.x, _origin.y);
-        _dirtyBits &= ~8;
-    }
-    if (_clipped && (_dirtyBits & 0x10)) { NSRectClip(_clip); _dirtyBits &= ~0x10; }
+    NS_DURING
+        if (paint && (_dirtyBits & 1)) {
+            if (_xorColor) {
+                DPSPrintf(DPSGetCurrentContext(), "1 setrasterop\n");
+                [_xorColor set];
+            } else [_color set];
+            _dirtyBits &= ~1;
+        }
+        if (_translated && (_dirtyBits & 8)) {
+            PStranslate(_origin.x, _origin.y);
+            _dirtyBits &= ~8;
+        }
+        if (_clipped && (_dirtyBits & 0x10)) { NSRectClip(_clip); _dirtyBits &= ~0x10; }
+    NS_HANDLER
+        [self _abortDrawing];
+        [localException raise];
+    NS_ENDHANDLER
     return YES;
 }
 - (void)_endDrawing
 {
-    PSflushgraphics();
-    PSFlush();
+    NS_DURING
+        PSflushgraphics();
+        PSFlush();
+    NS_HANDLER
+        [self _abortDrawing];
+        [localException raise];
+    NS_ENDHANDLER
     [_surface awtUnlockFocus];
+}
+- (void)_abortDrawing
+{
+    _dirtyBits |= 0x19;
+    /* Cleanup must not flush more commands or replace the drawing exception. */
+    NS_DURING
+        [_surface awtUnlockFocus];
+    NS_HANDLER
+    NS_ENDHANDLER
 }
 @end
 
