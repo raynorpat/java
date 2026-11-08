@@ -64,6 +64,14 @@ int main(void)
     printf("vendor-duplicates=%u\n", duplicates);
     printf("vendor-key-removed=%d\n", ![names containsObject:@"Vendor"]);
     printf("top-key-present=%d\n", [names containsObject:@"Compiler"]);
+    application = nil;
+    config = [NSJavaConfiguration defaultConfiguration];
+    show("domain-vendor", [config vendorName]);
+    show("domain-VM", [config valueForKey:NSDefaultJavaVMKey]);
+    domain = nil;
+    config = [NSJavaConfiguration defaultConfiguration];
+    show("system-vendor", [config vendorName]);
+    show("system-VM", [config valueForKey:NSDefaultJavaVMKey]);
     [pool release];
     return 0;
 }

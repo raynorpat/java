@@ -15,3 +15,7 @@ init-vendor=fixture
 vendor-duplicates=2
 vendor-key-removed=1
 top-key-present=1
+domain-vendor=domain_vendor
+domain-VM=domain_vm
+system-vendor=apple
+system-VM=/usr/bin/java

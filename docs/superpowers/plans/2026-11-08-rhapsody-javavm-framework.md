@@ -51,11 +51,11 @@
 **Files:** `src/rhapsody/java/framework/NSJavaConfiguration.{h,m}`, Task 1 test files.
 **Interfaces:** Export `NSDefaultJavaVendorKey`, `NSDefaultJavaVMKey`, `NSDefaultJavaCompilerKey`, `NSDefaultJavaClassPathKey`; implement all methods declared by the donor NSJavaConfiguration header, including `-valueForKey:` and `+vendorNames`.
 
-- [ ] Compile the same client against reconstructed sources; observe failure before sources exist.
-- [ ] Implement the three lookup layers, vendor selection, memory ownership and donor environment expansion.
-- [ ] Compare reconstructed and donor output for ordinary, missing, empty, braced and adjacent environment variables. Check vendorNames duplicates/top-level keys against the donor rather than assuming a filtered set.
-- [ ] Run `sh tests/framework-dr2/check-configuration.sh` in the guest; expect identical transcripts and `PASS framework configuration`.
-- [ ] Commit the verified implementation and evidence.
+- [x] Compile the same client against reconstructed sources; observe failure before sources exist.
+- [x] Implement the three lookup layers, vendor selection, memory ownership and donor environment expansion.
+- [x] Compare reconstructed and donor output for ordinary, missing, empty, braced and adjacent environment variables. Check vendorNames duplicates/top-level keys against the donor rather than assuming a filtered set.
+- [x] Run `sh tests/framework-dr2/check-configuration.sh` in the guest; expect identical transcripts and `PASS framework configuration`.
+- [x] Commit the verified implementation and evidence.
 
 ### Task 3: Framework facade and bridge startup
 
