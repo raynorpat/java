@@ -16,6 +16,8 @@
 
 /* 54010eb8: DR2 changes the border view's resize control, not the style mask. */
 @implementation NSWindow (AWTResize)
+/* 54010bc4: native preferred size includes the whole window frame. */
+- (NSSize)preferredSize { return [self frame].size; }
 /* 54010bf4: donor uses a fixed title when computing the native minimum. */
 - (NSSize)minimumSize
 {

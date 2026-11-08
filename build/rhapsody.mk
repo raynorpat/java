@@ -609,3 +609,10 @@ $(BUILD)/tests/toolkit/libclipboard115.dylib: tests/awt-dr2/clipboard115.m $(BUI
 .PHONY: check-clipboard
 check-clipboard: image $(BUILD)/tests/toolkit/libclipboard115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-clipboard.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libbarewindow115.dylib: tests/awt-dr2/barewindow115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/barewindow115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-barewindow
+check-barewindow: image $(BUILD)/tests/toolkit/libbarewindow115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-barewindow.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

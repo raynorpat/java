@@ -1134,3 +1134,24 @@ releases its partial object and global peer; retry succeeds. The toolkit caches
 one clipboard for process lifetime; the original peer has no disposal entry.
 Fresh check-clipboard, check-menu, check-dispatch and check-toolkit pass. The
 test-only library has 126 JNI entries; remaining Phase 7 gates are unchanged.
+
+### Phase 7 borderless-window checkpoint
+
+The remaining five RWindowPeer bindings (5401c140, 5401ca7c--5401cd2c) create
+borderless windows and provide native preferred/minimum size and focus behavior.
+NSWindow preferredSize (54010bc4) returns the whole frame, rounded upward when
+converted to Java. The borderless minimum is 29x10; insets are zero. Focus requests
+raise the window and select its content view, while isFocusTraversable is false.
+
+Donor and reconstruction pass geometry changes, fractional size rounding, initial
+focus, repeated show/hide and native closing callbacks. Java font failures and
+native failures after view/window initialization leave no partial objects.
+Closing listeners reenter AppKit, run GC and dispose the window. Lifetime tracing
+identified pending AppKit autoreleases after synthetic window events, not extra
+owners: an application-defined event advances the outer native loop and drains
+those releases. The probe now waits across that boundary; all windows/views reach
+zero. Production disposal needed no further change.
+
+Fresh check-barewindow, check-window, check-menu, check-input, check-keyboard,
+check-dispatch and check-toolkit pass. The test-only library has 131 JNI entries.
+Dialogs, complete graphics and the full installed-image gates remain pending.
