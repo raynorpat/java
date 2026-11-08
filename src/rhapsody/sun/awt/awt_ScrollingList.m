@@ -159,7 +159,13 @@
     event = (*env)->CallObjectMethod(env, _peer, method, [sender clickedRow]);
     (*env)->DeleteLocalRef(env, cls);
     if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
-    [NSApp dispatchJavaEvent:event isLocalRef:YES];
+    NS_DURING
+        [NSApp dispatchJavaEvent:event isLocalRef:YES];
+    NS_HANDLER
+        (*env)->DeleteLocalRef(env, event);
+        [localException raise];
+    NS_ENDHANDLER
+    (*env)->DeleteLocalRef(env, event);
 }
 - (void)updateForNewSelection
 {
@@ -181,7 +187,13 @@
             event = (*env)->CallObjectMethod(env, _peer, method, index, selected);
             (*env)->DeleteLocalRef(env, cls);
             if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
-            [NSApp dispatchJavaEvent:event isLocalRef:YES];
+            NS_DURING
+                [NSApp dispatchJavaEvent:event isLocalRef:YES];
+            NS_HANDLER
+                (*env)->DeleteLocalRef(env, event);
+                [localException raise];
+            NS_ENDHANDLER
+            (*env)->DeleteLocalRef(env, event);
         }
         if (selected) next = [rows nextObject];
     }

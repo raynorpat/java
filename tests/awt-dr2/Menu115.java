@@ -4,6 +4,8 @@ import java.awt.event.*;
 public class Menu115 {
     static { System.loadLibrary("menu115"); }
     static native void track();
+    static native int retainedCallbackRefs();
+    static native int failedDispatch(CheckboxMenuItem item);
     static native void failConstruction(int kind);
     static native int live();
     static native boolean state(MenuItem item, String label, boolean enabled, int state);
@@ -96,6 +98,10 @@ public class Menu115 {
             int before = actions; choose(first); awaitAction(before);
             choose(checked);
             require(changes == 1 && failure == null && state(checked, "Checked", true, 0), "native checkbox menu toggle");
+            if (tracked) {
+                int retained = failedDispatch(checked);
+                require(retained == 0, "exceptional menu callback JNI references: " + retained);
+            }
             first.setEnabled(false); before = actions; shortcut(frame); Thread.sleep(150);
             require(actions == before, "disabled menu shortcut");
             first.setEnabled(true); before = actions; shortcut(frame); awaitAction(before);
@@ -116,6 +122,7 @@ public class Menu115 {
                 }
                 require(live() == 0, "native menus retained: " + live());
             }
+            if (tracked) require(retainedCallbackRefs() == 0, "callback JNI references retained: " + retainedCallbackRefs());
             System.out.println("DR2 menus preserve hierarchy, labels, state and attachment");
             System.exit(0);
         } catch (Throwable problem) { problem.printStackTrace(); System.exit(1); }

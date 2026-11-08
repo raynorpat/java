@@ -5,6 +5,8 @@ public class List115 {
     static { System.loadLibrary("list115"); }
     static native void click(List list, int row, int count);
     static native void track();
+    static native int retainedCallbackRefs();
+    static native int failedDispatch(List list);
     static native int liveLists();
     static native void failConstruction(boolean fail);
     static volatile int items, actions;
@@ -106,6 +108,8 @@ public class List115 {
                 if (failure != null) throw new Error(failure.toString());
                 require(actions > beforeAction, "missing double-click action");
                 if (tracked) {
+                    int retained = failedDispatch(list);
+                    require(retained == 0, "exceptional list callback JNI references: " + retained);
                     disposeOnEvent = true; before = items; click(list, 2, 1); awaitItem(before);
                     require(list.getPeer() == null, "list callback disposal");
                 } else list.removeAll();
@@ -114,6 +118,7 @@ public class List115 {
                 require(list.getPeer() == null, "disposed list");
                 if (tracked) drained();
             }
+            if (tracked) require(retainedCallbackRefs() == 0, "callback JNI references retained: " + retainedCallbackRefs());
             System.out.println("DR2 lists preserve items, selection and row sizing");
             System.exit(0);
         } catch (Throwable problem) { problem.printStackTrace(); System.exit(1); }

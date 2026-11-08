@@ -1,8 +1,37 @@
+#include "jni_impl.h"
 #import "../../src/rhapsody/sun/awt/awt_Application.h"
 #import "../../src/rhapsody/sun/awt/awt_Conversions.h"
 #import "../../src/rhapsody/sun/awt/awt_Menu.h"
+@interface AwtMenuItem (CallbackTest)
+- (void)checkboxMenuItemSelected:(id)sender;
+@end
 static volatile int components;
 static int failKind;
+/* Count live JNI handles on the persistent AppKit native frame. */
+static int retainedCallbackRefs;
+static int callbackRefs(void)
+{
+    JNIRefTable *table = JNIEnvGetLocalRefs([NSApp appkitEnv]);
+    int index, count = 0;
+    for (index = 0; index < table->top; index++)
+        count += table->elements[index].refCount & JNI_REF_COUNT_MASK;
+    return count;
+}
+#import <objc/objc-class.h>
+static BOOL failEventDispatch;
+static IMP originalEventDispatch;
+static BOOL dispatchFailure(id application, SEL selector, jobject event, BOOL local)
+{
+    if (failEventDispatch)
+        [NSException raise:NSInvalidArgumentException format:@"callback dispatch failure"];
+    return ((BOOL (*)(id, SEL, jobject, BOOL))originalEventDispatch)(application, selector, event, local);
+}
+static void hookEventDispatch(void)
+{
+    struct objc_method *method = class_getInstanceMethod([NSApp class], @selector(dispatchJavaEvent:isLocalRef:));
+    originalEventDispatch = method->method_imp;
+    method->method_imp = (IMP)dispatchFailure;
+}
 @interface MenuLifetimeProbe : AwtMenu
 @end
 @implementation MenuLifetimeProbe
@@ -24,6 +53,12 @@ static int failKind;
 @interface MenuItemLifetimeProbe : AwtMenuItem
 @end
 @implementation MenuItemLifetimeProbe
+- (void)checkboxMenuItemSelected:(id)sender
+{
+    int before = callbackRefs();
+    [super checkboxMenuItemSelected:sender];
+    retainedCallbackRefs += callbackRefs() - before;
+}
 - (id)commonInitWithPeer:(int)peer withLabel:(NSString *)label isEnabled:(BOOL)enabled withShortcut:(NSString *)shortcut usesShiftModifier:(BOOL)shift action:(SEL)action withFont:(NSFont *)font inMenu:(AwtMenu *)menu
 {
     self = [super commonInitWithPeer:peer withLabel:label isEnabled:enabled withShortcut:shortcut usesShiftModifier:shift action:action withFont:font inMenu:menu];
@@ -34,6 +69,7 @@ static int failKind;
 - (void)dealloc { components--; [super dealloc]; }
 @end
 @interface MenuProbe : NSObject
++ (int)failedDispatch:(int)address;
 + (void)track;
 + (int)live;
 + (BOOL)state:(int)address label:(NSString *)label enabled:(BOOL)enabled state:(int)state;
@@ -46,13 +82,35 @@ static int failKind;
 + (void)postPopupKeys:(NSTimer *)timer;
 @end
 @implementation MenuProbe
++ (int)failedDispatch:(int)address
+{
+    AwtMenuItem *item = (AwtMenuItem *)address;
+    int before = callbackRefs(), state = [item state];
+    BOOL volatile caught = NO;
+    failEventDispatch = YES;
+    NS_DURING
+        [item checkboxMenuItemSelected:item];
+    NS_HANDLER
+        caught = [[localException reason] isEqual:@"callback dispatch failure"];
+    NS_ENDHANDLER
+    failEventDispatch = NO; [item setState:state];
+    return caught ? callbackRefs() - before : -1;
+}
 + (void)track
 {
+    hookEventDispatch();
     [MenuLifetimeProbe poseAsClass:[AwtMenu class]];
     [MenuBarLifetimeProbe poseAsClass:[AwtMenuBar class]];
     [MenuItemLifetimeProbe poseAsClass:[AwtMenuItem class]];
 }
-+ (int)live { return components; }
++ (int)live
+{
+    /* Synthetic callbacks can leave AppKit waiting inside nextEventMatchingMask.
+     * Advance the outer event loop before recounting deferred releases. */
+    [NSApp postEvent:[NSEvent otherEventWithType:NSApplicationDefined location:NSMakePoint(0, 0)
+        modifierFlags:0 timestamp:1 windowNumber:0 context:nil subtype:0 data1:0 data2:0] atStart:NO];
+    return components;
+}
 + (BOOL)state:(int)address label:(NSString *)label enabled:(BOOL)enabled state:(int)state
 {
     NSMenuItem *item = (NSMenuItem *)address;
@@ -184,4 +242,14 @@ JNIEXPORT void JNICALL Java_Menu115_activate(JNIEnv *env, jclass cls, jobject fr
     jfieldID field = (*env)->GetFieldID(env, peerClass, "nNativeView", "I");
     [[MenuProbe appkitProxy] activateFrameForMenuTest:(*env)->GetIntField(env, peer, field)];
     [pool release];
+}
+
+JNIEXPORT jint JNICALL Java_Menu115_retainedCallbackRefs(JNIEnv *env, jclass cls)
+{ return retainedCallbackRefs; }
+
+JNIEXPORT jint JNICALL Java_Menu115_failedDispatch(JNIEnv *env, jclass cls, jobject item)
+{
+    id pool = [[NSAutoreleasePool alloc] init];
+    int result = [[MenuProbe appkitProxy] failedDispatch:menuAddress(env, item)];
+    [pool release]; return result;
 }
