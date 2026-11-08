@@ -101,3 +101,21 @@ initializeObjcLibrary `(Ljava/lang/String;Ljava/lang/String;)V`. The second
 resolves library initialization functions, including ObjCJava_AInitialization.
 This donor class set is investigation material, not an approved packaging
 closure or a substitute for reconstructed native code.
+
+## VM adapter acceptance
+
+`check-vm-options.sh` intercepts the donor's JNI initialization calls to capture
+all option values and the two-pointer result layout, then compares reconstructed
+output. Booleans compare exactly with `YES`; NSJavaVerifyMode is treated as a
+boolean, defaults to zero, and enableClassGC is unconditionally zero. Sizes and
+debug port use intValue. These are observed adapter semantics, not recommended
+modern JNI settings.
+
+`check-vm-live.sh` runs the actual donor and reconstructed adapters against their
+respective runtimes. Both define AdapterFixture from bytes, call its method
+(115118), reject invalid class bytes with a Java exception, and invoke the
+defined class from an attached native thread. The reconstructed test inspects
+dyld's loaded images and rejects JavaVM.framework and /usr/lib/java dependencies.
+This establishes the low-level adapter, not NSRuntime initialization or class
+bridging. The source's temporary classpath copy is freed after creation because
+the reconstructed JNI runtime duplicates it; the donor leaks that allocation.
