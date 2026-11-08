@@ -13,7 +13,7 @@ public class MotionLifetime115 {
         Thread.sleep(100);
         synchronized(gate) { blocked=false; gate.notifyAll(); }
         for(int i=0;(lastX!=999 || lastY!=last) && i<500;i++) Thread.sleep(10);
-        if(lastX!=999 || lastY!=last) throw new RuntimeException("motion delivery stalled");
+        if(lastX!=999 || lastY!=last) throw new RuntimeException("motion delivery stalled: expected 999,"+last+" got "+lastX+","+lastY+" drag="+drag);
     }
     static void motion(MouseEvent e) {
         synchronized(gate) { entered=true; while(blocked) try { gate.wait(); } catch(InterruptedException ignored) {} }
