@@ -323,7 +323,10 @@ void sun_awt_motif_MFramePeer_create(Hsun_awt_motif_MFramePeer *self,Hsun_awt_mo
             XtNx,unhand(target)->x,XtNy,unhand(target)->y,
             XtNwidth,unhand(target)->width>0 ? unhand(target)->width : 1,
             XtNheight,unhand(target)->height>0 ? unhand(target)->height : 1,
-            XtNallowShellResize,True,XtNmappedWhenManaged,False,XmNdeleteResponse,XmDO_NOTHING,NULL);
+            /* OpenMotif must not wait for an unmapped shell's WM reply while
+             * holding the Java AWT monitor. ConfigureNotify reconciles bounds. */
+            XtNallowShellResize,True,XmNuseAsyncGeometry,True,
+            XtNmappedWhenManaged,False,XmNdeleteResponse,XmDO_NOTHING,NULL);
         XtAddCallback(data->shell,XtNdestroyCallback,frame_shell_destroyed,data);
         data->container=XtVaCreateManagedWidget("main",xmFormWidgetClass,data->shell,
             XmNmarginWidth,0,XmNmarginHeight,0,XmNresizePolicy,XmRESIZE_NONE,NULL);

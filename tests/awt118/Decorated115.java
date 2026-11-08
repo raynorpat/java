@@ -13,12 +13,20 @@ public class Decorated115 {
                 Button button = new Button("Client");
                 frame.add(button);
                 frame.setBounds(70, 80, 320, 220);
+                long beforeMap=System.currentTimeMillis();
+                frame.addNotify();
+                frame.setSize(321,221); frame.setSize(320,220);
+                if(System.currentTimeMillis()-beforeMap>2000)
+                    throw new RuntimeException("unmapped resize blocked AWT monitor");
                 frame.show();
                 Thread.sleep(700);
                 Insets insets = frame.getInsets();
                 if (insets.top <= 0 || insets.left <= 0 || insets.bottom <= 0)
                     throw new RuntimeException("missing decorations: " + insets);
+                long resizeStart=System.currentTimeMillis();
                 frame.setSize(350, 240);
+                if(System.currentTimeMillis()-resizeStart>2000)
+                    throw new RuntimeException("window manager resize blocked AWT monitor");
                 Thread.sleep(400);
                 frame.validate();
                 Point outer = frame.getLocationOnScreen();

@@ -507,3 +507,21 @@ and survives menu attachment, resize, hide/show and disposal. Native observation
 checks actual text, mapped state, colors and an untouched warning pixel after
 application painting. Bare Xvfb and Openbox cases pass. Focused Debug: 41/41,
 223.04 seconds. Windows Release after the monitor fix: 199/199, 166.46 seconds.
+
+Linux shell geometry adaptation: GDB found DateTimeDemo's main thread blocked
+inside Xt's WM geometry wait from MFramePeer.pReshape, holding the AWT monitor.
+The decorated fixture now times peer creation plus unmapped/mapped resizing;
+RED exceeded two seconds. Setting OpenMotif's public useAsyncGeometry resource
+on ordinary Frame shells makes that check GREEN (8.23 seconds for the fixture,
+previously about 28). ConfigureNotify continues to reconcile actual bounds.
+Applying the same resource to XmDialogShell caused 1x1 modal content, so that
+experiment was removed; dialog geometry retains its existing path. Focused
+Linux Debug after limiting the adaptation: 41/41 passed, 154.22 seconds.
+
+Installed demo reruns now open DateTime/NumberFormat/MessageFormat, and all four
+Dither variants change selection. The Dither image was visually checked after
+calculation. MessageFormat's first capture preceded its observer snapshot, so
+its interaction must be rerun with a readiness check. Tested closeable cases
+exit with code zero through the WM close action; plain Frame demo mains retain
+the established bounded-termination policy. The copied demo tree matches all
+474 original files byte-for-byte. Full 81-case acceptance is still pending.
