@@ -1,0 +1,17 @@
+vendor=fixture
+VM=vendor_vm
+Compiler=app_compiler
+classpath=fixture_cp
+domain=domain_value
+missing=<nil>
+empty=
+expand=/fixture/lib::x
+braces=/lib
+adjacent=/fixture/fixture
+dollar=end
+unknown-vendor=top_vm
+nil-vendor=<nil>
+init-vendor=fixture
+vendor-duplicates=2
+vendor-key-removed=1
+top-key-present=1

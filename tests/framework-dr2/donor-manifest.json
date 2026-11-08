@@ -1,0 +1,16 @@
+{
+  "binaries": [
+    {
+      "guestPath": "/System/Library/Frameworks/JavaVM.framework/Versions/A/JavaVM",
+      "localPath": "vendor/rhapsody-dr2/System/Library/Frameworks/JavaVM.framework/Versions/A/JavaVM",
+      "size": 30132,
+      "sha256": "6398ae7ca3a7c955d5db90de2b85aa00e86864d3123258a6977f8d88071d515e"
+    },
+    {
+      "guestPath": "/usr/lib/java/libObjCJava.A.dylib",
+      "localPath": "out/rhapsody115/libObjCJava.A.dylib",
+      "size": 110280,
+      "sha256": "9eda31dce2b6f452f363c3e4d0e2f8a5332ff027c05f549f5049f17a7984aa0a"
+    }
+  ]
+}
