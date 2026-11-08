@@ -115,6 +115,18 @@ long sun_tools_debug_Agent_getThreadStatus(Hsun_tools_debug_Agent *self,Hjava_la
     system=SYSTHREAD(thread); if(!system) return 0;
 #ifdef XP_PC
     state=system->state;
+#elif defined(JDK115_CTHREADS)
+    /* DR2 libagent 5BD0118C: Mach states are not the Win32 state numbers. */
+    switch(system->state) {
+    case RUNNABLE: case RUNNING: return 1;
+    case SUSPENDED: case MONITOR_SUSPENDED: return 5;
+    case MONITOR_WAIT: case CONDVAR_WAIT:
+        if(system->mpending_suspend || system->cpending_suspend) return 5;
+        if(system->mon_wait==(sys_mon_t *)system) return 2;
+        return system->state==MONITOR_WAIT ? 3 : 4;
+    case SUSPENDED_AT_BREAKPOINT: return 6;
+    default: return -1;
+    }
 #else
     /* Platform adaptation: pthread backend represents suspension as stop bits. */
     state=system->want_stop ? 1 : (system->waiting_on ? 3 : 0);

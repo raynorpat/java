@@ -121,21 +121,22 @@ TOOL_FLAGS_rmic = -DTOOL_CLASS='"sun.rmi.rmic.Main"' -DTOOL_HOME -DTOOL_HEAP='""
 TOOL_FLAGS_rmiregistry = -DTOOL_CLASS='"sun.rmi.registry.RegistryImpl"' -DTOOL_HOME -DTOOL_REGISTRY -DTOOL_HEAP='""'
 TOOL_FLAGS_jdb = -DTOOL_CLASS='"sun.tools.ttydebug.TTY"' -DTOOL_SIMPLE -DTOOL_HEAP='""'
 
-.PHONY: all image check-types check-core
-all: $(BUILD)/bin/java $(addprefix $(BUILD)/bin/,$(TOOLS)) $(BUILD)/lib/libnet.dylib
+.PHONY: all image check-types check-core check-libraries
+all: $(BUILD)/bin/java $(BUILD)/bin/javah $(addprefix $(BUILD)/bin/,$(TOOLS)) $(addprefix $(BUILD)/lib/lib,net.dylib zip.dylib math.dylib sysresource.dylib jpeg.dylib agent.dylib)
 
 image: all
 	mkdir -p $(BUILD)/lib/security
 	cp $(JDK115_DIR)/lib/classes.zip $(BUILD)/lib/classes.zip
 	cp $(JDK115_DIR)/lib/security/java.security $(BUILD)/lib/security/java.security
 	cp $(JDK115_DIR)/lib/*.properties $(BUILD)/lib/
+	mkdir -p $(BUILD)/legal/bnlib-1.1 $(BUILD)/legal/zlib-1.0.4
+	cp src/share/java/math/bn-1.1/COPYING src/share/java/math/bn-1.1/legal.c src/share/java/math/bn-1.1/PROVENANCE.md $(BUILD)/legal/bnlib-1.1/
+	cp third_party/zlib-1.0.4/README third_party/zlib-1.0.4/zlib.h third_party/zlib-1.0.4/ORIGIN.md $(BUILD)/legal/zlib-1.0.4/
+	mkdir -p $(BUILD)/legal/jpeg-6
+	cp third_party/jpeg-6/README third_party/jpeg-6/PROVENANCE.md $(BUILD)/legal/jpeg-6/
 
 check-core: image
 	/bin/sh tests/awt-dr2/check-core.sh $(BUILD)
-
-$(BUILD)/obj/%.o: %.c $(HEADERS)
-	mkdir -p $(@D)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) -c $< -o $@
 
 $(BUILD)/generated/builtin-natives.inc: src/share/java/runtime/stubs.c $(wildcard src/share/java/runtime/_stubs/*.c) tools/builtin-natives.awk
 	mkdir -p $(@D)
@@ -168,3 +169,101 @@ check-types:
 	mkdir -p $(BUILD)/tests
 	$(CC) $(CFLAGS) $(INCLUDES) tests/native/mach115-types.c -o $(BUILD)/tests/types
 	$(BUILD)/tests/types
+
+ZIP_SOURCES = src/share/java/zip/zip.c $(addprefix third_party/zlib-1.0.4/,deflate.c trees.c crc32.c)
+ZIP_OBJECTS = $(patsubst %.c,$(BUILD)/obj/%.o,$(ZIP_SOURCES))
+$(BUILD)/lib/libzip.dylib: $(ZIP_OBJECTS) $(BUILD)/lib/libjavai.dylib
+	$(CC) -dynamiclib -o $@ $(ZIP_OBJECTS) -L$(BUILD)/lib -ljavai
+
+MATH_SOURCES = src/share/java/math/BigInteger.c $(addprefix src/share/java/math/bn-1.1/,bn.c bn16.c bninit16.c lbn16.c lbnmem.c prime.c sieve.c legal.c)
+MATH_OBJECTS = $(patsubst %.c,$(BUILD)/obj/%.o,$(MATH_SOURCES))
+$(BUILD)/obj/src/share/java/math/%.o: src/share/java/math/%.c $(HEADERS)
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) -Isrc/share/java/math/bn-1.1 -c $< -o $@
+
+$(BUILD)/lib/libmath.dylib: $(MATH_OBJECTS) $(BUILD)/lib/libjavai.dylib
+	$(CC) -dynamiclib -o $@ $(MATH_OBJECTS) -L$(BUILD)/lib -ljavai
+
+$(BUILD)/lib/libsysresource.dylib: $(BUILD)/obj/src/share/sun/net/www/protocol/systemresource/SystemResourceManager.o $(BUILD)/lib/libjavai.dylib
+	$(CC) -dynamiclib -o $@ $< -L$(BUILD)/lib -ljavai
+
+JPEG_NAMES = jcomapi jutils jerror jmemmgr jmemnobs \
+  jcapimin jcapistd jctrans jcparam jdatadst jcinit jcmaster jcmarker jcmainct \
+  jcprepct jccoefct jccolor jcsample jchuff jcphuff jcdctmgr jfdctfst jfdctflt jfdctint \
+  jdapimin jdapistd jdtrans jdatasrc jdmaster jdinput jdmarker jdhuff jdphuff \
+  jdmainct jdcoefct jdpostct jddctmgr jidctfst jidctflt jidctint jidctred \
+  jdsample jdcolor jquant1 jquant2 jdmerge
+JPEG_SOURCES = $(addprefix third_party/jpeg-6/,$(addsuffix .c,$(JPEG_NAMES))) src/share/sun/awt/image/jpegdecoder.c src/share/sun/awt/image/jpegstubs.c
+JPEG_OBJECTS = $(patsubst %.c,$(BUILD)/obj/%.o,$(JPEG_SOURCES))
+JPEG_INCLUDES = -Ithird_party/jpeg-6 -I$(BUILD)/jpegconfig
+$(BUILD)/jpegconfig/jconfig.h: third_party/jpeg-6/jconfig.doc
+	mkdir -p $(@D)
+	cp $< $@
+
+$(BUILD)/obj/third_party/jpeg-6/%.o: third_party/jpeg-6/%.c $(BUILD)/jpegconfig/jconfig.h
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(JPEG_INCLUDES) -c $< -o $@
+
+$(BUILD)/obj/src/share/sun/awt/image/%.o: src/share/sun/awt/image/%.c $(HEADERS) $(BUILD)/jpegconfig/jconfig.h
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) $(JPEG_INCLUDES) -c $< -o $@
+
+$(BUILD)/lib/libjpeg.dylib: $(JPEG_OBJECTS) $(BUILD)/lib/libjavai.dylib
+	$(CC) -dynamiclib -o $@ $(JPEG_OBJECTS) -L$(BUILD)/lib -ljavai
+
+AGENT_SOURCES = $(addprefix src/share/java/debug/,agent115.c agent115_stack.c agent115_metadata.c agent115_events.c)
+AGENT_STUBS = $(BUILD)/agentgen/sun_tools_debug_Agent.c $(BUILD)/agentgen/sun_tools_debug_BreakpointHandler.c
+AGENT_OBJECTS = $(patsubst %.c,$(BUILD)/obj/%.o,$(AGENT_SOURCES)) $(BUILD)/agentobj/sun_tools_debug_Agent.o $(BUILD)/agentobj/sun_tools_debug_BreakpointHandler.o
+$(BUILD)/agentgen/.stamp: $(BUILD)/bin/javah $(JDK115_DIR)/lib/classes.zip
+	mkdir -p $(@D)
+	$(BUILD)/bin/javah -classpath $(JDK115_DIR)/lib/classes.zip -d $(@D) sun.tools.debug.Agent sun.tools.debug.AgentConstants sun.tools.debug.BreakpointHandler sun.tools.debug.BreakpointQueue sun.tools.debug.Field sun.tools.debug.StackFrame sun.tools.debug.LocalVariable sun.tools.debug.LineNumber sun.tools.java.Constants
+	$(BUILD)/bin/javah -stubs -classpath $(JDK115_DIR)/lib/classes.zip -d $(@D) sun.tools.debug.Agent sun.tools.debug.BreakpointHandler
+	touch $@
+
+$(AGENT_STUBS): $(BUILD)/agentgen/.stamp
+
+$(BUILD)/obj/src/share/java/debug/%.o: src/share/java/debug/%.c $(HEADERS) $(BUILD)/agentgen/.stamp
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD)/agentgen $(INCLUDES) -c $< -o $@
+
+$(BUILD)/agentobj/%.o: $(BUILD)/agentgen/%.c $(BUILD)/agentgen/.stamp $(HEADERS)
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD)/agentgen $(INCLUDES) -c $< -o $@
+
+$(BUILD)/lib/libagent.dylib: $(AGENT_OBJECTS) $(BUILD)/lib/libjavai.dylib
+	$(CC) -dynamiclib -o $@ $(AGENT_OBJECTS) -L$(BUILD)/lib -ljavai
+
+# GNU Make 3.74 chooses the first matching pattern, not the shortest stem.
+$(BUILD)/obj/%.o: %.c $(HEADERS)
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) -c $< -o $@
+
+JAVAH_SOURCES = src/share/java/javah/javah.c \
+  $(addprefix src/share/java/runtime/,arena.c classloader.c classresolver.c classhash115.c classresolver_stubs.c conversions115.c globals.c runtime_stubs.c utf.c util.c zip.c stubs_md.c) \
+  src/unix/java/runtime/path_md.c src/unix/java/runtime/system_md.c
+JAVAH_OBJECTS = $(patsubst %.c,$(BUILD)/javahobj/%.o,$(JAVAH_SOURCES))
+$(BUILD)/javahobj/%.o: %.c $(HEADERS)
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(filter-out -DJNI115_ENABLED,$(CPPFLAGS)) $(INCLUDES) -c $< -o $@
+
+$(BUILD)/bin/javah: $(JAVAH_OBJECTS) $(patsubst %.c,$(BUILD)/obj/%.o,$(ZLIB))
+	mkdir -p $(@D)
+	$(CC) -o $@ $^
+
+$(BUILD)/tests/jpeg-fixtures: tests/native/jpeg115-fixtures.c $(BUILD)/lib/libjpeg.dylib
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(JPEG_INCLUDES) $< -L$(BUILD)/lib -ljpeg -o $@
+
+$(BUILD)/lib/libjpeg115probe.dylib: tests/native/jpeg115-bridge.c $(BUILD)/lib/libjpeg.dylib
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) -dynamiclib $< -L$(BUILD)/lib -ljpeg -o $@
+
+$(BUILD)/tests/agent-status: tests/native/mach115-agent-status.c $(BUILD)/lib/libagent.dylib
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) $< -L$(BUILD)/lib -lagent -ljavai -o $@
+
+$(BUILD)/tests/library-path: tests/native/mach115-library-path.c src/unix/java/runtime/link_cthreads.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(INCLUDES) $^ -o $@
+
+check-libraries: image $(BUILD)/tests/jpeg-fixtures $(BUILD)/lib/libjpeg115probe.dylib $(BUILD)/tests/agent-status $(BUILD)/tests/library-path
+	/bin/sh tests/awt-dr2/check-libraries.sh $(BUILD)

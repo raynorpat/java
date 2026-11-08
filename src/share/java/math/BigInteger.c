@@ -192,7 +192,7 @@ static HArrayOfByte *java_math_BigInteger_plumbGeneratePrime(void *unused, HArra
     return result;
 }
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && __GNUC__ >= 4
 #define MATH_EXPORT __attribute__((visibility("default")))
 #else
 #define MATH_EXPORT

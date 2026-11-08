@@ -9,6 +9,7 @@ From the staged repository root:
 
 ```sh
 /bin/gnumake -f build/rhapsody.mk check-types check-core
+/bin/gnumake -f build/rhapsody.mk check-libraries
 JAVA_HOME=`pwd`/out/dr2
 DYLD_LIBRARY_PATH=$JAVA_HOME/lib
 export JAVA_HOME DYLD_LIBRARY_PATH
@@ -17,10 +18,10 @@ mkdir -p "$JAVA_HOME/tests/selfhost"
 "$JAVA_HOME/bin/java" -classpath "$JAVA_HOME/tests/selfhost:$JAVA_HOME/lib/classes.zip" Hello115
 ```
 
-This builds the reconstructed core dylib, java and the Java-class tool launchers
+This builds the reconstructed core dylib, java, javah and the Java-class tool launchers
 with Apple cc-771.4/GCC 2.7.2.1 and GNU Make 3.74. Outputs remain under out/dr2;
 nothing is installed in JavaVM.framework. This is not yet a complete JDK image:
-most support libraries, standalone tools, AppKit, and full acceptance remain pending.
+JRE startup/installation, audio, AppKit, and full acceptance remain pending.
 
 The Makefile uses `-traditional-cpp` to avoid cpp-precomp's crash on jni.c and
 incorrect parsing of check_code.c, and `-fno-common` because the DR2 dylib linker
@@ -84,3 +85,35 @@ a dynamically sized mask. Timed waits on such descriptors report SocketException
 before accessing the fixed mask. tests/native/mach115-net-wait.c verifies normal
 timeout/readiness and safe rejection at descriptor 300. The Linux poll path is
 unchanged; Net115HighFD's 1,100-descriptor expectation is not a DR2 capability.
+
+## Support libraries and native tools
+
+The Makefile builds ZIP, BigInteger/bnlib, systemresource, JPEG and agent dylibs.
+check-libraries verifies ZIP and BigInteger output, both file and ZIP resource
+lookup, all JPEG output/error fixtures, and javah JNI headers against the saved
+Sun results. The guest's reconstructed javah also generates the agent headers and
+legacy stubs. Dependency license/provenance files are copied into the private image.
+The only codec/arithmetic source correction is restricting the visibility attribute
+to GCC 4 or newer; DR2's GCC 2.7 rejects that syntax.
+
+GNU Make 3.74 selects the first matching pattern rule rather than the shortest
+stem, so specialized library rules precede the generic object rule. The actual
+guest check-libraries target passes, including JPEG malformed input, cancellation
+and callback exception fixtures. Targeted library checks pass 6/6 on both Linux
+and Windows Debug.
+
+The agent's cthreads status mapping follows libagent.A.dylib at 0x5bd0118c,
+including sleeping on the thread's own monitor, pending suspension and breakpoint
+suspension. mach115-agent-status covers all eight native state values and both
+pending-suspend flags. Linux agent checks pass 6/6; Windows checks pass 10/10.
+This does not yet establish the full DR2 debugger protocol or suspend/GC acceptance.
+
+The native loader no longer searches JavaVM.framework by default. The guest has
+donor libawt/libmmedia symlinks there, so retaining that fallback could conceal a
+missing reconstruction. A failing-then-passing native path check enforces this
+boundary; core fixtures still pass with the fallback removed.
+
+Dependency ruling: the DR2 mmedia donor uses SoundKit objects through AppKit's
+NativeMethodEnter/Exit bridge. Recover audio after the Task 3 bridge rather than
+forcing it into the console-only portion of Task 2. Audio remains required for
+Phase 7 acceptance; there is no temporary audio implementation in this image.

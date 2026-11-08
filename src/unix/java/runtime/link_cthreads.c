@@ -22,7 +22,8 @@ char *sysInitializeLinker(void)
 {
     const char *path = getenv("DYLD_LIBRARY_PATH");
     const char *home = sysJavaHome();
-    const char *defaults = ".:/usr/lib:/usr/lib/java:/lib:/System/Library/Frameworks/JavaVM.framework/Libraries";
+    /* A missing reconstructed library must not silently load a donor binary. */
+    const char *defaults = ".:/usr/lib:/usr/lib/java:/lib";
     char *result;
     if (!path) path = "";
     /* Retain this reconstruction's JDK image location and caller ownership. */
