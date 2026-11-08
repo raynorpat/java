@@ -1,6 +1,8 @@
 # Rhapsody DR2 Intel: run /bin/gnumake -f build/rhapsody.mk from the source root.
 # All outputs remain private; this never installs over JavaVM.framework.
 CC = cc
+# Bind the real Objective-C runtime and Foundation before loading JNI classes.
+JVM_LDFLAGS = -u _objc_msgSend -framework Foundation
 BUILD = out/dr2
 JDK115_DIR = vendor/jdk1.1.5
 CFLAGS = -g -O0 -traditional-cpp -fno-common
@@ -153,13 +155,13 @@ $(BUILD)/lib/libjavai.dylib: $(OBJECTS)
 	mkdir -p $(@D)
 	$(CC) -dynamiclib -o $@ $(OBJECTS)
 
-$(BUILD)/bin/java $(BUILD)/bin/java_g: $(BUILD)/obj/src/share/java/javai/java_stub.o $(BUILD)/lib/libjavai.dylib
+$(BUILD)/bin/java $(BUILD)/bin/java_g: $(BUILD)/obj/src/share/java/javai/java_stub.o $(BUILD)/lib/libjavai.dylib build/rhapsody.mk
 	mkdir -p $(@D)
-	$(CC) -o $@ $< -L$(BUILD)/lib -ljavai
+	$(CC) $(JVM_LDFLAGS) -o $@ $< -L$(BUILD)/lib -ljavai
 
-$(BUILD)/bin/%: src/share/java/javai/tool_main.c $(BUILD)/lib/libjavai.dylib
+$(BUILD)/bin/%: src/share/java/javai/tool_main.c $(BUILD)/lib/libjavai.dylib build/rhapsody.mk
 	mkdir -p $(@D)
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) $(TOOL_FLAGS_$(@F)) $< -L$(BUILD)/lib -ljavai -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) $(TOOL_FLAGS_$(@F)) $< -L$(BUILD)/lib -ljavai $(JVM_LDFLAGS) -o $@
 
 NET_SOURCES = $(wildcard src/share/java/net/*.c)
 NET_OBJECTS = $(patsubst %.c,$(BUILD)/obj/%.o,$(NET_SOURCES))
@@ -284,9 +286,9 @@ $(BUILD)/jreobj/%.o: %.c $(HEADERS)
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) -Isrc/share/java/jre -Isrc/unix/java/jre -DVERSION='"1.1.5"' -c $< -o $@
 
-$(BUILD)/bin/jre: $(JRE_OBJECTS)
+$(BUILD)/bin/jre: $(JRE_OBJECTS) build/rhapsody.mk
 	mkdir -p $(@D)
-	$(CC) -o $@ $^
+	$(CC) $(JVM_LDFLAGS) -o $@ $(JRE_OBJECTS)
 
 .PHONY: install check-install
 install: image
@@ -324,3 +326,11 @@ $(BUILD)/tests/desktop-launch: tests/awt-dr2/desktop-launch.c
 check-context: $(BUILD)/tests/context $(BUILD)/tests/desktop-launch
 	test -n "$(DESKTOP_PID)"
 	/bin/sh tests/awt-dr2/check-context.sh "$(BUILD)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/libexceptionbridge115.dylib: tests/awt-dr2/exceptionbridge115.m src/rhapsody/sun/awt/awt_Exception.m src/rhapsody/sun/awt/awt_Exception.h
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/exceptionbridge115.m src/rhapsody/sun/awt/awt_Exception.m -framework Foundation -o $@
+
+.PHONY: check-exceptions
+check-exceptions: image $(BUILD)/tests/libexceptionbridge115.dylib
+	/bin/sh tests/awt-dr2/check-exceptions.sh "$(BUILD)"

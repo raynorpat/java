@@ -43,3 +43,35 @@ supplied environment belonging to a different thread. Native DR2 core fixtures
 still pass after adding those VM exports. Actual JNI callback/exception/GC tests,
 AppKit handoff, and complete resource teardown remain required before Task 3 is
 complete; these focused tests do not establish them.
+
+## Java and Objective-C exceptions
+
+AwtException follows donor 54006788--54006b2c. It captures a JNI local throwable
+reference, clears the pending Java exception while Objective-C handles it, and
+throws the same reference back into Java. Generic NSException objects become
+RuntimeException with the donor's description prefix. Unknown or absent Java
+exception class names use a cached global AWTError class. The donor's literal
+`.80` message suffix is preserved; its fixed 512-byte sprintf buffer is replaced
+by an allocation sized for the class name.
+
+ExceptionBridge115 and exceptionbridge115.m pass against the original donor and
+the reconstructed runtime. Twenty cycles cover six paths: existing throwable,
+native NSException, requested Java exception type/message, throwing Java callback,
+unknown class and missing class. Each Objective-C handler invokes System.gc before
+returning to Java; the fixture checks throwable identity and exact fallback text.
+The newly created exception has no Java-side owner until it is rethrown, exercising
+the JNI local-reference root through that GC.
+
+`/bin/gnumake -f build/rhapsody.mk check-exceptions` runs the fixture through both
+java and jre. The probe library stays in the test directory, outside the installed
+image. Core fixtures and relocated installation checks also pass after the link
+change below. Concurrent Foundation use and integrated native-entry callbacks
+remain separate gates.
+
+DR2 C launchers must link with `-u _objc_msgSend -framework Foundation`. Without
+the forced runtime symbol, a later Foundation load reports duplicate `__objcInit`;
+without the Foundation dependency, binding the dynamically loaded Objective-C
+class module exits before entering its JNI method. The combination passes the
+actual dynamic-load fixture without a custom initialization routine. This applies
+to Java tool launchers and JNI invocation through jre, so the native Makefile
+relinks each when its link recipe changes.
