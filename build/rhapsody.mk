@@ -347,10 +347,21 @@ $(BUILD)/tests/libnativeentry115.dylib: tests/awt-dr2/nativeentry115.m src/rhaps
 check-native-entry: image $(BUILD)/tests/libnativeentry115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-native-entry.sh "$(BUILD)" "$(DESKTOP_PID)"
 
-$(BUILD)/tests/handoff: tests/awt-dr2/handoff115.m src/rhapsody/sun/awt/awt_Application.m src/rhapsody/sun/awt/awt_Application.h src/rhapsody/sun/awt/awt_Dispatcher.m src/rhapsody/sun/awt/awt_Dispatcher.h src/rhapsody/sun/awt/awt_Proxy.m
+AWT_DISPATCH_SOURCES = src/rhapsody/sun/awt/awt_Application.m src/rhapsody/sun/awt/awt_Dispatcher.m src/rhapsody/sun/awt/awt_Proxy.m src/rhapsody/sun/awt/awt_DispatchHandler.m src/rhapsody/sun/awt/awt_Exception.m
+AWT_DISPATCH_HEADERS = src/rhapsody/sun/awt/awt_Application.h src/rhapsody/sun/awt/awt_Dispatcher.h src/rhapsody/sun/awt/awt_DispatchHandler.h src/rhapsody/sun/awt/awt_Exception.h
+
+$(BUILD)/tests/handoff: tests/awt-dr2/handoff115.m $(AWT_DISPATCH_SOURCES) $(AWT_DISPATCH_HEADERS) $(BUILD)/lib/libjavai.dylib
 	mkdir -p $(@D)
-	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include tests/awt-dr2/handoff115.m src/rhapsody/sun/awt/awt_Application.m src/rhapsody/sun/awt/awt_Dispatcher.m src/rhapsody/sun/awt/awt_Proxy.m -framework AppKit -framework Foundation -o $@
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include tests/awt-dr2/handoff115.m $(AWT_DISPATCH_SOURCES) -framework AppKit -framework Foundation -L$(BUILD)/lib -ljavai -o $@
 
 .PHONY: check-handoff
 check-handoff: $(BUILD)/tests/handoff $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-handoff.sh "$(BUILD)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/libdispatcher115.dylib: tests/awt-dr2/dispatcher115.m $(AWT_DISPATCH_SOURCES) $(AWT_DISPATCH_HEADERS) $(BUILD)/lib/libjavai.dylib
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/dispatcher115.m $(AWT_DISPATCH_SOURCES) -framework AppKit -framework Foundation -L$(BUILD)/lib -ljavai -o $@
+
+.PHONY: check-dispatch
+check-dispatch: image $(BUILD)/tests/libdispatcher115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-dispatch.sh "$(BUILD)" "$(DESKTOP_PID)"

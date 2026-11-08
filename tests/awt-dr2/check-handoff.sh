@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 image=`cd "$1" && pwd`
+DYLD_LIBRARY_PATH="$image/lib"
+export DYLD_LIBRARY_PATH
 "$image/tests/desktop-launch" "$2" "$image/tests/handoff" > "$image/tests/handoff.log" 2>&1 &
 pid=$!
 count=0

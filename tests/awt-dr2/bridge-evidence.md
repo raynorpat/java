@@ -133,3 +133,29 @@ execution without these sources failed at the missing application setup selector
 The returned allocation proxy is autoreleased: the test balances the remote
 allocation via a separate method instead of over-releasing the local proxy.
 This is not yet a Toolkit startup or Java event-dispatch acceptance result.
+
+## Java event dispatcher
+
+AwtDispatchHandler (54004504--54004a14) attaches Foundation worker threads to the
+VM and uses condition states 1 (available) and 2 (request ready). AppKit waits for
+completion while accepting distributed-object requests in AwtProcessRequestsMode;
+workers tickle that run loop after publishing completion. AwtDispatcher reuses
+unlocked handlers and adds another when a nested callback occupies the existing
+ones (54004b38--54004c9c). Both Java event and menu-item callback entry points are
+implemented. JNI lookup uses the donor class names/signatures and raises
+AwtException on pending Java exceptions, matching the donor callback helpers.
+Method/class lookups currently occur per callback rather than using donor caches.
+
+`make -f build/rhapsody.mk check-dispatch check-handoff DESKTOP_PID=<Workspace PID>`
+passes. Dispatcher115 runs 20 three-level event dispatches plus 20 menu callbacks
+that re-enter AppKit, invokes GC at every callback, checks event-source identity
+and consumed results, and observes exactly three reused Java worker threads.
+The same probe passes against original libawt; reconstruction initially failed
+at its missing dispatchJavaEvent: selector. All four handoff modes still pass.
+
+The dispatcher fixture supplies isolated RToolkit/RMenuItemPeer callback classes
+in a test-only classpath; they are never included in the original-byte peer archive
+or installed image. This isolates the native dispatcher from unfinished Toolkit
+startup. It does not establish real-peer dispatch, uncaught Java callback behavior,
+worker termination, UI disposal, or full Toolkit acceptance. Those remain gates
+for subsequent integration work; no complete AWT image is installed yet.
