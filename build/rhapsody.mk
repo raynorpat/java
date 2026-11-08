@@ -367,8 +367,8 @@ check-dispatch: image $(BUILD)/tests/libdispatcher115.dylib $(BUILD)/tests/deskt
 	/bin/sh tests/awt-dr2/check-dispatch.sh "$(BUILD)" "$(DESKTOP_PID)"
 
 RHAPSODY_PEERS = out/dr2-peers/rhapsody-peers.zip
-AWT_TOOLKIT_SOURCES = $(AWT_DISPATCH_SOURCES) src/rhapsody/sun/awt/awt_ThreadContext.m src/rhapsody/sun/awt/awt_AutoreleasePool.m src/rhapsody/sun/awt/awt_Toolkit.m src/rhapsody/sun/awt/awt_Conversions.m src/rhapsody/sun/awt/awt_Font.m
-AWT_TOOLKIT_HEADERS = src/rhapsody/sun/awt/awt_Conversions.h $(AWT_DISPATCH_HEADERS) src/rhapsody/sun/awt/awt_ThreadContext.h src/rhapsody/sun/awt/awt_AutoreleasePool.h
+AWT_TOOLKIT_SOURCES = $(AWT_DISPATCH_SOURCES) src/rhapsody/sun/awt/awt_ThreadContext.m src/rhapsody/sun/awt/awt_AutoreleasePool.m src/rhapsody/sun/awt/awt_Toolkit.m src/rhapsody/sun/awt/awt_Conversions.m src/rhapsody/sun/awt/awt_Font.m src/rhapsody/sun/awt/awt_Event.m
+AWT_TOOLKIT_HEADERS = src/rhapsody/sun/awt/awt_Conversions.h $(AWT_DISPATCH_HEADERS) src/rhapsody/sun/awt/awt_ThreadContext.h src/rhapsody/sun/awt/awt_AutoreleasePool.h src/rhapsody/sun/awt/awt_Event.h
 
 # Partial AWT is confined to tests until the complete peer surface is recovered.
 $(BUILD)/tests/toolkit/libawt.dylib: $(AWT_TOOLKIT_SOURCES) $(AWT_TOOLKIT_HEADERS) $(BUILD)/lib/libjavai.dylib build/rhapsody.mk
@@ -411,3 +411,18 @@ $(BUILD)/tests/view: tests/awt-dr2/view115.m src/rhapsody/sun/awt/awt_View.m src
 .PHONY: check-view
 check-view: $(BUILD)/tests/view $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-view.sh "$(BUILD)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/libeventcover115.dylib: tests/awt-dr2/eventcover115.m src/rhapsody/sun/awt/awt_Event.m src/rhapsody/sun/awt/awt_Event.h src/rhapsody/sun/awt/awt_Exception.m src/rhapsody/sun/awt/awt_Exception.h
+	@mkdir -p $(BUILD)/tests
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/eventcover115.m src/rhapsody/sun/awt/awt_Event.m src/rhapsody/sun/awt/awt_Exception.m -framework AppKit -framework Foundation -o $@
+
+.PHONY: check-event-cover
+check-event-cover: image $(BUILD)/tests/libeventcover115.dylib
+	/bin/sh tests/awt-dr2/check-event-cover.sh "$(BUILD)"
+
+$(BUILD)/tests/toolkit/libpaintcover115.dylib: tests/awt-dr2/paintcover115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/paintcover115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-paint-cover
+check-paint-cover: image $(BUILD)/tests/toolkit/libpaintcover115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-paint-cover.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

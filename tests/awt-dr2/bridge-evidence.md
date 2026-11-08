@@ -272,3 +272,27 @@ The reconstruction initially failed because AwtView was absent; the native
 check-view target now passes. This standalone checkpoint does not yet implement
 Canvas drawing, Java focus callbacks or native Frame creation, and is not linked
 into the partial Toolkit test library.
+
+## Native Java-event covers and paint construction
+
+NSEvent coverEventForJavaEvent:inEnv: (54005354), isJavaEvent (540053c8),
+javaEvent (54005414), and releaseJavaEvent: (54005434) now use the donor's
+NSApplicationDefined/NSAWTEventType cover. data1 owns a JNI global reference;
+explicit release deletes it and clears the field. SyntheticEvent marks synthetic
+covers. makeWrappedPaintEvent (54006684) constructs a real PaintEvent from the
+peer's fJavaCounterpart and a Rectangle whose native floating-point coordinates
+are truncated toward zero, then wraps it for native event queuing.
+
+EventCover115 passes against donor and reconstruction: 40 cycles each of object
+identity and an otherwise unreferenced object surviving GC, null input, ordinary
+event rejection, and cleared handles after release. PaintCover115 also passes
+unchanged against both, checking 40 PAINT/UPDATE covers, source identity, fractional
+negative/positive coordinates and GC. Its harness allocates an original RCanvasPeer
+without invoking native Canvas creation; this isolates event construction. The
+donor requires Toolkit initialization to populate its cached JNI metadata.
+
+The reconstruction first failed with an unrecognized cover selector, then with an
+undefined makeWrappedPaintEvent. Both durable targets now pass, along with the
+original Toolkit startup/callback and screen-value regression checks. Event code
+is linked into the test-only AWT library; Canvas drawing, application event routing
+and native Frame construction remain unfinished.
