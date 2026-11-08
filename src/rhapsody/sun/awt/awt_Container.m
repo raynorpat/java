@@ -1,5 +1,8 @@
 /* DR2 libawt.A.dylib: AwtContainer 54004214--540044f4. */
 #import "awt_Container.h"
+#import "awt_Component.h"
+#import "awt_ThreadContext.h"
+#import "awt_Exception.h"
 
 static void rectPath(NSRect rect)
 {
@@ -11,7 +14,7 @@ static void rectPath(NSRect rect)
 }
 
 @implementation AwtContainer
-- (id)initWithPeer:(jobject)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor
 {
     _clipSubviews = NO;
     return [super initWithPeer:peer frame:frame enabled:enabled font:font
@@ -56,3 +59,27 @@ static void rectPath(NSRect rect)
 - (NSView *)lastJavaViewEntered { return _lastViewEntered; }
 - (void)setLastJavaViewEntered:(NSView *)view { _lastViewEntered = view; }
 @end
+
+/* 54013578--54013648: suppress redraws while Java lays out a container. */
+JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RContainerPeer_beginValidate(JNIEnv *env, jobject peer)
+{
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        [[viewFromPeer(env, peer) window] setAutodisplay:NO];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+}
+JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RContainerPeer_endValidate(JNIEnv *env, jobject peer)
+{
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        NSWindow *window = [viewFromPeer(env, peer) window];
+        [window setAutodisplay:YES];
+        [window setViewsNeedDisplay:YES];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+}

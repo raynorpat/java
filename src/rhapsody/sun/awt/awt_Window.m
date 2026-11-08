@@ -4,12 +4,38 @@
 #import "awt_Event.h"
 #import "awt_Exception.h"
 
+@interface NSWindow (AWTBorderAccess)
+- (id)_borderView;
+@end
+@interface NSView (AWTBorderResize)
+- (void)setIsResizable:(BOOL)resizable;
+@end
+
+/* 54010eb8: DR2 changes the border view's resize control, not the style mask. */
+@implementation NSWindow (AWTResize)
+/* 54010bf4: donor uses a fixed title when computing the native minimum. */
+- (NSSize)minimumSize
+{
+    unsigned int style = [self styleMask];
+    NSRect frame = [NSWindow frameRectForContentRect:NSMakeRect(0, 0, 0, 0) styleMask:style];
+    int width = (int)[NSWindow minFrameWidthWithTitle:@"Hi!" styleMask:style];
+    int height = (int)frame.size.height;
+    return NSMakeSize(width ? width : 10, height ? height : 10);
+}
+- (void)setResizable:(BOOL)resizable
+{
+    id border = [self _borderView];
+    [border setIsResizable:resizable];
+    [border setNeedsDisplay:YES];
+}
+@end
+
 @implementation AwtWindow
-- (id)commonInitWithPeer:(jobject)peer frame:(NSRect)frame enabled:(BOOL)enabled styleMask:(unsigned int)style contentView:(NSView *)view
+- (id)commonInitWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled styleMask:(int)style contentView:(NSView *)view
 {
     NSRect content = [NSWindow contentRectForFrameRect:frame styleMask:style];
     self = [super initWithContentRect:content styleMask:style backing:NSBackingStoreBuffered defer:YES];
-    _peer = peer;
+    _peer = (jobject)peer;
     [self setContentView:view];
     [view setBoundsOrigin:NSMakePoint(content.origin.x - frame.origin.x, NSMaxY(frame) - NSMaxY(content))];
     [self setDelegate:self];
@@ -19,11 +45,11 @@
     _isRealWindow = YES;
     return self;
 }
-- (id)initWithPeer:(jobject)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(NSView *)view
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(NSView *)view
 {
     return [self commonInitWithPeer:peer frame:frame enabled:enabled styleMask:0 contentView:view];
 }
-- (id)initWithPeer:(jobject)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(NSView *)view resizable:(BOOL)resizable title:(NSString *)title
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(NSView *)view resizable:(BOOL)resizable title:(NSString *)title
 {
     self = [self commonInitWithPeer:peer frame:frame enabled:enabled
         styleMask:resizable ? 15 : 7 contentView:view];
@@ -85,4 +111,16 @@
 - (void)windowDidBecomeKey:(NSNotification *)notification { [self postWindowEvent:205]; }
 - (void)windowDidResignKey:(NSNotification *)notification { [self postWindowEvent:206]; }
 - (BOOL)windowShouldClose:(id)sender { [self postWindowEvent:201]; return NO; }
+- (void)disposeAwtWindow
+{
+    NSView *view = [self contentView];
+    [self setDelegate:nil];
+    [self setReleasedWhenClosed:NO];
+    [self orderOut:nil];
+    [self close];
+    _peer = NULL;
+    /* Drop the original allocation references; the window also owns its view. */
+    [view release];
+    [self release];
+}
 @end

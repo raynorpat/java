@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 @interface NSView (ViewTest)
-- (id)initWithPeer:(void *)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(id)font backgroundColor:(id)background foregroundColor:(id)foreground cursor:(id)cursor;
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(id)font backgroundColor:(id)background foregroundColor:(id)foreground cursor:(id)cursor;
 - (id)awtBackgroundColor;
 - (id)awtForegroundColor;
 - (id)awtFont;
@@ -37,8 +37,8 @@ int main(void)
     [NSApplication sharedApplication];
     CHECK(viewClass != Nil);
     window = [[NSWindow alloc] initWithContentRect:rect styleMask:0 backing:NSBackingStoreBuffered defer:YES];
-    parent = [[viewClass alloc] initWithPeer:(void *)123 frame:rect enabled:YES font:[NSFont systemFontOfSize:12] backgroundColor:[NSColor redColor] foregroundColor:[NSColor blueColor] cursor:nil];
-    child = [[viewClass alloc] initWithPeer:(void *)456 frame:rect enabled:YES font:nil backgroundColor:nil foregroundColor:nil cursor:nil];
+    parent = [[viewClass alloc] initWithPeer:123 frame:rect enabled:YES font:[NSFont systemFontOfSize:12] backgroundColor:[NSColor redColor] foregroundColor:[NSColor blueColor] cursor:nil];
+    child = [[viewClass alloc] initWithPeer:456 frame:rect enabled:YES font:nil backgroundColor:nil foregroundColor:nil cursor:nil];
     CHECK(![child isAwtEnabled]);
     [window setContentView:parent];
     [parent addSubview:child];

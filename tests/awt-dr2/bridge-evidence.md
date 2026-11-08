@@ -368,3 +368,36 @@ These probes explicitly invoke native delegate callbacks and construct peers wit
 AllocObject. Java Frame peer construction, interactive window-manager events,
 focus/menu behavior, native disposal and normal application event routing remain
 unfinished; these checks do not stand in for those integration gates.
+
+## Original Frame peer integration and native disposal
+
+The original RFramePeer now creates AwtContainer/AwtWindow objects through the
+AppKit connection. RComponentPeer font/color setters, container validation redraw
+control, Frame title/resizability, and Window visibility/bounds/insets/location/
+ordering/disposal are connected. Window115 passes its three show/hide/resize/
+dispose cycles using the unchanged peer classes. The native minimum-size helper
+(54010bf4) uses the donor's fixed `Hi!` title; SmallFrame115 matches all ten donor
+geometry rows, including the Y shift when a short nonzero height is clamped.
+
+End-to-end construction exposed an ABI error that local probes could not: donor
+initWithPeer methods encode the JNI handle as `int` in Objective-C metadata.
+Encoding it as a pointer to `_jobject` makes NSConnection attempt pointer
+marshalling and leaves the caller waiting. Runtime method-type comparisons and
+an attached stack trace identified the failing constructor call. View, Container
+and Window constructors now transmit the integer value and store the JNI pointer
+locally; peer getters retain the donor's pointer return type.
+
+Ruling: disposal releases the window, its allocated content view and the owning
+JNI global peer reference instead of reproducing the donor's empty disposal
+scaffold. The phase requires repeated resource release. WindowLifetime115 proves
+the donor retains a native window after disposal; the reconstruction releases all
+five windows and views. Test-only Objective-C subclasses count initialization and
+deallocation, and the fixture checks actual native visibility through hide/show
+cycles. The compatibility cost is different lifetime behavior around disposal;
+callback-time disposal remains an explicit integration gate.
+
+Fresh check-window (normal lifetimes, native ownership and small-frame oracle),
+check-container-draw, check-window-state and check-window-callbacks all pass.
+The library remains test-only. Java paint/input event routing, focus/menu/widgets,
+constructor-failure cleanup and disposal during callbacks remain unfinished;
+these results do not establish full AWT acceptance or Java-source collectability.

@@ -38,10 +38,10 @@
 @end
 
 @implementation AwtView
-- (id)initWithPeer:(jobject)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor
 {
     self = [super initWithFrame:frame];
-    _peer = peer;
+    _peer = (jobject)peer;
     _awtEnabled = enabled;
     _font = [font retain];
     _backgroundColor = [background retain];

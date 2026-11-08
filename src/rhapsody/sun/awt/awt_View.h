@@ -26,7 +26,8 @@
     int _trackingRectTag;
     BOOL _wantsMouseMotionEvents;
 }
-- (id)initWithPeer:(jobject)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor;
+/* NSConnection must transmit the 32-bit JNI handle as a value, not a pointer. */
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor;
 - (jobject)peer;
 - (NSColor *)awtBackgroundColor;
 - (NSColor *)awtForegroundColor;

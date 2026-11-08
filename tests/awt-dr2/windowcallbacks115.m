@@ -5,8 +5,8 @@
 @interface NSObject (WindowCallbackTest)
 + (id)appkitProxy;
 - (JNIEnv *)appkitEnv;
-- (id)initWithPeer:(jobject)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(id)font backgroundColor:(id)background foregroundColor:(id)foreground cursor:(id)cursor;
-- (id)initWithPeer:(jobject)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(id)view resizable:(BOOL)resizable title:(id)title;
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(id)font backgroundColor:(id)background foregroundColor:(id)foreground cursor:(id)cursor;
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(id)view resizable:(BOOL)resizable title:(id)title;
 - (void)awtSetFrame:(NSRect)frame display:(BOOL)display;
 - (BOOL)isJavaEvent;
 - (jobject)javaEvent;
@@ -20,10 +20,10 @@
 + (int)exercisePeer:(int)peer kind:(int)kind
 {
     JNIEnv *env = [NSApp appkitEnv];
-    id view = [[NSClassFromString(@"AwtContainer") alloc] initWithPeer:(jobject)peer
+    id view = [[NSClassFromString(@"AwtContainer") alloc] initWithPeer:(int)peer
         frame:NSMakeRect(0, 0, 300, 180) enabled:YES font:nil
         backgroundColor:[NSColor redColor] foregroundColor:nil cursor:nil];
-    NSWindow *window = [[NSClassFromString(@"AwtWindow") alloc] initWithPeer:(jobject)peer
+    NSWindow *window = [[NSClassFromString(@"AwtWindow") alloc] initWithPeer:(int)peer
         frame:NSMakeRect(100, 120, 300, 180) enabled:YES contentView:view resizable:YES title:@"callbacks"];
     NSEvent *cover;
     jobject event;

@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 @interface NSObject (WindowStateTest)
-- (id)initWithPeer:(void *)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(id)font backgroundColor:(id)background foregroundColor:(id)foreground cursor:(id)cursor;
-- (id)initWithPeer:(void *)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(id)view;
-- (id)initWithPeer:(void *)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(id)view resizable:(BOOL)resizable title:(id)title;
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(id)font backgroundColor:(id)background foregroundColor:(id)foreground cursor:(id)cursor;
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(id)view;
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(id)view resizable:(BOOL)resizable title:(id)title;
 - (void *)peer;
 - (void)awtSetFrame:(NSRect)frame display:(BOOL)display;
 @end
@@ -36,13 +36,13 @@ int main(void)
         NSRect frame = NSMakeRect(100, 120, 300, 180);
         unsigned int style = mode == 0 ? 0 : mode == 1 ? 7 : 15;
         NSRect content = [NSWindow contentRectForFrameRect:frame styleMask:style];
-        NSView *view = [[viewClass alloc] initWithPeer:(void *)123 frame:NSMakeRect(0, 0, 300, 180)
+        NSView *view = [[viewClass alloc] initWithPeer:123 frame:NSMakeRect(0, 0, 300, 180)
             enabled:YES font:nil backgroundColor:[NSColor redColor] foregroundColor:nil cursor:nil];
         NSWindow *window;
         if (mode == 0)
-            window = [[windowClass alloc] initWithPeer:(void *)123 frame:frame enabled:YES contentView:view];
+            window = [[windowClass alloc] initWithPeer:123 frame:frame enabled:YES contentView:view];
         else
-            window = [[windowClass alloc] initWithPeer:(void *)123 frame:frame enabled:YES contentView:view
+            window = [[windowClass alloc] initWithPeer:123 frame:frame enabled:YES contentView:view
                 resizable:mode == 2 title:@"Native Frame"];
         CHECK([window peer] == (void *)123);
         CHECK(NSEqualRects([window frame], frame));

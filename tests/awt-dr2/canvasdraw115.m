@@ -6,7 +6,7 @@
 @interface NSObject (CanvasDrawTest)
 + (id)appkitProxy;
 - (JNIEnv *)appkitEnv;
-- (id)initWithPeer:(jobject)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(id)font backgroundColor:(id)background foregroundColor:(id)foreground cursor:(id)cursor;
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(id)font backgroundColor:(id)background foregroundColor:(id)foreground cursor:(id)cursor;
 - (BOOL)awtCanDraw;
 - (BOOL)awtLockFocus;
 - (void)awtUnlockFocus;
@@ -51,9 +51,9 @@ static int added, removed;
     NSColor *pixel;
     float red, green, blue, alpha;
     CHECK(canvasClass != Nil);
-    parent = [[NSClassFromString(@"AwtView") alloc] initWithPeer:(jobject)peer frame:bounds enabled:YES
+    parent = [[NSClassFromString(@"AwtView") alloc] initWithPeer:(int)peer frame:bounds enabled:YES
         font:nil backgroundColor:[NSColor greenColor] foregroundColor:nil cursor:nil];
-    child = [[canvasClass alloc] initWithPeer:(jobject)peer frame:bounds enabled:YES
+    child = [[canvasClass alloc] initWithPeer:(int)peer frame:bounds enabled:YES
         font:nil backgroundColor:[NSColor redColor] foregroundColor:nil cursor:nil];
     [parent addSubview:child];
     CHECK([child awtComponentGetsBackgroundFromItsContainer] == inherited);
@@ -62,7 +62,7 @@ static int added, removed;
     [child removeFromSuperview];
     [child release];
     [parent release];
-    canvas = [[canvasClass alloc] initWithPeer:(jobject)peer frame:bounds enabled:YES
+    canvas = [[canvasClass alloc] initWithPeer:(int)peer frame:bounds enabled:YES
         font:nil backgroundColor:[NSColor redColor] foregroundColor:[NSColor blackColor] cursor:nil];
     CHECK(![canvas awtCanDraw]);
     window = [[NSWindow alloc] initWithContentRect:NSMakeRect(100, 100, 80, 60)
