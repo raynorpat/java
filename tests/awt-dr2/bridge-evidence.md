@@ -881,3 +881,30 @@ undersized preferred geometry.
 Fresh native check-component-state, check-button and check-checkbox all pass
 with the rounding correction, including the fractional donor comparison and
 tracked button/checkbox callback disposal.
+
+### Phase 7 label checkpoint
+
+RLabelPeer createNativeLabel (5401731c), setText (54017574) and setAlignment
+(54017638) use AwtTextField's noneditable label constructor (5400dbec).
+The shared initializer is 5400db48; Java alignment conversion (5401f910,
+table 54026e3c) maps LEFT/CENTER/RIGHT to native 0/2/1. Labels disable
+editing, selection, borders and bezels; null text becomes an empty string.
+Color, font, cursor, inherited enabled state and mouse tracking follow the
+donor methods at 5400ded8 through 5400e604.
+
+Label115 passed on the donor, failed on the reconstruction's missing native
+constructor, and now passes with the three bindings implemented. It checks
+Unicode/null text, all alignments, font/color changes, preferred width,
+noneditable state, focus traversal, enable/hide/show and queued native mouse
+callbacks with reentry and GC. Reconstruction-only tracking additionally
+checks Java/native constructor failures and disposal inside mouse callbacks,
+requiring the native label count to return to zero after each lifetime.
+
+This is the label path only: editable text fields, the shared field editor and
+custom editing cell remain pending. The partial test library has 64 JNI entries;
+it is not installed as a complete AWT implementation.
+
+Fresh native check-label, check-component-state, check-button, check-checkbox,
+check-child-views, check-window, check-input, check-dispatch and check-toolkit
+all pass, including tracked constructor/callback cleanup and existing raster
+and window geometry fixtures.

@@ -16,6 +16,13 @@ NSString *javaToNSString(JNIEnv *env, jstring value)
     return result;
 }
 
+/* 5401f910 / table 54026e3c: Label LEFT/CENTER/RIGHT. */
+int javaToNSTextAlignment(int alignment)
+{
+    static const int mapping[] = {0, 2, 1};
+    return mapping[alignment];
+}
+
 NSColor *javaToNSColor(JNIEnv *env, jobject value)
 {
     jclass cls;

@@ -9,5 +9,6 @@ jstring nsToJavaString(JNIEnv *env, NSString *value);
 NSColor *javaToNSColor(JNIEnv *env, jobject value);
 NSFont *javaToNSFont(JNIEnv *env, jobject value);
 NSCursor *javaToNSCursor(JNIEnv *env, jobject value);
+int javaToNSTextAlignment(int alignment);
 
 #endif
