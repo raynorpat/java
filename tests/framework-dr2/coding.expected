@@ -1,0 +1,5 @@
+roundtrip=1
+identity=1
+nil=1
+invalid=java/io/NotSerializableException
+unknown=NSInternalInconsistencyException|ObjCJava: sorry, serializing ObjC objects from Java is not supported, yet.

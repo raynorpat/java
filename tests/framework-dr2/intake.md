@@ -288,3 +288,18 @@ NSIdToJavaHandle/NSJavaHandleToId functions accept explicitly registered
 identities and abort on an unmapped non-null object. General object wrapping
 remains unimplemented and is not implied by the mapped userInfo checks.
 Reconstructed loaded-image checks reject the donor JavaVM and ObjCJava images.
+
+## Key-value access and object coding
+
+`kvc-check.sh` compares donor and reconstructed accessors, inherited/private
+fields, primitive boxing, numeric string conversion, assignment compatibility,
+array/missing-key behavior and thrown exceptions. The getter method is the key
+itself; setters use `set` plus the capitalized key. Component conversions are
+limited to explicit string handling; general proxies are checked separately.
+
+`coding-check.sh` round-trips cyclic Serializable objects, shared references
+and nil through NSCoder and Java object streams. Donor and reconstructed
+archives compare byte-for-byte. Nonserializable Java objects and unsupported
+Objective-C serialization match the donor errors. Private NSCoder stream
+natives are bound explicitly during SerializeInitialization. Persistent coder
+maps and retained Java streams follow the donor's lack of teardown.
