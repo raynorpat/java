@@ -220,3 +220,24 @@ code in the reconstructed VM. The fixture supplies the dispatch implementations
 and a Java-backed test superclass; production NSJavaObject dispatch and ownership
 remain pending. Hybrid Objective-C/Java subclasses are outside this builder.
 Neither fixture is full framework startup or packaging acceptance.
+
+## Object identity registry
+
+`check-object-map.sh` compares 11 donor transcript lines for the two non-owning
+pointer maps. It checks both lookup directions, explicit retain/release flags,
+replacement without inverse-entry cleanup, one-sided removal, missing and nil
+lookups, and two native threads performing 2,000 map/lookup/remove cycles each.
+Table operations share a cthreads mutex; retain/release messages occur after
+unlocking, as in the donor. Initialization is separated from VM bootstrap and
+is idempotent so later startup can initialize both registries safely.
+
+The fixture uses opaque handle tokens: this proves registry semantics and
+Objective-C retain/release behavior, not Java GC rooting or proxy lifetime.
+Those remain part of the production NSJavaObject integration.
+
+Dispatch investigation: `MorphObjcArgumentsForJava` (0x53d060f4) rejects array
+arguments with NSInvalidArgumentException. Object arguments call
+`_BRIDGEConvertObjcArgToJava` (0x53d08a14); type-only mappings receive the input
+stack address and an output consumed-byte count, while ordinary references
+use NSIdToJavaHandle and consume four bytes. Primitive slots consume four bytes,
+except long/double at eight. This conversion layer is not yet implemented.
