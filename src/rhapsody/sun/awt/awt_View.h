@@ -6,6 +6,10 @@
 
 @interface NSView (AWTViewState)
 - (void)setFrame:(NSRect)frame display:(BOOL)display;
+- (NSSize)preferredSize;
+- (NSPoint)upperLeftInScreenCoords;
+- (BOOL)componentIsFocusTraversable;
+- (void)makeComponentTakeFocus;
 - (BOOL)isAwtEnabled;
 - (id)outermostJavaContainer;
 - (void)resignFirstResponderIfNecessary;

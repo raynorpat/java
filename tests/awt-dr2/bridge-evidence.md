@@ -755,3 +755,31 @@ Task 4 and Phase 7 remain incomplete.
 Fresh check-child-views, check-view, check-container-draw, check-window,
 check-input, check-keyboard, check-queue-read and check-handoff all pass in the
 native DR2 guest. The window group includes raster painting and failure cleanup.
+
+### Phase 7 shared component operations checkpoint
+
+Recovered RComponentPeer screen location (54012b40), preferred size (54012c60),
+focus requests (54012d40), focus traversability (54012e20), cursor changes
+(54012fc0), and native repaint invalidation (5401323c). Their shared NSView
+methods (5400f754--5400f850) use bounds size, flipped upper-left conversion to
+screen coordinates, acceptsFirstResponder, and window makeFirstResponder.
+Screen Y inversion follows the donor's visible-frame height (5401f8d4).
+Focus requests consult inherited enabled state before changing the responder.
+
+ComponentState115 passes on the donor; the reconstruction initially failed at
+missing getLocationOnScreen. The implemented group passes the same fixture:
+nested and moved child locations, preferred/minimum sizes before and after
+resize, enabled/disabled focus traversal and requests, all 14 cursor types,
+and native dirty-rectangle delivery. The repaint probe calls the base native
+method nonvirtually, since RCanvasPeer overrides repaintRect in Java, and checks
+invalidation atomically on the AppKit thread. Three complete window lifetimes
+include GC and toolkit synchronization. The standalone target enforces exact
+output and bounds the owned process lifetime.
+
+The partial AWT library now implements 55 JNI entries and remains test-only.
+These common operations do not complete widget, graphics, or demo acceptance;
+Phase 7 remains in progress.
+
+Fresh check-component-state, check-child-views, check-view, check-container-draw,
+check-window, check-input, check-keyboard, check-queue-read and check-handoff all
+pass in the native DR2 guest, with clean streamed output.

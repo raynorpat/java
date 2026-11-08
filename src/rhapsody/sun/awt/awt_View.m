@@ -17,6 +17,17 @@
 @end
 
 @implementation NSView (AWTViewState)
+/* 5400f754--5400f850: common geometry and responder operations. */
+- (NSSize)preferredSize { return [self bounds].size; }
+- (NSPoint)upperLeftInScreenCoords
+{
+    NSRect bounds = [self bounds];
+    NSPoint point = bounds.origin;
+    if (![self isFlipped]) point.y += bounds.size.height;
+    return [[self window] convertBaseToScreen:[self convertPoint:point toView:nil]];
+}
+- (BOOL)componentIsFocusTraversable { return [self acceptsFirstResponder]; }
+- (void)makeComponentTakeFocus { [[self window] makeFirstResponder:self]; }
 /* 5400f63c: scroll documents stay at the clip origin; invalidate old/new areas. */
 - (void)setFrame:(NSRect)frame display:(BOOL)display
 {

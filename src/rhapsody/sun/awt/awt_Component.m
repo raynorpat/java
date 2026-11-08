@@ -79,6 +79,96 @@ void setViewFromPeer(JNIEnv *env, jobject peer, AwtView *view)
 }
 id windowFromPeer(JNIEnv *env, jobject peer) { return [[viewFromPeer(env, peer) window] windowProxy]; }
 
+/* 54012b40/54012c60: return Java geometry from the AppKit view's values. */
+JNIEXPORT jobject JNICALL Java_com_apple_rhapsody_awt_RComponentPeer_getLocationOnScreen(JNIEnv *env, jobject peer)
+{
+    jobject result = NULL;
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        id view = viewFromPeer(env, peer);
+        NSPoint point = [view upperLeftInScreenCoords];
+        NSRect screen = [[[view window] screen] visibleFrame];
+        jclass cls = (*env)->FindClass(env, "java/awt/Point");
+        jmethodID ctor;
+        if (!cls) [AwtException raiseUsingEnv:env];
+        ctor = (*env)->GetMethodID(env, cls, "<init>", "(II)V");
+        if (!ctor) [AwtException raiseUsingEnv:env];
+        result = (*env)->NewObject(env, cls, ctor, (int)point.x, (int)(screen.size.height - point.y));
+        (*env)->DeleteLocalRef(env, cls);
+        if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+    return result;
+}
+JNIEXPORT jobject JNICALL Java_com_apple_rhapsody_awt_RComponentPeer_getPreferredSize(JNIEnv *env, jobject peer)
+{
+    jobject result = NULL;
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        NSSize size = [viewFromPeer(env, peer) preferredSize];
+        jclass cls = (*env)->FindClass(env, "java/awt/Dimension");
+        jmethodID ctor;
+        if (!cls) [AwtException raiseUsingEnv:env];
+        ctor = (*env)->GetMethodID(env, cls, "<init>", "(II)V");
+        if (!ctor) [AwtException raiseUsingEnv:env];
+        result = (*env)->NewObject(env, cls, ctor, (int)size.width, (int)size.height);
+        (*env)->DeleteLocalRef(env, cls);
+        if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+    return result;
+}
+/* 54012d40/54012e20: focus requests honor inherited enabled state. */
+JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RComponentPeer_requestFocus(JNIEnv *env, jobject peer)
+{
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        id view = viewFromPeer(env, peer);
+        if ([view isAwtEnabled]) [view makeComponentTakeFocus];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+}
+JNIEXPORT jboolean JNICALL Java_com_apple_rhapsody_awt_RComponentPeer_nIsFocusTraversable(JNIEnv *env, jobject peer)
+{
+    jboolean result = JNI_FALSE;
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        result = [viewFromPeer(env, peer) componentIsFocusTraversable];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+    return result;
+}
+/* 54012fc0/5401323c: cursor state and native dirty-rectangle delivery. */
+JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RComponentPeer_setCursor(JNIEnv *env, jobject peer, jobject cursor)
+{
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        [viewFromPeer(env, peer) awtSetCursor:javaToNSCursor(env, cursor)];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+}
+JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RComponentPeer_repaintRect(JNIEnv *env, jobject peer,
+    jint x, jint y, jint width, jint height)
+{
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        [viewFromPeer(env, peer) setNeedsDisplayInRect:NSMakeRect(x, y, width, height)];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+}
+
 /* 5401272c: visibility attaches/removes a child, rather than hiding its view. */
 JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RComponentPeer_setChildComponentVisible(JNIEnv *env, jobject peer, jobject childPeer, jboolean visible)
 {
