@@ -38,7 +38,7 @@ def windows():
 def controls(path):
     result = []
     if path.exists():
-        for line in path.read_text(errors="replace").splitlines():
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
             parts = line.split("\t")
             if len(parts) == 7:
                 entry = dict(type=parts[0], x=int(parts[1]), y=int(parts[2]),

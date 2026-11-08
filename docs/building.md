@@ -143,3 +143,42 @@ oracles. `vm-JCov115` checks Debug coverage generation and merging; Release acce
 and ignores the coverage option, as Sun did. Native writer tests cover compiler
 seeds and test bitmaps. The audit ledger and binary-evidence documents are under
 `docs/superpowers/plans/`.
+
+## Rhapsody DR2 Intel
+
+The native DR2 build uses Apple cc and GNU Make rather than CMake. On the host,
+package the audited original AppKit classes separately from the baseline archive:
+
+```sh
+python tools/rhapsody115-peers.py vendor/jdk1.1.5/lib/classes.zip vendor/rhapsody-dr2 out/dr2-peers
+```
+
+Stage repository text with LF endings and preserve binary vendor/archive bytes.
+Inside the private Intel guest, from the source root:
+
+```sh
+/bin/gnumake -f build/rhapsody.mk image
+/bin/gnumake -f build/rhapsody.mk check-types check-core check-libraries
+/bin/gnumake -f build/rhapsody.mk check-install INSTALL_DIR=/private/tmp/jdk115-installed
+/bin/gnumake -f build/rhapsody.mk check-installed-awt INSTALL_DIR=/private/tmp/jdk115-installed DESKTOP_PID=<Workspace-PID>
+```
+
+Use `DEBUG=1 BUILD=out/dr2-debug` for a separate Debug build. The image contains
+reconstructed native libraries and the original 1.1.5 classes.zip supplemented
+by rhapsody-peers.zip. Launchers select RToolkit and private libraries without
+changing the guest's JavaVM.framework. GUI tests launched over SSH use the
+logged-in Workspace bootstrap namespace through the test-only desktop-launch
+helper. See [guest setup and acceptance](../tests/awt-dr2/guest-build.md).
+
+Build the demo observer outside the installed image:
+
+```sh
+/bin/sh tests/awt-dr2/build-demo-helpers.sh /private/tmp/jdk115-installed out/dr2-demo-helpers
+```
+
+The host-side `tests/awt-dr2/demos.py --help` describes SSH, QMP, manifest, helper
+and output arguments. Use the shared 81-case demo inventory described above,
+original demo files, and a private QEMU guest. Inspect each client capture as well
+as the recorded interactions and cleanup. The SoundKit device is unavailable in
+the current test guest; controlled conversion/retry tests verify native audio
+behavior, but physical playback is not established.

@@ -1,4 +1,4 @@
-# Native DR2 build checkpoint
+# Native DR2 build and verification
 
 Use the private Intel snapshot described in intake.md. Stage the source tree with
 LF line endings, preserving binary fixtures and dependency bytes. The old Apple
@@ -20,8 +20,8 @@ mkdir -p "$JAVA_HOME/tests/selfhost"
 
 This builds the reconstructed core dylib, java, javah and the Java-class tool launchers
 with Apple cc-771.4/GCC 2.7.2.1 and GNU Make 3.74. Outputs remain under out/dr2;
-nothing is installed in JavaVM.framework. This is not yet a complete JDK image:
-JRE startup/installation, audio, AppKit, and full acceptance remain pending.
+nothing is installed in JavaVM.framework. JRE, AppKit and SoundKit audio are now
+included in the private image; full demo acceptance and final review remain pending.
 
 The Makefile uses `-traditional-cpp` to avoid cpp-precomp's crash on jni.c and
 incorrect parsing of check_code.c, and `-fno-common` because the DR2 dylib linker
@@ -116,7 +116,7 @@ boundary; core fixtures still pass with the fallback removed.
 Dependency ruling: the DR2 mmedia donor uses SoundKit objects through AppKit's
 NativeMethodEnter/Exit bridge. Recover audio after the Task 3 bridge rather than
 forcing it into the console-only portion of Task 2. Audio remains required for
-Phase 7 acceptance; there is no temporary audio implementation in this image.
+Phase 7 acceptance; the recovered backend and its checks are described below.
 
 ## Private installation and JRE
 
@@ -187,3 +187,33 @@ The relocated console/JRE/javah gate and check-core/check-libraries also pass.
 The sound-device probe returns -1 on this guest, matching the donor; controlled
 SoundKit conversion and JNI failure/retry tests pass, but audible playback has
 not been established.
+
+## Demo acceptance runner
+
+The installed-image runner is `tests/awt-dr2/demos.py`. It consumes the same
+81-case inventory as Windows and Linux. The helper invokes unchanged demo mains
+or the existing AppletViewer helper; it does not rewrite demo classes or disable
+AppletViewer security. Because RToolkit does not populate SunToolkit.peerMap,
+DR2DemoObserver115 enumerates AppKit's Java windows through a test-only native
+probe, then uses the shared public-component snapshot format. The probe posts
+AppKit mouse events and invokes native window activation/resize/close; keyboard
+input comes through the private VM's QMP connection. QMP also captures the desktop
+with each client raised for inspection. The runner verifies the QEMU guest name
+before sending input. Authenticate through SSH config/agent/askpass, never a
+password argument.
+
+Compile DR2DemoObserver115.java, tests/awt118/DemoObserver115.java and
+WinAwtDemoApplet115.java into a private helper directory with the reconstructed
+javac. Build demoprobe115.m as a dynamic library linked to the reconstructed
+AppKit library and system AppKit/Foundation. Supply that directory as --helpers.
+The Animator pilot checks changing image pixels before input, stable pixels after
+pause, native interaction, screenshots and clean window closure. Full matrix
+acceptance and visual review are still pending.
+
+DR2 acceptance uses bounded waits of up to two minutes for initial and nested
+windows, thirty seconds for native command acknowledgement, and ten seconds for
+asynchronous application exit after closing. The Collate demo constructs and
+formats its Unicode collation tables in the event callback; a native stack capture
+showed active String construction when the earlier thirty-second window timeout
+expired. Waiting for completion preserves the unchanged demo and its functional
+choice/closure assertions. It does not require a runtime workaround.
