@@ -1,5 +1,8 @@
 /* DR2 libawt.A.dylib: AwtView state at 5400ed94--5400f51c. */
 #import "awt_View.h"
+#import "awt_Event.h"
+#import "awt_Application.h"
+#import "awt_Exception.h"
 
 /* 54010b20: hitTest accepts coordinates in the content view's superview. */
 @implementation NSWindow (AWTViewTracking)
@@ -33,6 +36,55 @@
     if ([responder isKindOfClass:[NSView class]] && [responder isDescendantOf:self])
         [window makeFirstResponder:[window contentView]];
 }
+/* 5400fd10: old-event components always request motion; new-event
+ * components need an enabled mask, listener, or lightweight dispatcher. */
+- (void)updateMouseMotionEventStatus
+{
+    JNIEnv *env = [NSApp appkitEnv];
+    jobject source = javaComponentForView(env, self), listener = NULL;
+    jclass cls = (*env)->FindClass(env, "java/awt/Component");
+    jfieldID field;
+    BOOL wants = YES;
+    jlong mask;
+    if (!cls) [AwtException raiseUsingEnv:env];
+    field = (*env)->GetFieldID(env, cls, "newEventsOnly", "Z");
+    if (!field) [AwtException raiseUsingEnv:env];
+    if ((*env)->GetBooleanField(env, source, field)) {
+        field = (*env)->GetFieldID(env, cls, "eventMask", "J");
+        if (!field) [AwtException raiseUsingEnv:env];
+        mask = (*env)->GetLongField(env, source, field);
+        field = (*env)->GetFieldID(env, cls, "mouseMotionListener", "Ljava/awt/event/MouseMotionListener;");
+        if (!field) [AwtException raiseUsingEnv:env];
+        listener = (*env)->GetObjectField(env, source, field);
+        (*env)->DeleteLocalRef(env, cls);
+        cls = (*env)->FindClass(env, "java/awt/Container");
+        if (!cls) [AwtException raiseUsingEnv:env];
+        if (!listener && (*env)->IsInstanceOf(env, source, cls)) {
+            field = (*env)->GetFieldID(env, cls, "dispatcher", "Ljava/awt/LightweightDispatcher;");
+            if (!field) [AwtException raiseUsingEnv:env];
+            listener = (*env)->GetObjectField(env, source, field);
+        }
+        wants = (mask & 0x20) != 0 || listener != NULL;
+    }
+    (*env)->DeleteLocalRef(env, listener);
+    (*env)->DeleteLocalRef(env, source);
+    (*env)->DeleteLocalRef(env, cls);
+    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    [(AwtView *)self setWantsMouseMotionEvents:wants];
+    [[self window] setAcceptsMouseMovedEvents:wants];
+}
+/* Mouse portion of 5400fbe8; key-typed synthesis is recovered with keyboard input. */
+- (void)sendAdditionalJavaEventsFor:(NSEvent *)event
+{
+    int type = [event type];
+    if (type == NSLeftMouseUp && [event clickCount]) {
+        JNIEnv *env = [NSApp appkitEnv];
+        jobject clicked = makeMouseClickedEvent(env, event, self);
+        [NSApp dispatchJavaEvent:clicked isLocalRef:YES];
+        (*env)->DeleteLocalRef(env, clicked);
+    } else if (type == NSLeftMouseDown || type == NSRightMouseDown)
+        [self updateMouseMotionEventStatus];
+}
 - (void)awtContainerChangedBackground { }
 - (BOOL)dispatchesAwtEventsOfType:(int)type { return NO; }
 @end
@@ -58,6 +110,7 @@
     [super dealloc];
 }
 - (jobject)peer { return _peer; }
+- (void)clearPeer { _peer = NULL; }
 - (NSColor *)awtBackgroundColor
 {
     if (!_backgroundColor && [[self superview] isKindOfClass:[AwtView class]])

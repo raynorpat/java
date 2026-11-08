@@ -3,8 +3,14 @@
 #import "awt_Dispatcher.h"
 #import "awt_Exception.h"
 #import "awt_Event.h"
+#import "awt_View.h"
 #import <objc/objc-class.h>
 #import <objc/objc-runtime.h>
+
+@interface NSWindow (AWTInputTracking)
+- (NSView *)_lastLeftHit;
+- (NSView *)_lastRightHit;
+@end
 
 static JNIEnv *appkitEnv;
 static NSThread *appkitThread;
@@ -84,7 +90,35 @@ static IMP originalApplicationMethod(SEL selector)
 /* 54002c58: a queued Java cover never reaches native sendEvent:. */
 - (NSEvent *)sendNSEventThroughJava:(NSEvent *)event
 {
-    if (![event isJavaEvent]) return event;
+    if (![event isJavaEvent]) {
+        int type = [event type];
+        NSView *target;
+        jobject source, converted;
+        BOOL consumed = NO;
+        /* Keyboard conversion is a separate remaining binding group. */
+        if (type < NSLeftMouseDown || type > NSRightMouseDragged) return event;
+        target = [self findAwtTargetForEvent:event];
+        if (!target || ![target dispatchesAwtEventsOfType:type] || ![(AwtView *)target peer]) return event;
+        source = javaComponentForView(appkitEnv, target);
+        converted = nsMouseEventToJavaEvent(appkitEnv, event, source, target);
+        (*appkitEnv)->DeleteLocalRef(appkitEnv, source);
+        if (!converted) return event;
+        [target retain];
+        NS_DURING
+            consumed = [self dispatchJavaEvent:converted isLocalRef:YES];
+            /* Native tracking must still receive button-down events. */
+            if (type == NSLeftMouseDown || type == NSRightMouseDown) consumed = NO;
+            if (![(AwtView *)target peer] || ![target window]) consumed = YES;
+            if (!consumed) [target sendAdditionalJavaEventsFor:event];
+        NS_HANDLER
+            (*appkitEnv)->DeleteLocalRef(appkitEnv, converted);
+            [target release];
+            [localException raise];
+        NS_ENDHANDLER
+        (*appkitEnv)->DeleteLocalRef(appkitEnv, converted);
+        [target release];
+        return consumed ? nil : event;
+    }
     NS_DURING
         [self dispatchJavaEvent:[event javaEvent] isLocalRef:NO];
     NS_HANDLER
@@ -95,6 +129,21 @@ static IMP originalApplicationMethod(SEL selector)
     return nil;
 }
 
+/* 54002998: mouse releases and drags follow AppKit's captured down target. */
+- (id)findAwtTargetForEvent:(NSEvent *)event
+{
+    NSWindow *modal = [self modalWindow];
+    if (modal && [event window] != modal) return nil;
+    switch ([event type]) {
+        case NSLeftMouseDown: case NSRightMouseDown: case NSMouseMoved:
+            return [[event window] deepestViewUnderLocation:[event locationInWindow]
+                dispatchingEventsOfType:[event type]];
+        case NSLeftMouseUp: case NSLeftMouseDragged: return [[event window] _lastLeftHit];
+        case NSRightMouseUp: case NSRightMouseDragged: return [[event window] _lastRightHit];
+        case NSKeyDown: case NSKeyUp: case NSFlagsChanged: return [[self keyWindow] firstResponder];
+        default: return nil;
+    }
+}
 - (id)proxyForClassByName:(NSString *)name
 {
     return objc_getClass([name cString]);

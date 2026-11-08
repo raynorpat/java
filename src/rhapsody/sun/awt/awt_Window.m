@@ -1,5 +1,6 @@
 /* DR2 libawt.A.dylib: AwtWindow construction at 5401008c--5401037c. */
 #import "awt_Window.h"
+#import "awt_View.h"
 #import "awt_Application.h"
 #import "awt_Event.h"
 #import "awt_Exception.h"
@@ -114,6 +115,7 @@
 + (void)discardWindow:(AwtWindow *)window view:(int)view
 {
     [window setDelegate:nil];
+    [(AwtView *)view clearPeer];
     if ([window contentView]) {
         [window setReleasedWhenClosed:NO];
         [window orderOut:nil];

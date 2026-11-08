@@ -348,7 +348,7 @@ check-native-entry: image $(BUILD)/tests/libnativeentry115.dylib $(BUILD)/tests/
 	/bin/sh tests/awt-dr2/check-native-entry.sh "$(BUILD)" "$(DESKTOP_PID)"
 
 AWT_DISPATCH_SOURCES = src/rhapsody/sun/awt/awt_Application.m src/rhapsody/sun/awt/awt_Dispatcher.m src/rhapsody/sun/awt/awt_Proxy.m src/rhapsody/sun/awt/awt_DispatchHandler.m src/rhapsody/sun/awt/awt_Exception.m src/rhapsody/sun/awt/awt_Event.m
-AWT_DISPATCH_HEADERS = src/rhapsody/sun/awt/awt_Application.h src/rhapsody/sun/awt/awt_Dispatcher.h src/rhapsody/sun/awt/awt_DispatchHandler.h src/rhapsody/sun/awt/awt_Exception.h src/rhapsody/sun/awt/awt_Event.h
+AWT_DISPATCH_HEADERS = src/rhapsody/sun/awt/awt_View.h src/rhapsody/sun/awt/awt_Application.h src/rhapsody/sun/awt/awt_Dispatcher.h src/rhapsody/sun/awt/awt_DispatchHandler.h src/rhapsody/sun/awt/awt_Exception.h src/rhapsody/sun/awt/awt_Event.h
 
 $(BUILD)/tests/handoff: tests/awt-dr2/handoff115.m $(AWT_DISPATCH_SOURCES) $(AWT_DISPATCH_HEADERS) $(BUILD)/lib/libjavai.dylib
 	mkdir -p $(@D)
@@ -464,3 +464,17 @@ $(BUILD)/tests/toolkit/libraster115.dylib: tests/awt-dr2/raster115.m $(BUILD)/te
 .PHONY: check-window
 check-window: $(BUILD)/tests/toolkit/libraster115.dylib image $(BUILD)/tests/toolkit/libwindowlifetime115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-window.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libmousevalues115.dylib: tests/awt-dr2/mousevalues115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/mousevalues115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-mouse-values
+check-mouse-values: image $(BUILD)/tests/toolkit/libmousevalues115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-mouse-values.sh "$(BUILD)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libinput115.dylib: tests/awt-dr2/input115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/input115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-input
+check-input: image $(BUILD)/tests/toolkit/libinput115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-input.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

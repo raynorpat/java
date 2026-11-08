@@ -18,6 +18,7 @@
 - (BOOL)inAppkitThread;
 - (JNIEnv *)appkitEnv;
 - (BOOL)dispatchJavaEvent:(jobject)event isLocalRef:(BOOL)local;
+- (id)findAwtTargetForEvent:(NSEvent *)event;
 - (NSEvent *)sendNSEventThroughJava:(NSEvent *)event;
 @end
 

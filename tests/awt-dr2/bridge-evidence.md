@@ -500,3 +500,44 @@ Task 4 event routing exposes paint callbacks immediately. This changes execution
 order, not the remaining acceptance requirements. Lines, text, XOR, shapes,
 images, printing, synthetic input and native input translation are still pending.
 The partial library remains confined to tests; this is not full AWT acceptance.
+
+
+### Native mouse conversion and dispatch
+
+The mouse path now follows donor conversion 5400625c, modifiers 54005478/54005cc0,
+target selection 54002998, click synthesis 54006424, and the mouse portions of
+54002c58/5400fbe8. Press and motion use the deepest eligible view; drag and release
+use AppKit's captured _lastLeftHit/_lastRightHit. Consuming a press must not prevent
+native capture, while consuming a release suppresses the derived Java click.
+Motion subscription follows 5400fd10: old-event components always request motion;
+new-event components require the motion mask, a listener, or a lightweight
+container dispatcher. The native window's motion flag follows that result.
+
+MouseValues115 checks 144 event-type/modifier/hit combinations against both donor
+and reconstruction. It uses real NSEvents and a controlled conversion-view object
+to isolate the converter: negative fractional coordinates truncate toward zero,
+Java wall-clock time replaces NSEvent uptime, right-button events add Meta,
+right-button press alone is a popup trigger, and both enter/exit notifications
+use a fresh hit test to select their Java event ID. Native window hit testing is
+covered separately, not claimed by this controlled-view fixture.
+
+Input115 posts a native press/drag/release sequence into the real AppKit queue of
+a Java Frame. Both donor and reconstruction pass listener/source/coordinate/
+modifier checks, callback GC and AppKit re-entry, native tracking after a consumed
+press, and suppression of the click after a consumed release. The harness first
+activates the application: without activation DR2 treats the first click as an
+activation click and does not capture its later drag/release.
+
+The reconstruction-only `dispose` case initially exposed stale Java input after
+Frame disposal inside mousePressed. AwtWindow cleanup now clears the view's
+borrowed JNI peer handle before releasing its owner. Dispatch retains the target
+across Java callbacks and checks that handle before conversion and before derived
+events. The case now passes with a cleared Java peer and no later drag/release
+callbacks. This continues the earlier resource-release ruling rather than
+reproducing the donor's empty native disposal entry.
+
+Fresh check-input, check-mouse-values, check-toolkit, check-window, check-handoff
+and check-dispatch pass. Hover enter/exit delivery, initial motion subscription
+before the first press, keyboard/focus translation, synthetic input and remaining
+widgets are still incomplete; this checkpoint does not establish full input
+acceptance. The partial library remains confined to tests.

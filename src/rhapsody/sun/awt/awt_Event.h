@@ -10,10 +10,16 @@
 - (jobject)javaEvent;
 - (void)releaseJavaEvent:(JNIEnv *)env;
 - (BOOL)isSynthetic;
+- (int)javaModifiers;
 @end
 
 @interface SyntheticEvent : NSEvent
 @end
+
+int nsModifiersToJava(int flags);
+jobject javaComponentForView(JNIEnv *env, id view);
+jobject makeMouseClickedEvent(JNIEnv *env, NSEvent *event, id view);
+jobject nsMouseEventToJavaEvent(JNIEnv *env, NSEvent *event, jobject source, id view);
 
 NSEvent *makeWrappedPaintEvent(JNIEnv *env, id view, int type, NSRect rect);
 NSEvent *makeWrappedWindowEvent(JNIEnv *env, id window, int type);
