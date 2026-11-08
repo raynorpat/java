@@ -13,6 +13,7 @@
 - (id)init:(JNIEnv *)env exceptionName:(const char *)name reason:(const char *)reason;
 + (void)throwToJava:(JNIEnv *)env exception:(NSException *)exception;
 - (jthrowable)javaException;
+- (int)javaExceptionHandle;
 - (void)raiseToJava:(JNIEnv *)env;
 @end
 

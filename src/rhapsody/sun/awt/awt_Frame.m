@@ -16,7 +16,9 @@ JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RFramePeer_createNativeFrame(
     jint x, jint y, jint width, jint height, jboolean enabled, jboolean visible,
     jobject font, jobject background, jobject foreground, jobject cursor, jstring title, jboolean resizable)
 {
-    AwtContainer *view = nil;
+    AwtContainer *volatile view = nil;
+    jobject volatile globalPeer = NULL;
+    id volatile window = nil;
     AwtAutoreleasePool *pool = NativeMethodEnter(env);
     NS_DURING
         NSRect screen = [[[NSScreen appkitProxy] mainScreen] visibleFrame];
@@ -27,9 +29,8 @@ JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RFramePeer_createNativeFrame(
         NSColor *nativeForeground = javaToNSColor(env, foreground);
         NSCursor *nativeCursor = javaToNSCursor(env, cursor);
         NSString *nativeTitle = javaToNSString(env, title);
-        jobject globalPeer = (*env)->NewGlobalRef(env, peer);
-        id window;
         NSSize minimum;
+        globalPeer = (*env)->NewGlobalRef(env, peer);
         if (!globalPeer) [AwtException raiseUsingEnv:env];
         view = [AwtContainer alloc];
         [[view appkitProxy] initWithPeer:(int)globalPeer frame:frame enabled:enabled
@@ -52,6 +53,9 @@ JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RFramePeer_createNativeFrame(
         if (!view || !window)
             [AwtException raise:env exceptionName:"java/lang/OutOfMemoryError" reason:"Cannot allocate AwtContainer/AwtWindow"];
     NS_HANDLER
+        [[AwtWindow appkitProxy] discardWindow:window view:(int)view];
+        if (globalPeer) (*env)->DeleteGlobalRef(env, globalPeer);
+        view = nil;
         [AwtException throwToJava:env exception:localException];
     NS_ENDHANDLER
     if (pool) NativeMethodExit(env, pool);

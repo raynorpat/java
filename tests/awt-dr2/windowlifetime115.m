@@ -3,6 +3,25 @@
 #import "../../src/rhapsody/sun/awt/awt_Container.h"
 static volatile int liveWindows;
 static volatile int liveViews;
+static int failStage;
+static volatile int liveThrowables;
+/* Private owner's layout is needed by DR2's fragile Objective-C ABI. */
+@interface AwtThrowableReference : NSObject {
+    JavaVM *_vm;
+    jthrowable _throwable;
+}
+@end
+@interface ThrowableLifetimeProbe : AwtThrowableReference
+@end
+@implementation ThrowableLifetimeProbe
++ (id)allocWithZone:(NSZone *)zone
+{
+    id owner = [super allocWithZone:zone];
+    if (owner) liveThrowables++;
+    return owner;
+}
+- (void)dealloc { liveThrowables--; [super dealloc]; }
+@end
 @interface ContainerLifetimeProbe : AwtContainer
 @end
 @implementation ContainerLifetimeProbe
@@ -11,6 +30,13 @@ static volatile int liveViews;
     id view = [super allocWithZone:zone];
     if (view) liveViews++;
     return view;
+}
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor
+{
+    self = [super initWithPeer:peer frame:frame enabled:enabled font:font
+        backgroundColor:background foregroundColor:foreground cursor:cursor];
+    if (failStage == 1) [NSException raise:NSInvalidArgumentException format:@"view construction failure"];
+    return self;
 }
 - (void)dealloc { liveViews--; [super dealloc]; }
 @end
@@ -31,12 +57,14 @@ static volatile int liveViews;
 {
     self = [super commonInitWithPeer:peer frame:frame enabled:enabled styleMask:style contentView:view];
     if (self) liveWindows++;
+    if (failStage == 2) [NSException raise:NSInvalidArgumentException format:@"window construction failure"];
     return self;
 }
 - (void)dealloc { liveWindows--; [super dealloc]; }
 @end
 JNIEXPORT void JNICALL Java_WindowLifetime115_installTracker(JNIEnv *env, jclass cls)
 {
+    [ThrowableLifetimeProbe poseAsClass:[AwtThrowableReference class]];
     [WindowLifetimeProbe poseAsClass:[AwtWindow class]];
     [ContainerLifetimeProbe poseAsClass:[AwtContainer class]];
 }
@@ -54,4 +82,14 @@ JNIEXPORT jint JNICALL Java_WindowLifetime115_visibleWindows(JNIEnv *env, jclass
     int count = [[WindowLifetimeProbe appkitProxy] visibleWindows];
     [pool release];
     return count;
+}
+
+JNIEXPORT jint JNICALL Java_WindowLifetime115_liveThrowables(JNIEnv *env, jclass cls)
+{
+    return liveThrowables;
+}
+
+JNIEXPORT void JNICALL Java_WindowLifetime115_failAt(JNIEnv *env, jclass cls, jint stage)
+{
+    failStage = stage;
 }

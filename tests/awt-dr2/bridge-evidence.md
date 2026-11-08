@@ -420,3 +420,37 @@ a null throwable. Foundation's NSException coder (425738d4/42573928) serializes
 only name, reason and userInfo; AwtException has no coder override for its Java
 throwable ivar. Cross-connection exception transport and cleanup after native
 window allocation remain open. This checkpoint does not claim those paths pass.
+
+
+### Cross-connection exceptions and Frame rollback
+
+The late construction crash above is now fixed. Foundation copies NSException
+name, reason and userInfo, but does not preserve AwtException's added ivar.
+Furthermore, a JNI local reference belongs to its originating thread. The
+reconstruction now puts a reference-owning object in userInfo: that object crosses
+NSConnection by reference and owns a JNI global throwable root. The receiver
+retrieves the integer handle and calls Throw with its own JNIEnv. The root is
+released when the final owner is destroyed. The exception itself still crosses
+by value: making it remote causes DR2 NSConnection to recursively forward raise.
+
+Frame construction keeps volatile ownership variables across NS_DURING's
+setjmp/longjmp boundary. On failure, an AppKit-thread helper releases the allocated
+view and window, and the JNI entry releases its global peer. Normal disposal uses
+the same native cleanup helper.
+
+WindowLifetime115 now checks five repetitions of four failure points: a Java
+Font accessor, native view initialization, native window initialization, and a
+Java setBounds callback during minimum-size adjustment. Each must preserve or
+translate the exception as appropriate, leave no installed Java peer, and return
+native window/view/throwable-owner counts to zero. Five normal visible window
+lifetimes follow. The owner tracker is reconstruction-specific; this expanded
+fixture is not a donor compatibility comparison.
+
+Fresh check-exceptions (java and jre, including Foundation thread teardown),
+check-window, check-container-draw, check-window-state and check-window-callbacks
+all pass. The small-frame geometry still matches the ten donor rows exactly.
+Ruling: retain throwables safely across the connection rather than reproduce the
+donor's uncoded subclass field. This adds internal reference ownership and
+userInfo state; it preserves Java exception identity and avoids the crash.
+This does not yet prove complete Java-source collectability or safe disposal
+inside delivered user event callbacks; normal event routing remains unfinished.

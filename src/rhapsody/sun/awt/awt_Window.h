@@ -17,6 +17,7 @@
 - (void)awtSetFrame:(NSRect)frame display:(BOOL)display;
 - (void)notifyJavaFrameChanged;
 - (void)postWindowEvent:(int)type;
++ (void)discardWindow:(AwtWindow *)window view:(int)view;
 - (void)disposeAwtWindow;
 @end
 

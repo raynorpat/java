@@ -111,16 +111,21 @@
 - (void)windowDidBecomeKey:(NSNotification *)notification { [self postWindowEvent:205]; }
 - (void)windowDidResignKey:(NSNotification *)notification { [self postWindowEvent:206]; }
 - (BOOL)windowShouldClose:(id)sender { [self postWindowEvent:201]; return NO; }
++ (void)discardWindow:(AwtWindow *)window view:(int)view
+{
+    [window setDelegate:nil];
+    if ([window contentView]) {
+        [window setReleasedWhenClosed:NO];
+        [window orderOut:nil];
+        [window close];
+    }
+    if (window) window->_peer = NULL;
+    /* This runs on AppKit, including rollback of a partial construction. */
+    [(NSView *)view release];
+    [window release];
+}
 - (void)disposeAwtWindow
 {
-    NSView *view = [self contentView];
-    [self setDelegate:nil];
-    [self setReleasedWhenClosed:NO];
-    [self orderOut:nil];
-    [self close];
-    _peer = NULL;
-    /* Drop the original allocation references; the window also owns its view. */
-    [view release];
-    [self release];
+    [AwtWindow discardWindow:self view:(int)[self contentView]];
 }
 @end
