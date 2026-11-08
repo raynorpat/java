@@ -32,6 +32,18 @@
 @end
 static DispatchProbe *probe;
 
+JNIEXPORT jboolean JNICALL Java_ToolkitStartup115_dispatch(JNIEnv *env, jclass cls, jobject event)
+{
+    id pool = [[NSAutoreleasePool alloc] init];
+    jobject global = (*env)->NewGlobalRef(env, event);
+    BOOL result;
+    if (!probe) probe = [DispatchProbe new];
+    result = [[probe appkitProxy] dispatchAddress:(int)global];
+    (*env)->DeleteGlobalRef(env, global);
+    [pool release];
+    return result;
+}
+
 JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_Dispatcher115_menu(JNIEnv *env, jclass cls, jobject peer)
 {
     id pool = [[NSAutoreleasePool alloc] init];

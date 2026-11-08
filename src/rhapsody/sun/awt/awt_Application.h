@@ -4,6 +4,10 @@
 #import <AppKit/AppKit.h>
 #include "jni.h"
 
+@interface AwtApplication : NSApplication
++ (id)sharedApplicationUsingEnv:(JNIEnv *)env awtToolkit:(jobject)toolkit;
+@end
+
 @interface NSApplication (AWTAdditions)
 - (id)proxyForClassByName:(NSString *)name;
 - (id)proxyForObjectByAddress:(int)address;

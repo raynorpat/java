@@ -159,3 +159,37 @@ or installed image. This isolates the native dispatcher from unfinished Toolkit
 startup. It does not establish real-peer dispatch, uncaught Java callback behavior,
 worker termination, UI disposal, or full Toolkit acceptance. Those remain gates
 for subsequent integration work; no complete AWT image is installed yet.
+
+## Original Toolkit startup boundary
+
+AwtApplication sharedApplicationUsingEnv:awtToolkit: and finishLaunching follow
+54003200/5400323c. The blocking RToolkit.run JNI frame roots the toolkit while
+AppKit runs; finishLaunching establishes the application connection and invokes
+the original peer's notifyRunning method. RToolkit startup entries follow
+5401babc--5401bca4, including the genuinely empty initialize entry. No synthesized
+Toolkit Java class is used by this test.
+
+All nine RToolkit JNI entries are present in the native test dylib: initialize,
+run, appkitIsRunning, tellAppkitAboutAwtToolkit, nDefaultBackgroundColor,
+getScreenSize, getScreenResolution, sync and beep. IDA inspection of the freshly
+built artifact found exactly these nine Java native functions (SHA-256
+85671ff7adff1c5c44ed657c340b28ecd3d2c9bc38e7498d4c46267be7603bd9).
+Screen size uses the donor's visibleFrame and upward rounding, resolution uses
+NSDeviceResolution's width, and controlColor is converted through the device RGB
+space into Color(float,float,float). In the current 800x600 desktop both donor
+and reconstruction report 800x580, 72 dpi, and RGB 221,221,221. sync and beep
+return normally; this does not establish the separate sampled-audio gate.
+
+`make -f build/rhapsody.mk check-toolkit DESKTOP_PID=<Workspace PID>` uses the
+unchanged peer archive and baseline classes.zip. It verifies startup and toolkit
+identity, then dispatches 20 mouse events through the original RToolkit callback
+into a Component, checks consumption, performs GC, and re-enters AppKit for screen
+size. It passes against the donor too. An initial ActionEvent fixture produced
+zero callbacks on both runtimes because generic Component does not deliver those
+events; the corrected fixture uses an enabled mouse-event mask.
+
+The reconstruction first failed at missing initialize, then getScreenSize, before
+those functions were implemented. The test-only library remains under tests/toolkit;
+no partial AWT library is installed. Private fixtures now exit explicitly on Java
+failure and the durable runner bounds each process to 30 seconds. Dispatcher and
+four-mode handoff regressions pass after integrating AwtApplication.

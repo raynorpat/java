@@ -1,12 +1,39 @@
 /* DR2 libawt.A.dylib: 54002828, 54002858, 54002f6c--54003080. */
 #import "awt_Application.h"
 #import "awt_Dispatcher.h"
+#import "awt_Exception.h"
 #import <objc/objc-runtime.h>
 
 static JNIEnv *appkitEnv;
 static NSThread *appkitThread;
 static NSConnection *kitConnection;
 static NSString *portName;
+/* The blocking RToolkit.run JNI frame keeps this local reference alive. */
+static jobject awtToolkit;
+
+@implementation AwtApplication
++ (id)sharedApplicationUsingEnv:(JNIEnv *)env awtToolkit:(jobject)toolkit
+{
+    id application = [self sharedApplication];
+    appkitEnv = env;
+    awtToolkit = toolkit;
+    return application;
+}
+- (void)finishLaunching
+{
+    jclass cls;
+    jmethodID notify;
+    [super finishLaunching];
+    [self commonAwtInitialization];
+    cls = (*appkitEnv)->FindClass(appkitEnv, "com/apple/rhapsody/awt/RToolkit");
+    if (!cls) [AwtException raiseUsingEnv:appkitEnv];
+    notify = (*appkitEnv)->GetMethodID(appkitEnv, cls, "notifyRunning", "()V");
+    if (!notify) [AwtException raiseUsingEnv:appkitEnv];
+    (*appkitEnv)->CallVoidMethod(appkitEnv, awtToolkit, notify);
+    (*appkitEnv)->DeleteLocalRef(appkitEnv, cls);
+    if ((*appkitEnv)->ExceptionOccurred(appkitEnv)) [AwtException raiseUsingEnv:appkitEnv];
+}
+@end
 
 @implementation NSApplication (AWTAdditions)
 - (id)proxyForClassByName:(NSString *)name
