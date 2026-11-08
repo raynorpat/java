@@ -1317,3 +1317,17 @@ Image drawing now releases focus before propagating native exceptions. The track
 test verifies balanced drawing afterward and continues with the full raster cases.
 Fresh check-scaling-image, check-producer-image, check-image, check-primitives,
 check-window, check-dispatch and check-toolkit pass. Phase 7 is still incomplete.
+
+## Frame icons and miniaturization
+
+Recovered RFramePeer.setIconImage at 54015ef8. The donor's javaToNSImage helper
+at 5401f9dc returns nil without inspecting the Java image, so this entry clears
+the native miniwindow image. FrameIcon115 first failed with UnsatisfiedLinkError;
+it now matches the donor for non-null and null images over three frame lifetimes.
+The native probe records the setter argument because the guest's MacOS interface
+style ignores miniwindow images. An Image whose accessors throw proves that no
+conversion is attempted. Native miniaturization/restoration delivers Java events
+whose listeners reenter the toolkit and run GC.
+
+Fresh check-frameicon, check-window, check-menu, check-dispatch and check-toolkit
+pass. This preserves the donor limitation; it does not add custom icon rendering.

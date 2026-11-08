@@ -663,3 +663,10 @@ check-producer-image: image $(BUILD)/tests/toolkit/libimage115.dylib $(BUILD)/te
 .PHONY: check-scaling-image
 check-scaling-image: image $(BUILD)/tests/toolkit/libimage115.dylib $(BUILD)/tests/toolkit/libprimitives115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-scaling-image.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libframeicon115.dylib: tests/awt-dr2/frameicon115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/frameicon115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-frameicon
+check-frameicon: image $(BUILD)/tests/toolkit/libframeicon115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-frameicon.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

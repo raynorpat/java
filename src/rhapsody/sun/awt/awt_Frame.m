@@ -81,3 +81,15 @@ JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RFramePeer_setResizable(JNIEn
     NS_ENDHANDLER
     if (pool) NativeMethodExit(env, pool);
 }
+
+/* 54015ef8: the donor's javaToNSImage (5401f9dc) always returns nil. */
+JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RFramePeer_setIconImage(JNIEnv *env, jobject peer, jobject image)
+{
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        [windowFromPeer(env, peer) setMiniwindowImage:nil];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+}
