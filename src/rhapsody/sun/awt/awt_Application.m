@@ -18,6 +18,7 @@ static NSConnection *kitConnection;
 static NSString *portName;
 /* The blocking RToolkit.run JNI frame keeps this local reference alive. */
 static jobject awtToolkit;
+static unsigned int previousEventFlags;
 
 @implementation AwtApplication
 + (id)sharedApplicationUsingEnv:(JNIEnv *)env awtToolkit:(jobject)toolkit
@@ -60,6 +61,7 @@ static IMP originalApplicationMethod(SEL selector)
 }
 
 @implementation NSApplication (AWTAdditions)
+- (unsigned int)previousEventFlags { return previousEventFlags; }
 /* 54003110: peeking must not dispatch; dequeue consumes Java covers. */
 - (NSEvent *)nextEventMatchingMask:(unsigned int)mask untilDate:(NSDate *)expiration inMode:(NSString *)mode dequeue:(BOOL)dequeue
 {
@@ -68,6 +70,7 @@ static IMP originalApplicationMethod(SEL selector)
     NSEvent *event;
     if (!original) original = (NextEvent)originalApplicationMethod(_cmd);
     if (!dequeue) return original(self, _cmd, mask, expiration, mode, NO);
+    previousEventFlags = [[self currentEvent] modifierFlags];
     do {
         event = original(self, _cmd, mask, expiration, mode, YES);
     } while (event && ![self sendNSEventThroughJava:event]);

@@ -2,6 +2,7 @@
 #import "awt_Event.h"
 #import "awt_Exception.h"
 #import "awt_View.h"
+#import "awt_Application.h"
 
 @interface NSObject (AWTPeerAccess)
 - (jobject)peer;
@@ -22,6 +23,27 @@
 - (BOOL)isSynthetic { return NO; }
 /* 54005804: the donor's x86 shift test always permits this assignment. */
 - (void)updateLocationTo:(NSPoint)point { _location = point; }
+/* 540054c8/54005560: character and virtual code use different native strings. */
+- (unichar)javaCharacter
+{
+    if ([self type] == NSFlagsChanged) return 0;
+    if ([self type] != NSKeyDown && [self type] != NSKeyUp)
+        [NSException raise:@"AWT error" format:@"Attempt to get character code from non-key event!"];
+    return nsCharToJavaChar([[self characters] characterAtIndex:0]);
+}
+- (int)javaKeyCode
+{
+    int code;
+    BOOL typed;
+    if ([self type] < NSKeyDown || [self type] > NSFlagsChanged)
+        [NSException raise:@"AWT error" format:@"Attempt to get virtual key code from non-key event!"];
+    if ([self type] == NSFlagsChanged)
+        nsFlagsChangedToJavaVirtualKeyCode([self modifierFlags], &code, &typed);
+    else
+        nsCharToJavaVirtualKeyCode([[self charactersIgnoringModifiers] characterAtIndex:0],
+            [self modifierFlags], &code, &typed);
+    return code;
+}
 /* 54005478: right-button events carry Java's historical META_MASK. */
 - (int)javaModifiers
 {
@@ -193,6 +215,175 @@ jobject nsMouseEventToJavaEvent(JNIEnv *env, NSEvent *event, jobject source, id 
         default: return NULL;
     }
     return newMouseEvent(env, event, source, point, eventID, clicks, type == NSRightMouseDown);
+}
+
+/* 54026210: ordered character/VK/typed/required-mask table. */
+static const struct { unsigned int character; int code; BOOL typed; int flags; } keyTable[] = {
+    {3, 10, 1, 0},
+    {13, 10, 1, 0},
+    {10, 10, 1, 0},
+    {8, 8, 1, 0},
+    {127, 8, 1, 0},
+    {9, 9, 1, 0},
+    {25, 9, 1, 131072},
+    {63280, 19, 0, 0},
+    {27, 27, 1, 0},
+    {32, 32, 1, 0},
+    {63276, 33, 0, 0},
+    {63277, 34, 0, 0},
+    {63275, 35, 0, 0},
+    {63273, 36, 0, 0},
+    {63234, 37, 0, 0},
+    {63232, 38, 0, 0},
+    {63235, 39, 0, 0},
+    {63233, 40, 0, 0},
+    {42, 106, 1, 2097152},
+    {43, 107, 1, 2097152},
+    {45, 109, 1, 2097152},
+    {46, 110, 1, 2097152},
+    {47, 111, 1, 2097152},
+    {44, 44, 1, 0},
+    {46, 46, 1, 0},
+    {47, 47, 1, 0},
+    {59, 59, 1, 0},
+    {61, 61, 1, 0},
+    {91, 91, 1, 0},
+    {92, 92, 1, 0},
+    {93, 93, 1, 0},
+    {63236, 112, 0, 0},
+    {63237, 113, 0, 0},
+    {63238, 114, 0, 0},
+    {63239, 115, 0, 0},
+    {63240, 116, 0, 0},
+    {63241, 117, 0, 0},
+    {63242, 118, 0, 0},
+    {63243, 119, 0, 0},
+    {63244, 120, 0, 0},
+    {63245, 121, 0, 0},
+    {63246, 122, 0, 0},
+    {63247, 123, 0, 0},
+    {63272, 127, 1, 0},
+    {63279, 145, 0, 0},
+    {63278, 154, 0, 0},
+    {63271, 155, 0, 0},
+    {63302, 156, 0, 0},
+    {96, 192, 1, 0},
+    {39, 222, 1, 0},
+    {126, 192, 1, 131072},
+    {33, 49, 1, 131072},
+    {64, 50, 1, 131072},
+    {35, 51, 1, 131072},
+    {36, 52, 1, 131072},
+    {37, 53, 1, 131072},
+    {94, 54, 1, 131072},
+    {38, 55, 1, 131072},
+    {42, 56, 1, 131072},
+    {40, 57, 1, 131072},
+    {41, 48, 1, 131072},
+    {43, 61, 1, 131072},
+    {124, 92, 1, 131072},
+    {123, 91, 1, 131072},
+    {125, 93, 1, 131072},
+    {58, 59, 1, 131072},
+    {34, 222, 1, 131072},
+    {60, 44, 1, 131072},
+    {62, 46, 1, 131072},
+    {63, 47, 1, 131072},
+    {0, 0, 0, 0}
+};
+/* Private Foundation conversion used by the donor (54005d6c). */
+extern void NSConvertToLower(unichar character, unichar *result, int flags);
+void nsCharToJavaVirtualKeyCode(unichar character, int flags, int *code, BOOL *typed)
+{
+    int index;
+    unichar lower;
+    if ([[NSCharacterSet letterCharacterSet] characterIsMember:character]) {
+        NSConvertToLower(character, &lower, 0);
+        if (lower >= 'a' && lower <= 'z') {
+            *code = lower - 'a' + 65;
+            *typed = YES;
+            return;
+        }
+    }
+    if ([[NSCharacterSet decimalDigitCharacterSet] characterIsMember:character] &&
+        character >= '0' && character <= '9') {
+        *code = (flags & NSNumericPadKeyMask) ? character - '0' + 96 : character;
+        *typed = YES;
+        return;
+    }
+    for (index = 0; keyTable[index].character; index++) {
+        if (keyTable[index].character == character &&
+            (!keyTable[index].flags || (flags & keyTable[index].flags))) {
+            *code = keyTable[index].code;
+            *typed = keyTable[index].typed;
+            return;
+        }
+    }
+    *code = 0;
+    *typed = NO;
+}
+/* 54005ecc: only the first changed modifier is represented by a native event. */
+void nsFlagsChangedToJavaVirtualKeyCode(int flags, int *code, BOOL *pressed)
+{
+    static const int masks[] = {NSAlternateKeyMask, NSControlKeyMask, NSShiftKeyMask,
+        NSCommandKeyMask, NSHelpKeyMask, NSAlphaShiftKeyMask};
+    static const int codes[] = {18, 17, 16, 157, 156, 20};
+    unsigned int previous = [NSApp previousEventFlags];
+    int index;
+    for (index = 0; index < 6; index++) {
+        if ((flags & masks[index]) != (previous & masks[index])) {
+            *code = codes[index];
+            *pressed = (flags & masks[index]) != 0;
+            return;
+        }
+    }
+    *code = 0;
+    *pressed = NO;
+}
+/* 54005f40, table 54026680. */
+unichar nsCharToJavaChar(unichar character)
+{
+    switch (character) {
+        case 3: case 13: return 10;
+        case 127: return 8;
+        case 63272: return 127;
+        case 25: return 9;
+        default: return character;
+    }
+}
+/* 54006060: Java time is wall-clock time, not native event uptime. */
+jobject nsKeyEventToJavaEvent(JNIEnv *env, NSEvent *event, jobject source)
+{
+    int type = [event type], code, eventID;
+    BOOL pressed;
+    jclass cls;
+    jmethodID method;
+    jlong when;
+    jobject result;
+    if (type == NSFlagsChanged) {
+        nsFlagsChangedToJavaVirtualKeyCode([event modifierFlags], &code, &pressed);
+        if (!code) return NULL;
+        eventID = pressed ? 401 : 402;
+    } else if (type == NSKeyDown || type == NSKeyUp) {
+        code = [event javaKeyCode];
+        eventID = type == NSKeyDown ? 401 : 402;
+    } else return NULL;
+    cls = (*env)->FindClass(env, "java/lang/System");
+    if (!cls) [AwtException raiseUsingEnv:env];
+    method = (*env)->GetStaticMethodID(env, cls, "currentTimeMillis", "()J");
+    if (!method) [AwtException raiseUsingEnv:env];
+    when = (*env)->CallStaticLongMethod(env, cls, method);
+    (*env)->DeleteLocalRef(env, cls);
+    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    cls = (*env)->FindClass(env, "java/awt/event/KeyEvent");
+    if (!cls) [AwtException raiseUsingEnv:env];
+    method = (*env)->GetMethodID(env, cls, "<init>", "(Ljava/awt/Component;IJIIC)V");
+    if (!method) [AwtException raiseUsingEnv:env];
+    result = (*env)->NewObject(env, cls, method, source, eventID, when,
+        [event javaModifiers], code, [event javaCharacter]);
+    (*env)->DeleteLocalRef(env, cls);
+    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    return result;
 }
 
 /* 54006424: only a non-consumed left-button release generates this event. */

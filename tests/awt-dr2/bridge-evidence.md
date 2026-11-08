@@ -604,3 +604,28 @@ and window-callbacks targets passed. A NUL-filled section in the combined guest
 log obscured input/view output; both checks were rerun directly and passed with
 clean output. Keyboard, synthetic input, widgets, menus and the remaining Phase 7
 acceptance work are still pending. The partial AWT library is not installed.
+
+### Phase 7 key conversion checkpoint
+
+Recovered nsKeyEventToJavaEvent (54006060), NSEvent javaCharacter/javaKeyCode
+(540054c8/54005560), virtual-key conversion (54005d6c), modifier transitions
+(54005ecc), and character normalization (54005f40). The complete ordered native
+key table at 54026210 is retained, including keypad and shifted-punctuation mask
+requirements. Foundation's original letter classification/lowercase conversion
+is used. The five character normalization pairs come from 54026680. Java event
+time remains wall-clock time. NSApplication records previous native event flags
+once before each dequeue loop, as at 54003110/54003080.
+
+KeyValues115 compares 61 native conversion cases against the donor: press/release,
+ordinary/control/non-ASCII characters, keypad versus ordinary digits/operators,
+shift-dependent punctuation, navigation/function keys, six modifier presses and
+unchanged modifiers. Both donor and reconstruction pass; the original
+reconstruction failed with the missing converter. The check-key-values target
+requires exact output, so an uncaught Java exception cannot pass via exit status.
+This fixture does not prove live key delivery or modifier release transitions;
+those remain in the next keyboard integration group, along with typed events and
+Java-listener changes propagated back to native key events.
+
+Fresh key-values, input, toolkit, event-cover, handoff and dispatch checks pass.
+Keyboard/input were also rerun directly with clean output after their earlier
+output was lost from the combined guest log.

@@ -12,12 +12,18 @@
 - (BOOL)isSynthetic;
 - (int)javaModifiers;
 - (void)updateLocationTo:(NSPoint)point;
+- (unichar)javaCharacter;
+- (int)javaKeyCode;
 @end
 
 @interface SyntheticEvent : NSEvent
 @end
 
 int nsModifiersToJava(int flags);
+void nsCharToJavaVirtualKeyCode(unichar character, int flags, int *code, BOOL *typed);
+void nsFlagsChangedToJavaVirtualKeyCode(int flags, int *code, BOOL *pressed);
+unichar nsCharToJavaChar(unichar character);
+jobject nsKeyEventToJavaEvent(JNIEnv *env, NSEvent *event, jobject source);
 jobject javaComponentForView(JNIEnv *env, id view);
 jobject makeMouseClickedEvent(JNIEnv *env, NSEvent *event, id view);
 jobject nsMouseEventToJavaEvent(JNIEnv *env, NSEvent *event, jobject source, id view);
