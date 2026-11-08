@@ -37,7 +37,9 @@ and the five `demo/i18n` demos.
   `native_threads` only, for both the **o32** and **n32** ABIs. SGI's release is based on
   Sun 1.1.6: only the IRIX platform code, SGI's AWT differences and the JIT come over.
   Sun's 1.1.6 changes to shared code go into a ledger, not into the tree.
-  The JIT is MIPS-only; x86 builds keep the interpreter.
+  The MIPS JIT is IRIX-only.
+- **Sun x86 JIT (Phase 10, owner requested):** port Sun's Solaris/x86 JIT (`libsunwjit`, from
+  `SUNWjvjit` 1.1.8/16) to our x86 builds.
 
 ## Goals, non-goals, anti-goals
 
@@ -55,7 +57,7 @@ and the five `demo/i18n` demos.
   Phase 8 is an explicit later exception: reconstruct the Java changes needed to port
   audited 1.1.8 fixes and behavior, while preserving both original archives as inputs.
 - 64-bit support (the VM stays 32-bit, as today).
-- JIT compilers other than SGI's MIPS JIT (Phase 9), Java 1.2+ features, Swing (beyond what a demo needs, which is none).
+- JIT compilers other than SGI's MIPS JIT (Phase 9) and Sun's x86 JIT (Phase 10), Java 1.2+ features, Swing (beyond what a demo needs, which is none).
 
 **Anti-goals** (failure even if it "works")
 - Editing a demo to make it run.
@@ -284,7 +286,7 @@ Scope and gates:
     `InitializeForCompiler`, `java.compiler`). Any extra exports the JIT imports from
     `libjava` are reconstructed from SGI's `libjava`.
   - Code generation must follow the disassembly, not be redesigned.
-  - The JIT is never built into x86 images.
+  - The MIPS JIT is never built into x86 images; Phase 10 covers x86.
 - **AWT.** The IRIX image uses our Phase 6 Motif AWT, built against IRIX's own X11/Motif,
   plus SGI-specific native changes found in the inventory.
   - Whether `libtawt` is needed is decided by the inventory; if it is, it's reconstructed.
@@ -302,6 +304,70 @@ Scope and gates:
 **Milestone:** the unchanged 1.1.5 demo matrix and SGI's JNI demos run on IRIX on our VM, for
 o32 and n32, with the JIT on and off, and their output matches SGI's VM. The Windows and Linux
 suites stay green, and no SGI binaries are committed.
+
+10. **Sun x86 JIT** (owner requested). This follows the existing phases without renumbering
+    them. It depends on Phases 1–3. It is independent of Phase 9, and of Phase 8 except for
+    the shared ledger described below.
+
+### Phase 10 scope and completion gates
+
+Source: `C:\Users\raynorpat\Downloads\solaris-jdk-1.1.8\SUNWjvjit` ("Java JIT compiler",
+`ARCH=i386`, 1.1.8/16, built 2002-08-08). The package contains:
+- `libsunwjit.so` (264 KB, stripped).
+- `libsunwjit_g.so` (751 KB). This build is **not stripped**: it has about 3,360 function
+  symbols and Sun's source paths. Shared code is in `src/share/java/cjit/`: `JIT.c`,
+  `JITList.c`, `JITPass1.c`, `JITSupport.c`, `dump.c` and `patterns.c`. x86 code is in
+  `src/i386/cjit/`: `JITSupport_md.c`, `dumps.c`, `fp.c`, `j86emit.c`, `pass2.c`,
+  `morepass2.c`, `yetmorepass2.c`, `patch.c`, `regs.c`, `resolve.c`, `support.c` and
+  `util86.c`.
+
+The library imports little from the VM by name (`opcode_length`, `opnames`). Everything else
+goes through the 1.1 compiler interface. Its OS dependencies are small and Solaris-specific:
+- `setcontext`, `thr_sigsetmask` and `_ex_register`;
+- `__div64`, `__mul64` and `__rem64`;
+- the `_xstat` family.
+
+My calls; correct any you disagree with:
+- **Layout:** Sun's file names and directories, so `src/share/java/cjit/` and
+  `src/i386/cjit/`. `_g` symbols are the source of names. The stripped build is the
+  release-code oracle.
+- **Targets:** our 32-bit x86 Windows and Linux builds, built as Sun named it: `sunwjit`,
+  i.e. `sunwjit.dll` and `libsunwjit.so`, with `_g` variants. Rhapsody DR2 (i386) is a
+  stretch target, attempted only after Windows and Linux pass.
+- **OS layer:** the Solaris-only calls move behind a small `cjit` md layer.
+  - On Linux they map to POSIX signals, `sigsetjmp`/`ucontext` and pthreads.
+  - On Windows they map to structured exception handling (an MSVC C extension, allowed as
+    the platform equivalent of the Solaris signal path) and Win32 thread masks.
+  - Any trap-based null or stack checks keep Sun's design; only how the trap is delivered
+    differs.
+  - Faithfully decompiled Solaris code stays under `#ifdef` beside the ports, as was done
+    for the threads.
+- **Interface skew:** this JIT was built against the 1.1.8 VM, while ours is 1.1.5.
+  - Before porting, diff the compiler interface the JIT uses (the linkage table it receives,
+    `methodblock`/`CompiledCodeInfo` field offsets, invoker and exception hooks) against
+    our 1.1.5 headers, using `_g` debug info and disassembly.
+  - Each difference goes in the Phase 8 delta ledger, with a disposition.
+  - A VM-side change is made only where the JIT needs it. Unresolved skew blocks the phase;
+    nothing is papered over with casts.
+- **Selection:** the JIT loads through the standard path (the `java.compiler` property,
+  `JAVA_COMPILER`, and `-nojit` or `JAVA_COMPILER=NONE` to disable it). The default stays
+  as Sun 1.1.5 had it on each platform: off unless asked for. **Owner may override.**
+
+Gates:
+- **Oracle:** our VM with the JIT off. Every test's output must be identical with the JIT on.
+  Solaris x86 running Sun 1.1.8 with this JIT is an optional second oracle. It's needed only
+  if a behavior can't be settled from code.
+- **Tests:**
+  - The full Windows and Linux Debug/Release suites, run with the JIT on and off.
+  - The same JIT bytecode-coverage test as Phase 9, which can be shared. It forces
+    compilation of every opcode group: exceptions, long and double arithmetic,
+    `monitorenter`/`monitorexit`, `invokeinterface`, deep recursion and null traps.
+  - The stress, monitor and GC tests with the JIT on, so stack scanning of compiled frames
+    is exercised.
+  - `javac`, compiling the test classes under the JIT.
+- **Milestone:** with the JIT on, on both Windows and Linux, the unchanged demo matrix runs,
+  `javac` builds the test classes, and every suite matches the JIT-off output. No Sun
+  binary is committed.
 
 ## Verification
 
