@@ -218,3 +218,25 @@ dealloc as a release of the JNI peer. A native runtime inventory confirmed the
 actual names, types and offsets. The donor WindowPeer.dispose and ComponentPeer
 nDispose entries contain only entry/exception/exit scaffolding; native ownership
 and disposal therefore require explicit investigation before implementing them.
+
+## Native font objects for window peers
+
+RFontPeer.createNativeFont (54014a9c), javaToNSFont (54014a14), and getFontList
+(54014ce0) now follow the donor. Font peers retain a size-12 NSFont after exact,
+case-sensitive alias mapping and bold/italic conversion; javaToNSFont converts
+that peer font to the Java Font's requested size. Unknown names use the native
+system font. The donor maps ZapfDingbats to TimesRoman, which falls back to Charcoal
+on this guest; that observed behavior is preserved rather than silently corrected.
+
+FontValues115 compares 88 combinations (11 names, four styles, two sizes) and the
+eight-family enumeration against the donor. The fixture includes lowercase dialog,
+an unknown name, null conversion and GC between groups. The expected family list
+is from the private DR2 v3 guest's installed fonts. Both original-peer executions
+match exactly. Reconstruction initially failed to link javaToNSFont, and then
+reported missing getFontList before that entry was implemented.
+
+nsToJavaString (5401f438) now returns UTF-16 strings for enumeration. It uses a
+freed temporary heap buffer instead of the donor's unbounded stack allocation;
+Values115 also checks full native-to-Java round trips for its Unicode/null cases.
+These helpers and both Font peer entries are included in the test-only AWT dylib.
+Font metrics, rendering and native Frame construction remain incomplete.

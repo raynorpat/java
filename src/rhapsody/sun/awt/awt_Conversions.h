@@ -5,6 +5,8 @@
 #include "jni.h"
 
 NSString *javaToNSString(JNIEnv *env, jstring value);
+jstring nsToJavaString(JNIEnv *env, NSString *value);
 NSColor *javaToNSColor(JNIEnv *env, jobject value);
+NSFont *javaToNSFont(JNIEnv *env, jobject value);
 
 #endif

@@ -4,6 +4,15 @@
 
 extern NSString *javaToNSString(JNIEnv *, jstring);
 extern NSColor *javaToNSColor(JNIEnv *, jobject);
+extern jstring nsToJavaString(JNIEnv *, NSString *);
+
+JNIEXPORT jstring JNICALL Java_Values115_roundTrip(JNIEnv *env, jclass cls, jstring value)
+{
+    id pool = [[NSAutoreleasePool alloc] init];
+    jstring result = nsToJavaString(env, javaToNSString(env, value));
+    [pool release];
+    return result;
+}
 
 JNIEXPORT jboolean JNICALL Java_Values115_stringMatches(JNIEnv *env, jclass cls, jstring value)
 {
