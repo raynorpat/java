@@ -373,6 +373,7 @@ AWT_TOOLKIT_HEADERS = src/rhapsody/sun/awt/awt_Conversions.h $(AWT_DISPATCH_HEAD
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Container.m src/rhapsody/sun/awt/awt_Window.m src/rhapsody/sun/awt/awt_Component.m src/rhapsody/sun/awt/awt_Graphics.m src/rhapsody/sun/awt/awt_Frame.m src/rhapsody/sun/awt/awt_WindowPeer.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Button.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_TextField.m
+AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_PopUpButton.m
 AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Container.h src/rhapsody/sun/awt/awt_Graphics.h src/rhapsody/sun/awt/awt_Window.h src/rhapsody/sun/awt/awt_Component.h
 
 # Partial AWT is confined to tests until the complete peer surface is recovered.
@@ -553,3 +554,10 @@ $(BUILD)/tests/toolkit/libtextfield115.dylib: tests/awt-dr2/textfield115.m $(BUI
 .PHONY: check-textfield
 check-textfield: image $(BUILD)/tests/toolkit/libtextfield115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-textfield.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libchoice115.dylib: tests/awt-dr2/choice115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/choice115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-choice
+check-choice: image $(BUILD)/tests/toolkit/libchoice115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-choice.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

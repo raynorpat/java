@@ -950,3 +950,24 @@ switching between two fields preserves each value and callback source, both
 fields share one native editor, programmatic text changes deliver callbacks,
 and making the active field noneditable still permits focus to return to the
 first field. Tracked disposal releases both controls and the shared editor.
+
+### Phase 7 Choice checkpoint
+
+AwtPopUpButton (540093a0--540099f0) and the four RChoicePeer bindings
+(54011c54--5401200c) now implement native popup choices. The insertion helper
+(54009938) inserts an empty title and then sets the item's actual title, which
+preserves duplicate labels that NSPopUpButton would otherwise collapse.
+Native selection calls the unchanged peer's makeItemEvent(int), which updates
+the Java selection before constructing its SELECTED ItemEvent.
+
+Choice115 passed on the donor and failed on the missing reconstructed native
+constructor. Both runtimes now pass duplicate/Unicode/empty labels, indexed
+insertion/removal, programmatic selection without callbacks, remove-all/refill,
+native item callbacks, and actual popup keyboard selection from queued Space,
+Down-arrow and Return events. Callbacks reenter AppKit and run GC. Tracked
+reconstruction-only tests pass Java/native constructor failures and disposal
+inside an item callback, requiring zero remaining native popup controls.
+
+Fresh native check-choice, check-component-state, check-window, check-keyboard,
+check-dispatch and check-toolkit pass. The test-only library has 77 JNI entries;
+remaining widgets, graphics and installed-demo acceptance are still pending.
