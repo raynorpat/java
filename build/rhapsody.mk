@@ -367,8 +367,8 @@ check-dispatch: image $(BUILD)/tests/libdispatcher115.dylib $(BUILD)/tests/deskt
 	/bin/sh tests/awt-dr2/check-dispatch.sh "$(BUILD)" "$(DESKTOP_PID)"
 
 RHAPSODY_PEERS = out/dr2-peers/rhapsody-peers.zip
-AWT_TOOLKIT_SOURCES = $(AWT_DISPATCH_SOURCES) src/rhapsody/sun/awt/awt_ThreadContext.m src/rhapsody/sun/awt/awt_AutoreleasePool.m src/rhapsody/sun/awt/awt_Toolkit.m src/rhapsody/sun/awt/awt_Conversions.m src/rhapsody/sun/awt/awt_Font.m src/rhapsody/sun/awt/awt_Event.m
-AWT_TOOLKIT_HEADERS = src/rhapsody/sun/awt/awt_Conversions.h $(AWT_DISPATCH_HEADERS) src/rhapsody/sun/awt/awt_ThreadContext.h src/rhapsody/sun/awt/awt_AutoreleasePool.h src/rhapsody/sun/awt/awt_Event.h
+AWT_TOOLKIT_SOURCES = $(AWT_DISPATCH_SOURCES) src/rhapsody/sun/awt/awt_ThreadContext.m src/rhapsody/sun/awt/awt_AutoreleasePool.m src/rhapsody/sun/awt/awt_Toolkit.m src/rhapsody/sun/awt/awt_Conversions.m src/rhapsody/sun/awt/awt_Font.m src/rhapsody/sun/awt/awt_Event.m src/rhapsody/sun/awt/awt_View.m src/rhapsody/sun/awt/awt_Canvas.m
+AWT_TOOLKIT_HEADERS = src/rhapsody/sun/awt/awt_Conversions.h $(AWT_DISPATCH_HEADERS) src/rhapsody/sun/awt/awt_ThreadContext.h src/rhapsody/sun/awt/awt_AutoreleasePool.h src/rhapsody/sun/awt/awt_Event.h src/rhapsody/sun/awt/awt_View.h src/rhapsody/sun/awt/awt_Canvas.h
 
 # Partial AWT is confined to tests until the complete peer surface is recovered.
 $(BUILD)/tests/toolkit/libawt.dylib: $(AWT_TOOLKIT_SOURCES) $(AWT_TOOLKIT_HEADERS) $(BUILD)/lib/libjavai.dylib build/rhapsody.mk
@@ -426,3 +426,10 @@ $(BUILD)/tests/toolkit/libpaintcover115.dylib: tests/awt-dr2/paintcover115.m $(B
 .PHONY: check-paint-cover
 check-paint-cover: image $(BUILD)/tests/toolkit/libpaintcover115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-paint-cover.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libcanvasdraw115.dylib: tests/awt-dr2/canvasdraw115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/canvasdraw115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-canvas-draw
+check-canvas-draw: image $(BUILD)/tests/toolkit/libcanvasdraw115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-canvas-draw.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

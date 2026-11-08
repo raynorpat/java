@@ -296,3 +296,23 @@ undefined makeWrappedPaintEvent. Both durable targets now pass, along with the
 original Toolkit startup/callback and screen-value regression checks. Event code
 is linked into the test-only AWT library; Canvas drawing, application event routing
 and native Frame construction remain unfinished.
+
+## Canvas rendering and background inheritance
+
+AwtCanvas (54003d6c--54003f64) now fills its dirty rectangle with the native
+background, flushes PostScript and queues a synthetic Java PAINT cover. Bounds,
+visible bounds, focus locking and drawable-window checks follow the donor.
+NSView's awtComponentGetsBackgroundFromItsContainer (5400ff44) inspects the Java
+Component.background field directly; inherited background updates preserve an
+explicit Java color.
+
+CanvasDraw115 runs the same probe against donor and reconstruction. Eight native
+window/view lifecycles alternate explicit and inherited Java backgrounds, verify
+background propagation, read rendered red pixels, and inspect the exact queued
+paint rectangle/source after GC. The probe drains an initial full-window repaint
+before the explicit dirty-rectangle operation. Donor dequeuing dispatches covers
+itself; the test releases covers returned by a plain queue so either path retains
+no pending Java event reference. The reconstructed probe first failed because
+AwtCanvas did not exist; check-canvas-draw now passes, alongside check-paint-cover
+and check-view. Native RCanvasPeer construction and general input routing remain
+separate unfinished integration work.
