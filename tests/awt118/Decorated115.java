@@ -1,6 +1,25 @@
 import java.awt.*;
+import java.awt.event.*;
 
 public class Decorated115 {
+    static native void wm(Window window, int action);
+    static volatile int moved, resized, iconified, restored;
+    static void checkMove(final Window window) throws Exception {
+        window.addComponentListener(new ComponentAdapter() {
+            public void componentMoved(ComponentEvent e) { moved++; }
+            public void componentResized(ComponentEvent e) { resized++; }
+        });
+        Thread.sleep(200);
+        for(int pass=0;pass<2;pass++) {
+            int before=moved, sizeBefore=resized;
+            wm(window,pass==0 ? 0 : 3);
+            Thread.sleep(500);
+            if (moved==before || !window.getLocation().equals(window.getLocationOnScreen()))
+                throw new RuntimeException("WM move not reported: "+window.getLocation()+" screen "+window.getLocationOnScreen()+" events "+(moved-before));
+            if(resized!=sizeBefore) throw new RuntimeException("WM movement emitted resize");
+            if(pass==1 && window.getLocation().x>=0) throw new RuntimeException("negative WM move not exercised");
+        }
+    }
     static class Preferred extends Canvas {
         public Dimension getPreferredSize() { return new Dimension(200,100); }
     }
@@ -57,6 +76,30 @@ public class Decorated115 {
             if (dialog.getInsets().top<=0 || dialogCanvas.getSize().width!=200 || dialogCanvas.getSize().height!=100)
                 throw new RuntimeException("decorated dialog packing: "+dialog.getInsets()+" "+dialogCanvas.getSize());
             dialog.dispose(); packed.dispose();
+            final Frame events=new Frame("WM event callbacks");
+            events.setBounds(40,50,240,160); events.show(); Thread.sleep(500);
+            events.addWindowListener(new WindowAdapter() {
+                public void windowIconified(WindowEvent e) { iconified++; }
+                public void windowDeiconified(WindowEvent e) { restored++; if(restored==4) events.dispose(); }
+            });
+            String errors="";
+            try { checkMove(events); } catch (Exception e) { errors+=e+"\n"; }
+            Dialog movedDialog=new Dialog(events,"Moved dialog",false);
+            movedDialog.setBounds(60,70,200,120); movedDialog.show(); Thread.sleep(500);
+            try { checkMove(movedDialog); } catch (Exception e) { errors+=e+"\n"; }
+            movedDialog.dispose();
+            for(int cycle=0;cycle<3;cycle++) {
+                wm(events,1); Thread.sleep(500);
+                wm(events,2); Thread.sleep(500);
+            }
+            if(iconified!=3 || restored!=3) errors+="WM icon callbacks: "+iconified+"/"+restored+"\n";
+            events.hide(); Thread.sleep(200); events.show(); Thread.sleep(300);
+            if(iconified!=3 || restored!=3) errors+="hide/show reported iconification\n";
+            wm(events,1); Thread.sleep(500);
+            wm(events,2); Thread.sleep(500);
+            if(restored!=4 || events.getPeer()!=null) errors+="restore callback disposal failed\n";
+            events.dispose();
+            if(errors.length()!=0) throw new RuntimeException(errors);
             System.out.println("decorated frame bounds and client layout passed");
             System.exit(0);
         } catch (Throwable failure) {

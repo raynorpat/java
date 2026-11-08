@@ -28,6 +28,21 @@ static Widget widget(Hjava_awt_Component *target)
     return data ? (data->content ? data->content : data->widget) : NULL;
 }
 
+JAVA_PUBLIC_API(stack_item *) Java_Decorated115_wm_stub(stack_item *p,struct execenv *ee)
+{
+    Hsun_awt_motif_MComponentPeer *peer;
+    AwtPeer *data;
+    AWT_LOCK();
+    peer=(Hsun_awt_motif_MComponentPeer *)unhand((Hjava_awt_Component *)p[0].p)->peer;
+    data=awt118_peer(peer);
+    if(p[1].i==0) XMoveWindow(awt_display,XtWindow(data->shell),310,270);
+    else if(p[1].i==3) XMoveWindow(awt_display,XtWindow(data->shell),-40,-10);
+    else if(p[1].i==1) XIconifyWindow(awt_display,XtWindow(data->shell),awt_screen);
+    else XMapRaised(awt_display,XtWindow(data->shell));
+    XSync(awt_display,False);
+    AWT_UNLOCK(); return p;
+}
+
 JAVA_PUBLIC_API(stack_item *) Java_sun_awt_DemoObserver115_windowId_stub(stack_item *p,struct execenv *ee)
 {
     Hsun_awt_motif_MComponentPeer *peer;

@@ -255,11 +255,45 @@ void awt118_shell_event(Widget widget,XtPointer closure,XEvent *event,Boolean *d
     if (event->type==ConfigureNotify) {
         int width=event->xconfigure.width+data->decorLeft+data->decorRight;
         int height=event->xconfigure.height+data->decorTop+data->decorBottom;
-        unhand(target)->width=width;
-        unhand(target)->height=height;
-        execute_java_dynamic_method(EE(),(HObject *)peer,"handleResize","(II)V",width,height);
+        /* Solaris shellEH 5e814: synthetic WM coordinates are root-relative;
+         * ordinary ConfigureNotify coordinates are relative to the WM parent. */
+        if (event->xconfigure.send_event) {
+            int x=event->xconfigure.x-data->decorLeft;
+            int y=event->xconfigure.y-data->decorTop;
+            if (unhand(target)->x!=x || unhand(target)->y!=y) {
+                unhand(target)->x=x; unhand(target)->y=y;
+                execute_java_dynamic_method(EE(),(HObject *)peer,"handleMoved","(II)V",x,y);
+            }
+        }
+        if (unhand(target)->width!=width || unhand(target)->height!=height) {
+            unhand(target)->width=width;
+            unhand(target)->height=height;
+            execute_java_dynamic_method(EE(),(HObject *)peer,"handleResize","(II)V",width,height);
+        }
     } else if ((event->type==FocusIn || event->type==FocusOut) && event->xfocus.mode==NotifyNormal) {
         execute_java_dynamic_method(EE(),(HObject *)peer,event->type==FocusIn ? "handleActivate" : "handleDeactivate","()V");
+    }
+    /* Solaris shellEH tracks IconicState across unmap/map. Also observe the
+     * ICCCM property notification so a WM may publish state after unmapping.
+     * WithdrawnState (ordinary hide) is not iconification. */
+    if (XtClass(widget)==vendorShellWidgetClass &&
+        (event->type==MapNotify || event->type==UnmapNotify ||
+         (event->type==PropertyNotify && event->xproperty.atom==XInternAtom(awt_display,"WM_STATE",False)))) {
+        Atom actual,stateAtom=XInternAtom(awt_display,"WM_STATE",False);
+        int format;
+        unsigned long count,after,*state=NULL;
+        if (XGetWindowProperty(awt_display,XtWindow(widget),stateAtom,0,2,False,stateAtom,
+            &actual,&format,&count,&after,(unsigned char **)&state)==Success &&
+            actual==stateAtom && format==32 && count>=1) {
+            if (state[0]==IconicState && !data->iconified) {
+                data->iconified=1;
+                execute_java_dynamic_method(EE(),(HObject *)peer,"handleIconify","()V");
+            } else if (state[0]==NormalState && data->iconified) {
+                data->iconified=0;
+                execute_java_dynamic_method(EE(),(HObject *)peer,"handleDeiconify","()V");
+            }
+        }
+        if (state) XFree(state);
     }
     awt118_callback_done();
 }
