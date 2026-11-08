@@ -21,19 +21,25 @@ JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RFramePeer_createNativeFrame(
     NS_DURING
         NSRect screen = [[[NSScreen appkitProxy] mainScreen] visibleFrame];
         NSRect frame = NSMakeRect(x, screen.size.height - (y + height), width, height);
+        /* Java accessors may throw; finish conversion before taking ownership. */
+        NSFont *nativeFont = javaToNSFont(env, font);
+        NSColor *nativeBackground = javaToNSColor(env, background);
+        NSColor *nativeForeground = javaToNSColor(env, foreground);
+        NSCursor *nativeCursor = javaToNSCursor(env, cursor);
+        NSString *nativeTitle = javaToNSString(env, title);
         jobject globalPeer = (*env)->NewGlobalRef(env, peer);
         id window;
         NSSize minimum;
         if (!globalPeer) [AwtException raiseUsingEnv:env];
         view = [AwtContainer alloc];
         [[view appkitProxy] initWithPeer:(int)globalPeer frame:frame enabled:enabled
-            font:[javaToNSFont(env, font) appkitProxy]
-            backgroundColor:[javaToNSColor(env, background) appkitProxy]
-            foregroundColor:[javaToNSColor(env, foreground) appkitProxy]
-            cursor:javaToNSCursor(env, cursor)];
+            font:[nativeFont appkitProxy]
+            backgroundColor:[nativeBackground appkitProxy]
+            foregroundColor:[nativeForeground appkitProxy]
+            cursor:nativeCursor];
         window = [[AwtWindow allocInAppkitThread] windowProxy];
         [window initWithPeer:(int)globalPeer frame:frame enabled:enabled contentView:[[view appkitProxy] windowProxy]
-            resizable:resizable title:javaToNSString(env, title)];
+            resizable:resizable title:nativeTitle];
         minimum = [window minimumSize];
         if (width < minimum.width || height < minimum.height) {
             if (width < minimum.width) frame.size.width = minimum.width;

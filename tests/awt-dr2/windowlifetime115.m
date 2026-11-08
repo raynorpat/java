@@ -6,12 +6,11 @@ static volatile int liveViews;
 @interface ContainerLifetimeProbe : AwtContainer
 @end
 @implementation ContainerLifetimeProbe
-- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor
++ (id)allocWithZone:(NSZone *)zone
 {
-    self = [super initWithPeer:peer frame:frame enabled:enabled font:font
-        backgroundColor:background foregroundColor:foreground cursor:cursor];
-    if (self) liveViews++;
-    return self;
+    id view = [super allocWithZone:zone];
+    if (view) liveViews++;
+    return view;
 }
 - (void)dealloc { liveViews--; [super dealloc]; }
 @end

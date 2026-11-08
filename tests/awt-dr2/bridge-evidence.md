@@ -401,3 +401,22 @@ check-container-draw, check-window-state and check-window-callbacks all pass.
 The library remains test-only. Java paint/input event routing, focus/menu/widgets,
 constructor-failure cleanup and disposal during callbacks remain unfinished;
 these results do not establish full AWT acceptance or Java-source collectability.
+
+
+### Frame conversion failures
+
+WindowLifetime115 now uses a Font subclass whose getSize throws a specific
+RuntimeException. Before the change, addNotify rethrows that same exception but
+leaks one allocated AwtContainer (0 windows / 1 view). The native tracker counts
+allocation rather than initialization so it also detects uninitialized views.
+Frame creation now converts Java font, colors, cursor and title before acquiring
+the global peer and native view. The failure test then observes zero windows and
+views, no installed Java peer, and the exact original throwable. The existing
+five disposal cycles and ten small-frame oracle rows remain covered.
+
+A separate exploratory test overriding Frame.setBounds to throw during native
+minimum-size adjustment still crashes: GDB shows ProcedureFindThrowTag receiving
+a null throwable. Foundation's NSException coder (425738d4/42573928) serializes
+only name, reason and userInfo; AwtException has no coder override for its Java
+throwable ivar. Cross-connection exception transport and cleanup after native
+window allocation remain open. This checkpoint does not claim those paths pass.
