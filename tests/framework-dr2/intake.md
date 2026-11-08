@@ -241,3 +241,26 @@ arguments with NSInvalidArgumentException. Object arguments call
 stack address and an output consumed-byte count, while ordinary references
 use NSIdToJavaHandle and consume four bytes. Primitive slots consume four bytes,
 except long/double at eight. This conversion layer is not yet implemented.
+
+## Java retention adapter
+
+`check-retention.sh` compares the donor's JavaGCInitialization,
+NSRetainJavaObject and NSReleaseJavaObject with the reconstructed initializer
+and raw retention adapters. Both run against an isolated test NSRuntime class
+whose two private retention methods match the donor class's Hashtable bytecode.
+The fixture is kept in its own class directory and is not a shipped replacement
+for NSRuntime. Its count/value probes expose the table's actual contents.
+
+Nine transcript lines verify returned handle identity, idempotent duplicate
+retention, removal by one release, absent/nil release, and 100 retained values
+remaining readable after System.gc(). The test does not prove prompt collection
+after release or absence of conservative native-stack roots. A broken fixture
+without the private methods produces the same initialization exception and
+reason on both implementations. A reconstructed-only raw API check confirms
+that retaining nil leaves NullPointerException pending and that release works
+after clearing it. Public Objective-C exception conversion remains pending.
+
+The donor NSRuntime static initializer hardcodes the system ObjCJava path. Its
+retention logic can be tested independently, but production bootstrap must
+adapt that class's loading path before it is safe to use with the private
+framework. No donor bridge is loaded by the reconstructed retention tests.

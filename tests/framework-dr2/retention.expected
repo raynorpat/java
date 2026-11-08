@@ -1,0 +1,9 @@
+empty=0
+identity=1
+duplicate-count=1
+retained-value=37
+released-count=0
+absent-release=0
+batch-count=100
+batch-after-gc=5050
+cleared=0
