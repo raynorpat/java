@@ -383,6 +383,8 @@ AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_FileDialog.h src/rhapsody/sun/aw
 AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Container.h src/rhapsody/sun/awt/awt_Graphics.h src/rhapsody/sun/awt/awt_Window.h src/rhapsody/sun/awt/awt_Component.h
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Image.m src/rhapsody/sun/awt/awt_Image_stubs.c
 AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Image.h
+AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Print.m
+AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Print.h
 
 $(BUILD)/awtgen/.stamp: $(BUILD)/bin/javah $(JDK115_DIR)/lib/classes.zip $(RHAPSODY_PEERS)
 	mkdir -p $(@D)
@@ -670,3 +672,10 @@ $(BUILD)/tests/toolkit/libframeicon115.dylib: tests/awt-dr2/frameicon115.m $(BUI
 .PHONY: check-frameicon
 check-frameicon: image $(BUILD)/tests/toolkit/libframeicon115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-frameicon.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libprint115.dylib: tests/awt-dr2/print115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -dynamiclib -Isrc/share/java/include -Isrc/unix/java/include $< -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-print
+check-print: image $(BUILD)/tests/toolkit/libprint115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-print.sh $(BUILD) $(RHAPSODY_PEERS) $(DESKTOP_PID)

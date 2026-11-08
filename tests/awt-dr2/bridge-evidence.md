@@ -1331,3 +1331,31 @@ whose listeners reenter the toolkit and run GC.
 
 Fresh check-frameicon, check-window, check-menu, check-dispatch and check-toolkit
 pass. This preserves the donor limitation; it does not add custom icon rendering.
+
+## Print bindings and donor limitations
+
+Recovered all eleven print JNI entries at 54018cc4--5401993c and the three native
+classes at 54009a4c--5400a01c. Print115 first failed on nInitConstants. The donor
+method encodings pass the disposition and showPrintDialog result as integers,
+preserving native constant identity across the AppKit connection. Job properties,
+copies, paper names, cancellation and native surface/graphics behavior now match.
+Setting Letter paper after landscape orientation resets orientation to portrait
+in this framework; the donor test confirms that ordering and result.
+
+The original RPrintControl.getPrintJob disables its creation branch and opens
+CantPrint. Native printPage is empty; AwtPrintSurface has zero bounds and cannot
+draw. RPrintJob is not itself a drawing surface, so its direct getGraphics call
+raises an awtColor selector exception. These limitations remain unchanged. The
+test calls the shipped native methods directly and never submits a print job.
+
+GDB reproduced a donor abort during nDispose: releasing the proxy target leaves
+NSInvocation.invalidate referring to a freed object. A class-receiver disposal
+helper avoids that error and clears the Java address before release. The donor
+oracle uses an equivalent test-only cleanup bypass after checking properties and
+cancellation. Reconstructed disposal is exercised normally, including repeated
+end calls. Tracked job/graphics counts return to zero after three modal lifetimes,
+GC/reentry callbacks, injected job-constructor failure and graphics-init failure.
+The latter intentionally emits one native selector diagnostic, checked separately.
+
+Fresh check-print, check-frameicon, check-image, check-primitives, check-dispatch
+and check-toolkit pass. No public printing capability beyond the donor is claimed.
