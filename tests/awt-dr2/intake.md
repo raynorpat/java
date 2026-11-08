@@ -67,8 +67,8 @@ Verified over SSH in the private v3 snapshot:
   `DR2 donor Java 1.1.5 x86` and exits zero.
 - The graphical desktop was reached with the image's stored login. An original
   Frame/Button smoke test launched over SSH timed out after 25 seconds, both at
-  the login screen and after desktop login. This remains an oracle-environment
-  investigation, not a reconstructed AWT failure or a successful GUI gate.
+  the login screen and after desktop login. This oracle-environment failure was
+  subsequently diagnosed and resolved as described below.
 
 The v3 SSH server uses modern algorithms; the neighboring legacy harness's
 forced group1/DSS options fail negotiation. Reuse its credential handling with
@@ -81,7 +81,7 @@ The post-merge checkout exposed CRLF conversion in tests/awt118/with-wm.sh.
 Commit 5340bd8 on master pins that script to LF. All three affected WM checks
 passed after the fix; full Linux regression verification follows separately.
 
-The AWT probe still timed out with awt.jar before classes.jar and after successful
+The initial AWT probe also timed out with awt.jar before classes.jar and after successful
 desktop login; its last marker is `before Frame`. Do not assume archive order or
 console login fixes the stall. Next investigation: donor Frame/toolkit initialization,
 AppKit bootstrap namespace and thread/Objective-C bridge state. No reconstructed
@@ -95,3 +95,62 @@ hit an intermittent Choice popup-selection failure during guest activity; it
 then passed three consecutive isolated repeats and this full run. No native
 change was made to suppress that failure. The Phase 7 commit adds only audit
 tooling and documentation; Windows/Linux native implementation is unchanged.
+
+## Donor AWT startup resolved
+
+SIGQUIT located the wait in RToolkit's constructor, reached from Frame.show,
+waiting for the AppKit startup callback. A read-only Mach thread stack walk
+located the AppKit thread in Foundation's distributed-notification registration.
+The SSH task cannot find `Apple DNC Server (Local Host)` (bootstrap lookup 1102);
+the logged-in Workspace task can (lookup 0). Foundation's failure log formats a
+date, initializes the system timezone, and recursively registers a notification
+observer while the notification lock is held. Logging therefore deadlocks before
+AppKit can notify RToolkit that it has started.
+
+Evidence in the Intel donor: RToolkit.run at 0x5401babc,
+AwtApplication.finishLaunching at 0x5400323c; Foundation's
+NSConcreteMachDNC.sendMessageToServer at 0x425503d0, NSLog at 0x42547b40,
+NSTimeZone.systemTimeZone at 0x42558a89, and
+NSNotificationCenter.addObserver at 0x4251ad1d.
+
+The test-only desktop-launch.c adopts the selected desktop task's bootstrap
+port in its own process, verifies the notification service and execs the requested
+command. It does not modify the desktop task or any system framework/JDK file.
+Run as root in the private guest after graphical login. Find the current Workspace
+PID with `ps ax`; do not reuse a PID from an earlier boot. Stage these test sources
+with LF endings in /private/tmp/jdk115-phase7, then run:
+
+```sh
+cd /private/tmp/jdk115-phase7
+cc desktop-launch.c -o desktop-launch
+javac Smoke115.java
+# Substitute the current Workspace PID for DESKTOP_PID.
+./desktop-launch DESKTOP_PID /bin/sh /usr/bin/java -classpath .:/System/Library/Frameworks/JavaVM.framework/Classes/awt.jar:/System/Library/Frameworks/JavaVM.framework/Classes/classes.jar Smoke115
+```
+
+Verified with the original guest JDK: `DR2 AppKit startup and three window
+lifetimes passed`, exit zero. The test checks toolkit selection and peer
+creation/disposal for three Frame/Button lifetimes. A separate longer-lived
+Frame was visually inspected in a QMP capture. Missing arguments and a nonexistent
+desktop PID both return failure. This closes the donor preflight gate, not the
+reconstructed AWT gate.
+
+## Native compiler preflight
+
+The first actual compile of src/unix/java/runtime/thread_cthreads.c failed on
+CRLF preprocessor continuations and missing stdint.h. A regular Windows
+`git archive` also applied core.autocrlf; use `git -c core.autocrlf=false archive`
+or explicitly normalize staged text. With LF input the remaining errors are
+missing stdint.h in typedefs_md.h and jni_md.h, and undefined uint32_t. There is
+also an ALIGN redefinition warning. No platform correction is implemented yet.
+
+Reproduction from the staged repository root with the native DR2 compiler:
+
+```sh
+cc -c -DIN_JRT -DCOMPILER -DXP_UNIX -DJDK115_CTHREADS \
+  -DJNI115_ENABLED -DJAVA_INTERNAL_BUILD \
+  -Isrc/share/java/include -Isrc/share/java/include/_gen \
+  -Isrc/unix/java/include -Isrc/share/java/runtime \
+  src/unix/java/runtime/thread_cthreads.c \
+  -o /private/tmp/jdk115-phase7/thread.o
+```
