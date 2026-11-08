@@ -112,6 +112,71 @@ BridgeJavaInfo *NSSetJavaClassForObjcClass(const char *name, Class clazz)
     return CreateJavaInfo(name, clazz);
 }
 
+void NSSetJavaClassMappings(const char *name, const char *objcName, void *toObjc, void *toJava)
+{
+    Class clazz = objc_lookUpClass(objcName);
+    BridgeJavaInfo *info;
+    if (!clazz) {
+        NSLog(@"ObjCJava: can't map %s to %s - unknown ObjC class", name, objcName);
+        return;
+    }
+    info = _BRIDGEJavaInfoForObjcClass(clazz, YES);
+    if (info) {
+        NSLog(@"ObjCJava: a mapping for %s to %s already exists; cannot create overloaded mapping to %s",
+            objcName, info->javaName, name);
+        return;
+    }
+    info = _BRIDGEJavaInfoForJavaClassName(name);
+    if (info) {
+        NSLog(@"ObjCJava: a mapping for %s to %s already exists; cannot create overloaded mapping to %s",
+            name, info->objcClass ? info->objcClass->name : "an ObjC type", objcName);
+        return;
+    }
+    info = CreateJavaInfo(name, clazz);
+    info->toJava = toJava;
+    info->toObjc = toObjc;
+}
+
+void NSSetOverloadedJavaClassMappings(const char *name, const char *objcName, void *toObjc, void *toJava)
+{
+    Class clazz = objc_lookUpClass(objcName);
+    BridgeJavaInfo *info;
+    if (!clazz) {
+        NSLog(@"ObjCJava: can't map %s to %s - unknown ObjC class", name, objcName);
+        return;
+    }
+    info = _BRIDGEJavaInfoForJavaClassName(name);
+    if (info && !info->objcClass) {
+        NSLog(@"ObjCJava: cannot overload %s to %s mapping since a type mapping to that Java class has already been specified.",
+            name, objcName);
+        return;
+    }
+    info = _BRIDGEJavaInfoForObjcClass(clazz, YES);
+    if (info) {
+        /* The donor mutates the record without reinserting its hash key. */
+        info->javaName = name;
+        info->javaClass = NULL;
+    } else {
+        info = CreateJavaInfo(name, clazz);
+    }
+    info->toJava = toJava;
+    info->toObjc = toObjc;
+}
+
+void BRIDGESetJavaTypeMapping(const char *name, void *toObjc, void *toJava, unsigned size)
+{
+    BridgeJavaInfo *info = _BRIDGEJavaInfoForJavaClassName(name);
+    if (info) {
+        NSLog(@"ObjCJava: a mapping for %s to %s already exists; cannot create an overloaded type mapping.",
+            name, info->objcClass ? info->objcClass->name : "an ObjC type");
+        return;
+    }
+    info = CreateJavaInfo(name, Nil);
+    info->toJava = toJava;
+    info->toObjc = toObjc;
+    info->structSize = size;
+}
+
 ClassClass *NSJavaLookupClassName(const char *name)
 {
     BridgeJavaInfo *info;

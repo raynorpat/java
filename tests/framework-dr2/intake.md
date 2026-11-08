@@ -198,12 +198,19 @@ conversion layer. This is raw constructor acceptance, not acceptance of
 
 ## Class registry and generated classes
 
-`check-class-map.sh` compares 17 donor transcript lines and normalized duplicate
+`check-class-map.sh` compares 24 donor transcript lines and normalized duplicate
 registration diagnostics. Exact and inherited lookup, lazy Java class caching,
 constructor selector/signature registration and default construction match.
 The 32-byte JavaInfo layout and metaclass ivar cache follow the donor; root
 classes use a separate registry. Records use ordinary allocation rather than
 the donor's allocation pool.
+
+Conversion registrations match the donor's callback slot order, duplicate and
+unknown-class rejection, overload replacement/cache invalidation, and value-type
+size registration. Type mappings reject overloads. These tests verify callback
+registration, not invocation or object ownership. The donor overload entry
+mutates an existing record's Java name without reinserting the hash key; that
+behavior is retained rather than silently repairing it.
 
 `check-classgen.sh` compares 12 donor transcript lines for the pure Java class
 builder: runtime registration, class/metaclass versions, inherited instance

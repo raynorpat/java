@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #include <stdio.h>
+#include <string.h>
 #ifdef DONOR
 #include <mach-o/dyld.h>
 #import <JavaVM/JavaVM.h>
@@ -12,6 +13,9 @@ static void *(*objcToJava)(Class);
 static void (*registerConstructors)(Class, int, void *);
 static const char *(*constructorSignature)(Class, SEL);
 static SEL (*constructorSelector)(Class, const char *);
+static void (*setMappings)(const char *, const char *, void *, void *);
+static void (*overloadMappings)(const char *, const char *, void *, void *);
+static void (*setTypeMapping)(const char *, void *, void *, unsigned);
 #else
 #import "class-map.h"
 #import "vm.h"
@@ -24,6 +28,9 @@ static SEL (*constructorSelector)(Class, const char *);
 #define registerConstructors NSRegisterJavaConstructors
 #define constructorSignature NSGetJavaConstructorSignature
 #define constructorSelector NSSelectorForJavaConstructor
+#define setMappings NSSetJavaClassMappings
+#define overloadMappings NSSetOverloadedJavaClassMappings
+#define setTypeMapping BRIDGESetJavaTypeMapping
 #endif
 
 @interface ClassMapParent : NSObject @end
@@ -32,11 +39,27 @@ static SEL (*constructorSelector)(Class, const char *);
 @implementation ClassMapChild @end
 @interface ClassMapOther : NSObject @end
 @implementation ClassMapOther @end
+@interface ClassMapConverted : NSObject @end
+@implementation ClassMapConverted @end
+
+/* Donor JavaInfo ABI, inspected independently of the reconstructed header. */
+struct InfoView {
+    void *toJava, *toObjc;
+    const char *javaName;
+    void *javaClass;
+    Class objcClass;
+    int constructorCount;
+    void *constructors;
+    unsigned structSize;
+};
+static void conversionOne(void) {}
+static void conversionTwo(void) {}
 
 int main(int argc, char **argv)
 {
     NSAutoreleasePool *pool = [NSAutoreleasePool new];
     void *record, *base, *child;
+    struct InfoView *mapped, *type;
     struct { SEL selector; const char *signature; } constructors[1];
     if (argc != 2) return 2;
 #ifdef DONOR
@@ -50,6 +73,9 @@ int main(int argc, char **argv)
     registerConstructors = NSAddressOfSymbol(NSLookupAndBindSymbol("_NSRegisterJavaConstructors"));
     constructorSignature = NSAddressOfSymbol(NSLookupAndBindSymbol("_NSGetJavaConstructorSignature"));
     constructorSelector = NSAddressOfSymbol(NSLookupAndBindSymbol("_NSSelectorForJavaConstructor"));
+    setMappings = NSAddressOfSymbol(NSLookupAndBindSymbol("_NSSetJavaClassMappings"));
+    overloadMappings = NSAddressOfSymbol(NSLookupAndBindSymbol("_NSSetOverloadedJavaClassMappings"));
+    setTypeMapping = NSAddressOfSymbol(NSLookupAndBindSymbol("_BRIDGESetJavaTypeMapping"));
 #else
     if (!JAVALoadVirtualMachine([NSString stringWithCString:argv[1]], nil)) return 1;
     bridgeInitializeClassMap();
@@ -79,6 +105,23 @@ int main(int argc, char **argv)
     printf("missing-constructor=%d\n", constructorSelector([ClassMapParent class], "(J)V") == NULL);
     printf("duplicate-java=%d\n", registerClass("ClassMapBase", [ClassMapOther class]) == NULL);
     printf("duplicate-objc=%d\n", registerClass("ClassMapFixture", [ClassMapParent class]) == NULL);
+    setMappings("fixture/Converted", "ClassMapConverted", (void *)conversionOne, (void *)conversionTwo);
+    mapped = (struct InfoView *)infoForObjc([ClassMapConverted class], 1);
+    printf("conversion-map=%d\n", mapped && mapped->toObjc == (void *)conversionOne && mapped->toJava == (void *)conversionTwo);
+    setMappings("fixture/Rejected", "ClassMapConverted", NULL, NULL);
+    printf("conversion-duplicate=%d\n", mapped->toObjc == (void *)conversionOne && infoForName("fixture/Rejected") == NULL);
+    setMappings("fixture/Unknown", "ClassMapNoSuchClass", NULL, NULL);
+    printf("conversion-unknown=%d\n", infoForName("fixture/Unknown") == NULL);
+    mapped->javaClass = base;
+    overloadMappings("fixture/Overloaded", "ClassMapConverted", (void *)conversionTwo, (void *)conversionOne);
+    printf("conversion-overload=%d\n", (void *)infoForObjc([ClassMapConverted class], 1) == mapped && !strcmp(mapped->javaName, "fixture/Overloaded") && !mapped->javaClass && mapped->toObjc == (void *)conversionTwo && mapped->toJava == (void *)conversionOne);
+    setTypeMapping("fixture/Value", (void *)conversionOne, (void *)conversionTwo, 16);
+    type = (struct InfoView *)infoForName("fixture/Value");
+    printf("type-map=%d\n", type && !type->objcClass && type->structSize == 16 && type->toObjc == (void *)conversionOne && type->toJava == (void *)conversionTwo);
+    setTypeMapping("fixture/Value", NULL, NULL, 8);
+    printf("type-duplicate=%d\n", type->structSize == 16 && type->toObjc == (void *)conversionOne);
+    overloadMappings("fixture/Value", "ClassMapConverted", NULL, NULL);
+    printf("type-overload-rejected=%d\n", !strcmp(mapped->javaName, "fixture/Overloaded") && mapped->toObjc == (void *)conversionTwo);
     [pool release];
     return 0;
 }
