@@ -1,0 +1,10 @@
+0:0:ff0000:ff00:ff:ffff00
+1:0:ff0000:ff00:ff:ffffff
+2:0:0:ff00:ff:ffffff
+2:1:0:ff00:ff:ffffff
+3:0:ff0000:ff00:ff:ffff00
+3:1:ff0000:ff00:ff:ffff00
+4:0:0:ff:ff00:ffff
+4:1:0:ff:ff00:ffff
+5:0:ff:ff00:ff0000:ffffff
+DR2 producers preserve color-model delivery

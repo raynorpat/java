@@ -12,6 +12,12 @@ static int liveImages, failNext;
     if (failNext) { failNext = 0; [NSException raise:NSInvalidArgumentException format:@"image constructor failure"]; }
     return self;
 }
+- (id)initForIR:(void *)representation withCM:(void *)model
+{
+    self = [super initForIR:representation withCM:model];
+    if (failNext) { failNext = 0; [NSException raise:NSInvalidArgumentException format:@"image constructor failure"]; }
+    return self;
+}
 @end
 JNIEXPORT void JNICALL Java_Image115_track(JNIEnv *env, jclass cls)
 { [ImageLifetimeProbe poseAsClass:[AwtImage class]]; }
@@ -25,4 +31,15 @@ JNIEXPORT void JNICALL Java_Image115_release(JNIEnv *env, jclass cls, jobject im
     jclass representationClass = (*env)->GetObjectClass(env, representation);
     jmethodID dispose = (*env)->GetMethodID(env, representationClass, "disposeImage", "()V");
     (*env)->CallVoidMethod(env, representation, dispose);
+}
+JNIEXPORT jboolean JNICALL Java_Image115_upload(JNIEnv *env, jclass cls, jobject image, jboolean bytes,
+    jint x, jint y, jint width, jint height, jobject model, jobject pixels, jint offset, jint scan)
+{
+    jclass imageClass = (*env)->FindClass(env, "sun/awt/image/Image");
+    jmethodID getRepresentation = (*env)->GetMethodID(env, imageClass, "getImageRep", "()Lsun/awt/image/ImageRepresentation;");
+    jobject representation = (*env)->CallObjectMethod(env, image, getRepresentation);
+    jclass representationClass = (*env)->GetObjectClass(env, representation);
+    jmethodID upload = (*env)->GetMethodID(env, representationClass, bytes ? "setBytePixels" : "setIntPixels",
+        bytes ? "(IIIILjava/awt/image/ColorModel;[BII)Z" : "(IIIILjava/awt/image/ColorModel;[III)Z");
+    return (*env)->CallBooleanMethod(env, representation, upload, x, y, width, height, model, pixels, offset, scan);
 }

@@ -12,6 +12,8 @@
     BOOL newDataReceived;
 }
 - (id)initForIR:(void *)representation withCH:(void *)background;
+- (id)initForIR:(void *)representation withCM:(void *)model;
+- (void *)getDataAndRowBytes:(int *)rowBytes;
 - (id)sendPixels:(void *)source;
 - (id)drawAtPoint:(NSPoint)point;
 - (NSRect)awtBounds;

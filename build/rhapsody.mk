@@ -655,3 +655,7 @@ $(BUILD)/tests/toolkit/libimage115.dylib: tests/awt-dr2/image115.m $(BUILD)/test
 .PHONY: check-image
 check-image: image $(BUILD)/tests/toolkit/libimage115.dylib $(BUILD)/tests/toolkit/libraster115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-image.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+.PHONY: check-producer-image
+check-producer-image: image $(BUILD)/tests/toolkit/libimage115.dylib $(BUILD)/tests/toolkit/libraster115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-producer-image.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

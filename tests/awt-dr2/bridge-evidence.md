@@ -1276,3 +1276,23 @@ Fresh check-image, check-primitives, check-window, check-fonts, check-dispatch a
 check-toolkit pass. Producer uploads, scaling, printing and final Phase 7 acceptance
 remain pending; this checkpoint supplies four legacy image bindings and one JNI
 entry, with no fabricated implementations for the remaining image methods.
+
+## Producer image uploads
+
+Recovered byte/int uploads and finish at 54021e5c--540223e0, color-model conversion
+at 54020118--540208dc, and bitmap cache refresh. ProducerImage115 first failed on
+setIntPixels. Nine direct/indexed/custom model cases now match donor screen pixels,
+including transparency, byte versus int delivery, offsets and padded scanlines.
+The donor's opaque indexed entry zero is black; generic color models and nonstandard
+direct masks use different byte orders. These observed quirks remain unchanged.
+
+Native upload bounds checks prevent invalid source offsets/strides and destination
+rectangles from accessing memory. Tests cover both array types, overflow-sized
+strides, negative dimensions, null input, empty rectangles, custom-model exceptions
+and successful recovery. Custom getRGB callbacks reenter AppKit, run GC and dispose
+the native image; a retained image keeps the conversion buffer alive until return.
+Native image counts return to zero. Constructor rollback also passes: the shipped
+MemoryImageSource catches its exception and reports the error through MediaTracker.
+
+Fresh check-producer-image, check-image, check-primitives, check-window,
+check-dispatch and check-toolkit pass. Scaling and remaining Phase 7 work are pending.
