@@ -21,7 +21,7 @@ def main():
     parser.add_argument("--home", required=True)
     parser.add_argument("--classes", required=True)
     parser.add_argument("--out", required=True)
-    parser.add_argument("--mode", choices=["attach", "caught", "uncaught", "stopped"], default="attach")
+    parser.add_argument("--mode", choices=["attach", "caught", "uncaught", "stopped", "launch"], default="attach")
     args = parser.parse_args()
     spec = importlib.util.spec_from_file_location(
         "session115", Path(__file__).resolve().parents[1] / "debugger/session115.py")
@@ -70,6 +70,8 @@ def main():
         sys.argv += ["--exception-mode", args.mode]
     elif args.mode == "stopped":
         sys.argv += ["--stop-after-breakpoint"]
+    elif args.mode == "launch":
+        sys.argv += ["--launch"]
     session.main()
 
 

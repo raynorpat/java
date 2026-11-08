@@ -156,7 +156,10 @@ caught, uncaught and stopped and separate output directories. Both Java processe
 execute inside the guest; the host reuses the existing protocol assertions.
 All four modes pass, including exact stack/local/step checks, two uncaught
 continuations and disconnect while stopped. The driver owns and closes each
-remote process. This does not yet cover RemoteAgent child launch on DR2.
+remote process. Mode `launch` additionally starts jdb without an attach password,
+so the unchanged RemoteAgent launches java_g itself. That mode passes the same
+breakpoint, stack, local-variable, stepping, continuation and quit assertions on
+the native DR2 Debug image. No launcher or VM correction was required for this gate.
 
 Caught/uncaught tests initially failed: the cthreads bounded wait saw the reported
 exception as a pending Thread.stop and immediately resumed the throwing thread.
