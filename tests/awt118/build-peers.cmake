@@ -31,7 +31,7 @@ execute_process(COMMAND "${JAVAH}" -classpath "${cp}" -d "${OUT}/generated" ${cl
   java.awt.Component java.awt.Button java.awt.Canvas java.awt.Window java.awt.Frame java.awt.Checkbox java.awt.Scrollbar java.awt.TextArea java.awt.ScrollPane
   java.awt.Font sun.awt.FontDescriptor java.awt.Insets java.awt.Color java.awt.Cursor java.awt.AWTEvent java.awt.Rectangle
   java.awt.MenuComponent java.awt.MenuItem java.awt.Menu java.awt.CheckboxMenuItem java.awt.Dialog java.awt.FileDialog
-  java.awt.datatransfer.DataFlavor
+  java.awt.datatransfer.DataFlavor java.awt.event.KeyEvent
   sun.awt.image.GifImageDecoder java.awt.image.IndexColorModel
   ${image_classes}
   RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 120)

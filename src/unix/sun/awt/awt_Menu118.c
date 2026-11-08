@@ -123,8 +123,7 @@ static void activate(Widget widget,XtPointer closure,XtPointer call)
     XEvent *event=callback ? callback->event : NULL;
     unsigned int state=event && (event->type==ButtonPress || event->type==ButtonRelease) ? event->xbutton.state :
         event && (event->type==KeyPress || event->type==KeyRelease) ? event->xkey.state : 0;
-    int modifiers=((state&ShiftMask) ? 1 : 0)|((state&ControlMask) ? 2 : 0)|
-        ((state&Mod4Mask) ? 4 : 0)|((state&Mod1Mask) ? 8 : 0);
+    int modifiers=awt118_modifiers(state);
     int64_t when=event ? (int64_t)event->xbutton.time : 0;
     if (unhand(peer)->isCheckbox)
         execute_java_dynamic_method(EE(),(HObject *)peer,"action","(JIZ)V",when,modifiers,XmToggleButtonGetState(widget));

@@ -50,6 +50,7 @@ unsigned long awt118_index_pixel(unsigned long rgb);
 struct Hjava_awt_image_ColorModel *awt118_index_model(void);
 Widget awt118_menu_widget(HObject *peer);
 int awt118_modal_allows(Widget widget);
+int awt118_modifiers(unsigned int state);
 void awt118_end_modal(AwtPeer *data);
 void awt118_register_input(AwtPeer *peer);
 void awt118_forget_input(AwtPeer *peer);

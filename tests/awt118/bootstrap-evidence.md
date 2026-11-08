@@ -525,3 +525,13 @@ its interaction must be rerun with a readiness check. Tested closeable cases
 exit with code zero through the WM close action; plain Frame demo mains retain
 the established bounded-termination policy. The copied demo tree matches all
 474 original files byte-for-byte. Full 81-case acceptance is still pending.
+
+Keyboard and menu modifier slice: recovered Solaris debug modify_Event 810b8,
+awt_modify_KeyEvent 81370, setup_modifier_map 412e4 and getModifiers 80fc8.
+KeyReplay115 RED native text ignored a->b edits, then GREEN for lowercase,
+uppercase, consumption and disposal. Modifiers115 RED remapped Alt returned
+zero and keypad navigation delivered no event; GREEN for four dynamic Alt/Meta
+remaps and Num Lock transitions. Linux XKB keypad symbols are normalized to
+the recovered navigation table. Menus115 RED lost BUTTON1 action modifiers;
+menu actions now share the recovered mouse/key modifier conversion. Fresh
+focused Linux Debug verification: 43/43 passed, 169.84 seconds.

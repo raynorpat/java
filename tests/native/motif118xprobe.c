@@ -6,6 +6,7 @@
 #include "sun_awt_motif_X11Graphics.h"
 #include <X11/extensions/XTest.h>
 #include <X11/keysym.h>
+#include <X11/XKBlib.h>
 #include <X11/Shell.h>
 #include <Xm/ToggleB.h>
 #include <Xm/TextF.h>
@@ -65,6 +66,48 @@ JAVA_PUBLIC_API(stack_item *) Java_Warning115_banner_stub(stack_item *p,struct e
 }
 
 static int embedded_retired;
+static KeyCode test_alt,test_meta;
+JAVA_PUBLIC_API(stack_item *) Java_Modifiers115_remap_stub(stack_item *p,struct execenv *ee)
+{
+    int minimum,maximum,i,result;
+    KeySym symbols[2]={XK_Alt_L,XK_Meta_L};
+    XModifierKeymap *mapping;
+    AWT_LOCK(); XDisplayKeycodes(awt_display,&minimum,&maximum);
+    test_alt=maximum-1; test_meta=maximum;
+    XChangeKeyboardMapping(awt_display,test_alt,1,symbols,2);
+    mapping=XGetModifierMapping(awt_display);
+    for(i=0;i<8*mapping->max_keypermod;i++)
+        if(mapping->modifiermap[i]==test_alt || mapping->modifiermap[i]==test_meta) mapping->modifiermap[i]=0;
+    mapping=XInsertModifiermapEntry(mapping,test_alt,p[0].i ? Mod3MapIndex : Mod5MapIndex);
+    mapping=XInsertModifiermapEntry(mapping,test_meta,p[0].i ? Mod5MapIndex : Mod3MapIndex);
+    result=XSetModifierMapping(awt_display,mapping); XFreeModifiermap(mapping);
+    XSync(awt_display,False); AWT_UNLOCK(); p[0].i=result==MappingSuccess; return p+1;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Modifiers115_key_stub(stack_item *p,struct execenv *ee)
+{
+    KeyCode modifier=p[0].i ? test_meta : test_alt,letter;
+    AWT_LOCK(); letter=XKeysymToKeycode(awt_display,XK_a);
+    XTestFakeKeyEvent(awt_display,modifier,True,CurrentTime);
+    XTestFakeKeyEvent(awt_display,letter,True,CurrentTime);
+    XTestFakeKeyEvent(awt_display,letter,False,CurrentTime);
+    XTestFakeKeyEvent(awt_display,modifier,False,CurrentTime);
+    XFlush(awt_display); AWT_UNLOCK(); return p;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Modifiers115_keypad_stub(stack_item *p,struct execenv *ee)
+{
+    XModifierKeymap *mapping;
+    KeyCode lock,key; unsigned int mask=0; int i;
+    AWT_LOCK(); lock=XKeysymToKeycode(awt_display,XK_Num_Lock);
+    mapping=XGetModifierMapping(awt_display);
+    for(i=0;i<8*mapping->max_keypermod;i++)
+        if(mapping->modifiermap[i]==lock) mask|=1U<<(i/mapping->max_keypermod);
+    XFreeModifiermap(mapping);
+    XkbLockModifiers(awt_display,XkbUseCoreKbd,mask,p[0].i ? mask : 0);
+    key=XKeysymToKeycode(awt_display,XK_KP_Home);
+    XTestFakeKeyEvent(awt_display,key,True,CurrentTime);
+    XTestFakeKeyEvent(awt_display,key,False,CurrentTime);
+    XFlush(awt_display); AWT_UNLOCK(); return p;
+}
 static void embedded_destroyed(Widget widget,XtPointer closure,XtPointer call)
 { embedded_retired++; }
 JAVA_PUBLIC_API(stack_item *) Java_Embedded115_host_stub(stack_item *p,struct execenv *ee)

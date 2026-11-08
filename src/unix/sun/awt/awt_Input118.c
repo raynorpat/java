@@ -2,6 +2,7 @@
  * Java listeners run before native replay on the Motif thread. */
 #include "awt118.h"
 #include "java_awt_AWTEvent.h"
+#include "java_awt_event_KeyEvent.h"
 #include <X11/keysym.h>
 #include <Xm/ScrollBar.h>
 #include <ctype.h>
@@ -20,6 +21,33 @@ static NativeEvent *pendingEvents, *putback, **putbackTail=&putback;
 static unsigned long nextToken;
 static Time lastTime;
 static int clickCount, lastX, lastY;
+static unsigned int altMask,metaMask,numLockMask;
+static int modifierMapReady;
+
+/* Solaris setup_modifier_map 412e4 derives these from the X server. On
+ * XKB hosts inspect base symbols, avoiding Alt's secondary Meta alias. */
+static void modifier_map(void)
+{
+    XModifierKeymap *mapping=XGetModifierMapping(awt_display);
+    unsigned int superMask=0,mask;
+    int i;
+    KeySym symbol;
+    altMask=metaMask=numLockMask=0;
+    if (mapping) {
+        for(i=3*mapping->max_keypermod;i<8*mapping->max_keypermod;i++) {
+            if(!mapping->modifiermap[i]) continue;
+            mask=1U<<(i/mapping->max_keypermod);
+            symbol=XKeycodeToKeysym(awt_display,mapping->modifiermap[i],0);
+            if(symbol==XK_Alt_L || symbol==XK_Alt_R) altMask|=mask;
+            if(symbol==XK_Meta_L || symbol==XK_Meta_R) metaMask|=mask;
+            if(symbol==XK_Super_L || symbol==XK_Super_R) superMask|=mask;
+            if(symbol==XK_Num_Lock) numLockMask|=mask;
+        }
+        XFreeModifiermap(mapping);
+    }
+    if(!metaMask) metaMask=superMask;
+    modifierMapReady=1;
+}
 
 static void scrollbar_destroyed(Widget widget,XtPointer closure,XtPointer call)
 {
@@ -64,11 +92,12 @@ void awt118_forget_input(AwtPeer *peer)
     putbackTail=event;
 }
 
-static int modifiers(unsigned int state)
+int awt118_modifiers(unsigned int state)
 {
+    if(!modifierMapReady) modifier_map();
     return ((state&ShiftMask) ? 1 : 0) | ((state&ControlMask) ? 2 : 0) |
-        ((state&(Mod4Mask|Button3Mask)) ? 4 : 0) |
-        ((state&(Mod1Mask|Button2Mask)) ? 8 : 0) | ((state&Button1Mask) ? 16 : 0);
+        ((state&(metaMask|Button3Mask)) ? 4 : 0) |
+        ((state&(altMask|Button2Mask)) ? 8 : 0) | ((state&Button1Mask) ? 16 : 0);
 }
 
 static void post_event(AwtPeer *peer,XEvent *event,Hjava_awt_AWTEvent *javaEvent,int replay)
@@ -103,7 +132,7 @@ static void post_mouse(AwtPeer *peer,XEvent *event,int id,int count,int popup,in
         state|=Button1Mask<<(event->xbutton.button-1);
     javaEvent=(Hjava_awt_AWTEvent *)execute_java_constructor(EE(),"java/awt/event/MouseEvent",NULL,
         "(Ljava/awt/Component;IJIIIIZ)",unhand(peer->javaPeer)->target,id,
-        (int64_t)event->xbutton.time,modifiers(state),x,y,count,popup);
+        (int64_t)event->xbutton.time,awt118_modifiers(state),x,y,count,popup);
     post_event(peer,event,javaEvent,replay);
 }
 
@@ -124,9 +153,29 @@ static int post_key(AwtPeer *peer,XEvent *event)
 {
     KeySym symbol,translated;
     Modifiers used;
-    int i,code=0,typed=0,character=0,mods=modifiers(event->xkey.state);
+    int i,code=0,typed=0,character=0,mods=awt118_modifiers(event->xkey.state);
     Hjava_awt_AWTEvent *javaEvent;
     symbol=XKeycodeToKeysym(awt_display,event->xkey.keycode,0);
+    if (symbol>=XK_KP_Space && symbol<=XK_KP_Equal) {
+        /* Solaris uses its keypad group's function-key aliases. XKB hosts
+         * translate Num Lock/Shift first, then use the standard KP symbols. */
+        if (event->xkey.state&(numLockMask|ShiftMask)) {
+            char bytes[8];
+            XLookupString(&event->xkey,bytes,sizeof(bytes),&translated,NULL);
+            if(translated!=NoSymbol) symbol=translated;
+        }
+        switch(symbol) {
+        case XK_KP_Home: symbol=XK_Home; break;
+        case XK_KP_Left: symbol=XK_Left; break;
+        case XK_KP_Up: symbol=XK_Up; break;
+        case XK_KP_Right: symbol=XK_Right; break;
+        case XK_KP_Down: symbol=XK_Down; break;
+        case XK_KP_Page_Up: symbol=XK_Page_Up; break;
+        case XK_KP_Page_Down: symbol=XK_Page_Down; break;
+        case XK_KP_End: symbol=XK_End; break;
+        case XK_KP_Begin: symbol=XK_Clear; break;
+        }
+    }
     for (i=0;i<sizeof(keymap)/sizeof(keymap[0]);i++) if (keymap[i].symbol==symbol) {
         code=keymap[i].code; typed=keymap[i].typed; break;
     }
@@ -178,6 +227,9 @@ int awt118_filter_input(XEvent *event)
     AwtPeer *peer;
     Widget widget,focus;
     int id;
+    if(event->type==MappingNotify) {
+        XRefreshKeyboardMapping(&event->xmapping); modifierMapReady=0; return 0;
+    }
     if (event->type<KeyPress || event->type>LeaveNotify) return 0;
     widget=XtWindowToWidget(awt_display,event->xany.window);
     if (!widget) return 0;
@@ -234,6 +286,35 @@ int awt118_filter_input(XEvent *event)
     return 1;
 }
 
+/* Solaris debug modify_Event 810b8 / awt_modify_KeyEvent 81370 applies
+ * listener edits before the native event returns to Xt. */
+static void modify_key(XEvent *native,Hjava_awt_AWTEvent *event)
+{
+    Classjava_awt_event_KeyEvent *key=unhand((Hjava_awt_event_KeyEvent *)event);
+    KeySym symbol=NoSymbol;
+    int i,code=key->keyCode,character=key->keyChar,mods=key->modifiers;
+    if (code!=127) {
+        if (character<256 && code!=8 && code!=9 && code!=10 && code!=27 && code!=106 && code!=107)
+            symbol=character;
+        else for(i=0;i<sizeof(keymap)/sizeof(keymap[0]);i++) if(keymap[i].code==code) {
+            symbol=keymap[i].symbol; break;
+        }
+    }
+    if ((mods&2) && symbol) {
+        if (symbol==27 || symbol==28 || symbol==29 || symbol==31) symbol+=64;
+        else if (symbol>=1 && symbol<=26) symbol+=96;
+    }
+    if (symbol) {
+        KeyCode keycode=XKeysymToKeycode(awt_display,symbol);
+        if(keycode) native->xkey.keycode=keycode;
+    }
+    if ((symbol>='A' && symbol<='Z') || (mods&1)) native->xkey.state|=ShiftMask;
+    if (mods&2) native->xkey.state|=ControlMask;
+    if (mods&4) native->xkey.state|=metaMask|Button3Mask;
+    if (mods&8) native->xkey.state|=altMask|Button2Mask;
+    if (mods&16) native->xkey.state|=Button1Mask;
+}
+
 void sun_awt_motif_MComponentPeer_nativeHandleEvent(Hsun_awt_motif_MComponentPeer *self,Hjava_awt_AWTEvent *event)
 {
     NativeEvent **link,*native;
@@ -246,6 +327,7 @@ void sun_awt_motif_MComponentPeer_nativeHandleEvent(Hsun_awt_motif_MComponentPee
     if (native) {
         *link=native->next;
         if (!unhand(event)->consumed) {
+            if (native->event.type==KeyPress || native->event.type==KeyRelease) modify_key(&native->event,event);
             native->next=NULL; *putbackTail=native; putbackTail=&native->next;
         } else free(native);
     }

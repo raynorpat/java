@@ -3,7 +3,7 @@ import java.awt.event.*;
 
 public class Menus115 {
     static native void click(MenuComponent item);
-    static volatile int actions,changes;
+    static volatile int actions,changes,actionModifiers;
     static void check(boolean value,String message) { if (!value) throw new RuntimeException(message); }
     public static void main(String[] args) throws Exception {
         try { run(); } catch (Throwable error) { error.printStackTrace(); System.exit(1); }
@@ -15,7 +15,7 @@ public class Menus115 {
             final Frame frame=new Frame("Menus");
             MenuBar bar=new MenuBar(); Menu menu=new Menu("File");
             MenuItem item=new MenuItem("Action"); CheckboxMenuItem toggle=new CheckboxMenuItem("Toggle");
-            item.addActionListener(new ActionListener() { public void actionPerformed(ActionEvent event) { actions++; } });
+            item.addActionListener(new ActionListener() { public void actionPerformed(ActionEvent event) { actionModifiers=event.getModifiers(); actions++; } });
             toggle.addItemListener(new ItemListener() { public void itemStateChanged(ItemEvent event) { changes++; } });
             menu.add(item); menu.addSeparator(); menu.add(toggle);
             Menu nested=new Menu("More"); nested.add(new MenuItem("Child")); menu.add(nested);
@@ -26,10 +26,11 @@ public class Menus115 {
                 "menu client origin "+content.getLocationOnScreen()+" frame "+frame.getLocationOnScreen()+" insets "+frame.getInsets());
             int before=actions; click(menu); Thread.sleep(150); click(item); Thread.sleep(400);
             check(actions==before+1,"menu activation");
+            check((actionModifiers&InputEvent.BUTTON1_MASK)!=0,"menu action lost mouse modifiers");
             before=changes; click(menu); Thread.sleep(150); click(toggle); Thread.sleep(400);
             check(changes==before+1 && toggle.getState(),"checkbox menu activation");
             PopupMenu popup=new PopupMenu("Popup"); MenuItem popupItem=new MenuItem("Popup action");
-            popupItem.addActionListener(new ActionListener() { public void actionPerformed(ActionEvent event) { actions++; } });
+            popupItem.addActionListener(new ActionListener() { public void actionPerformed(ActionEvent event) { actionModifiers=event.getModifiers(); actions++; } });
             popup.add(popupItem); content.add(popup); before=actions;
             popup.show(content,20,20); Thread.sleep(150); click(popupItem); Thread.sleep(400);
             check(actions==before+1,"popup activation");
