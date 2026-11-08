@@ -1,0 +1,10 @@
+Exception occurred during event dispatching:
+java.lang.RuntimeException: Non-Java exception raised, not handled! (Original problem: DPS Error: %%[ Error: invalidid; OffendingCommand: nextimage ]%%
+)
+	at com.apple.rhapsody.awt.RGraphics.fillRect(RGraphics.java:175)
+	at XYZApp.paint(XYZApp.java:383)
+	at XYZApp.update(XYZApp.java:365)
+	at java.awt.Component.dispatchEventImpl(Component.java:1725)
+	at java.awt.Container.dispatchEventImpl(Container.java:939)
+	at java.awt.Component.dispatchEvent(Component.java:1704)
+	at java.awt.EventDispatchThread.run(EventDispatchThread.java:63)

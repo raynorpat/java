@@ -1,0 +1,2176 @@
+{
+  "status": "Phase 7 acceptance complete within recorded donor limitations",
+  "cases": 81,
+  "executedWithPassingRun": 81,
+  "records": [
+    {
+      "id": "html-Animator_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "pause",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "f4d717e10174a5ac409256022090af9f532d9d9f7065c02b2b1430948edcee97",
+          "visualReview": "inspected",
+          "note": "Animator content visible; green/gray backgrounds and small two-frame canvas render without blank client or overlap."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-Animator_1.1_example1"
+    },
+    {
+      "id": "html-Animator_1.1_example2",
+      "expectedWindows": 1,
+      "profile": "pause",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "a3235258ec166bb9245669c0b5783d2c1efc162c05c1fde504e8c2cbabf6cf8d",
+          "visualReview": "inspected",
+          "note": "Animator content visible; green/gray backgrounds and small two-frame canvas render without blank client or overlap."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-Animator_1.1_example2"
+    },
+    {
+      "id": "html-Animator_1.1_example3",
+      "expectedWindows": 1,
+      "profile": "pause",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "af7d267b9ab724b292052e6a4aa053982a3489dac73f05ed7bb2c71202337563",
+          "visualReview": "inspected",
+          "note": "Animator content visible; green/gray backgrounds and small two-frame canvas render without blank client or overlap."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-Animator_1.1_example3"
+    },
+    {
+      "id": "html-Animator_1.1_example4",
+      "expectedWindows": 1,
+      "profile": "move",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "b08816f66647fff78e2d8999d187cb3bdc9b85fefd90777319a211f1cc853e83",
+          "visualReview": "inspected",
+          "note": "Animator content visible; green/gray backgrounds and small two-frame canvas render without blank client or overlap."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-Animator_1.1_example4"
+    },
+    {
+      "id": "html-Animator_example1",
+      "expectedWindows": 1,
+      "profile": "pause",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "dacb76999a661b8cffe00a89b37edfc151f7c8c1ff15dae034eaccbf809b7293",
+          "visualReview": "inspected",
+          "note": "Animator content visible; green/gray backgrounds and small two-frame canvas render without blank client or overlap."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-Animator_example1"
+    },
+    {
+      "id": "html-Animator_example2",
+      "expectedWindows": 1,
+      "profile": "pause",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "64136ba0dedda5c917ef65ec1d0accaa8ca12571c7995bb285bf96038f846a30",
+          "visualReview": "inspected",
+          "note": "Animator two-frame image inspected after verified pause; resized Blink lettering, analog/digital clock and fractal curve render with complete window chrome."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-focused/html-Animator_example2"
+    },
+    {
+      "id": "html-Animator_example3",
+      "expectedWindows": 1,
+      "profile": "pause",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "6243182a75c35f9ced31d875f4c0a5f76d7982cacba3212c405031733cc62130",
+          "visualReview": "inspected",
+          "note": "Animator content visible; green/gray backgrounds and small two-frame canvas render without blank client or overlap."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-Animator_example3"
+    },
+    {
+      "id": "html-Animator_example4",
+      "expectedWindows": 1,
+      "profile": "move",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "d9d888a308331cbe22be686cecb3e6a3165bf7e84fc5889a4ad7ad0b0cda51d3",
+          "visualReview": "inspected",
+          "note": "Client content, backgrounds and controls visible; arc fill/gauge/openlook render as expected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-Animator_example4"
+    },
+    {
+      "id": "html-ArcTest_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "button:Fill",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "button:Fill",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "b29ea7c7332d2b747ba1d6cf31e99385d8f16446ae75c07ff9546c3e17d3579c",
+          "visualReview": "inspected",
+          "note": "Client content, backgrounds and controls visible; arc fill/gauge/openlook render as expected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-ArcTest_1.1_example1"
+    },
+    {
+      "id": "html-ArcTest_example1",
+      "expectedWindows": 1,
+      "profile": "button:Fill",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "button:Fill",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "b29ea7c7332d2b747ba1d6cf31e99385d8f16446ae75c07ff9546c3e17d3579c",
+          "visualReview": "inspected",
+          "note": "Client content, backgrounds and controls visible; arc fill/gauge/openlook render as expected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-ArcTest_example1"
+    },
+    {
+      "id": "html-awt-1.1_eventmodel_index",
+      "expectedWindows": 4,
+      "profile": "move",
+      "review": "accepted within documented donor boundary",
+      "windows": 4,
+      "startupSeconds": 16.68,
+      "interaction": {
+        "profile": "move",
+        "targets": 4,
+        "windows": 4
+      },
+      "clientCaptures": [
+        {
+          "window": "0x1a",
+          "file": "client-0.png",
+          "sha256": "ea4f8efcc034dea0c137f1b43186eadf1a7492579351ca8a5b915191ccae08b7",
+          "visualReview": "inspected",
+          "note": "Post-review installed-image capture inspected; controls and molecule/box content visible."
+        },
+        {
+          "window": "0x27",
+          "file": "client-1.png",
+          "sha256": "4589c73af55d3754ac188cefa6936e6abdbcaee8f56f1de49ee9852481a361ac",
+          "visualReview": "inspected",
+          "note": "Post-review installed-image capture inspected; controls and molecule/box content visible."
+        },
+        {
+          "window": "0x4",
+          "file": "client-2.png",
+          "sha256": "67503317f9cb9cc6e638c109e1c247fee9083c8aee54eebf7c5c1a409cb63584",
+          "visualReview": "donor-limitation",
+          "note": "Original peer clipping after puck movement, confirmed against donor."
+        },
+        {
+          "window": "0xd",
+          "file": "client-3.png",
+          "sha256": "d9088999cf9f5fd9626f177f629efcf0dfd738184259075f68d24e1520d21bd9",
+          "visualReview": "inspected",
+          "note": "Post-review installed-image capture inspected; controls and molecule/box content visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-review-final/html-awt-1.1_eventmodel_index"
+    },
+    {
+      "id": "html-awt-1.1_lightweight_Gauge_example",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 7.7,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "7a26e06a4bdc734b1d114d0c35252809e76851cb5d6c16b4b3754c034f1aae94",
+          "visualReview": "inspected",
+          "note": "Top-anchored resize verified; gauge bars, textured spinner, labeled bar charts and blinking colored text remain visible with complete window chrome."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/html-awt-1.1_lightweight_Gauge_example"
+    },
+    {
+      "id": "html-awt-1.1_lightweight_OpenlookButtons_example",
+      "expectedWindows": 1,
+      "profile": "openlook",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "openlook",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "f30a657deb4329e816390543def0db967ca0eacf2274b93d813f36628eaa8163",
+          "visualReview": "inspected",
+          "note": "Client content, backgrounds and controls visible; arc fill/gauge/openlook render as expected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-awt-1.1_lightweight_OpenlookButtons_example"
+    },
+    {
+      "id": "html-awt-1.1_lightweight_RoundButtons_example",
+      "expectedWindows": 1,
+      "profile": "round",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "round",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "d90ea231308e758805265c2f9ddd6c061299be303e2c6202c406a9735aee2c3f",
+          "visualReview": "donor-limitation",
+          "note": "Original DR2 donor capture reproduces the missing third button and partially clipped first button; GraphicsCopies115 matches donor clip/pixel values. Original Java peer bytes preserved."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-awt-1.1_lightweight_RoundButtons_example"
+    },
+    {
+      "id": "html-awt-1.1_lightweight_Spinner_example",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 6.28,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "67fc20c054bcd45f9a5d99928744bcf74b307abff69e7951b5a0f5526a52f56b",
+          "visualReview": "inspected",
+          "note": "Top-anchored resize verified; gauge bars, textured spinner, labeled bar charts and blinking colored text remain visible with complete window chrome."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/html-awt-1.1_lightweight_Spinner_example"
+    },
+    {
+      "id": "html-awt-1.1_symboltest_index",
+      "expectedWindows": 1,
+      "profile": "symbol",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "symbol",
+      "textChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "add3f4c222a8d06f8220b348bfa99a4640fb5b634fe6b42e1b05e0b982dc292d",
+          "visualReview": "inspected",
+          "note": "Spinner, Unicode grid, charts, blinking text or changed CardLayout visible with intact controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-awt-1.1_symboltest_index"
+    },
+    {
+      "id": "html-BarChart_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.28,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "fdb8a975c96afba220fb4268141d1b39fe8592daaa7ad36b863c97b47d8aae08",
+          "visualReview": "inspected",
+          "note": "Top-anchored resize verified; gauge bars, textured spinner, labeled bar charts and blinking colored text remain visible with complete window chrome."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/html-BarChart_1.1_example1"
+    },
+    {
+      "id": "html-BarChart_example1",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.4,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "fdb8a975c96afba220fb4268141d1b39fe8592daaa7ad36b863c97b47d8aae08",
+          "visualReview": "inspected",
+          "note": "Top-anchored resize verified; gauge bars, textured spinner, labeled bar charts and blinking colored text remain visible with complete window chrome."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/html-BarChart_example1"
+    },
+    {
+      "id": "html-Blink_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.14,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "697fda9555c471b00bffe8355de529adef6678924b46a46f5f2673aec9e35b43",
+          "visualReview": "inspected",
+          "note": "Top-anchored resize verified; gauge bars, textured spinner, labeled bar charts and blinking colored text remain visible with complete window chrome."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/html-Blink_1.1_example1"
+    },
+    {
+      "id": "html-Blink_example1",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.19,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "a712a24ed74b2c3199a658dd5a5bc1a17d9aa8fbf1ee3512829fe38fe3e6dc78",
+          "visualReview": "inspected",
+          "note": "Animator two-frame image inspected after verified pause; resized Blink lettering, analog/digital clock and fractal curve render with complete window chrome."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/html-Blink_example1"
+    },
+    {
+      "id": "html-CardTest_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "button:next",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "8ebf10d5d5f662a9b322d940a3ee72863db9188c2449109f9d6265706e0bef8d",
+          "visualReview": "inspected",
+          "note": "Spinner, Unicode grid, charts, blinking text or changed CardLayout visible with intact controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-CardTest_1.1_example1"
+    },
+    {
+      "id": "html-CardTest_example1",
+      "expectedWindows": 1,
+      "profile": "button:next",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "8ebf10d5d5f662a9b322d940a3ee72863db9188c2449109f9d6265706e0bef8d",
+          "visualReview": "inspected",
+          "note": "Spinner, Unicode grid, charts, blinking text or changed CardLayout visible with intact controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-CardTest_example1"
+    },
+    {
+      "id": "html-Clock_index",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 7.37,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "88bce30f80ea9e5d17d28f69e61b4c437a3c250b96acc33e634f016d4bf8794a",
+          "visualReview": "inspected",
+          "note": "Animator two-frame image inspected after verified pause; resized Blink lettering, analog/digital clock and fractal curve render with complete window chrome."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/html-Clock_index"
+    },
+    {
+      "id": "html-DitherTest_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "dither",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "dither",
+      "choiceChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "4263e7df345f3265b72912c910901995eb8ecc31cbf8cc664d113b597fb1bd25",
+          "visualReview": "inspected",
+          "note": "Clock hands/text, changed green/blue dither, drawn drag line, fractal contour or arc page visible with intact controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-DitherTest_1.1_example1"
+    },
+    {
+      "id": "html-DitherTest_example1",
+      "expectedWindows": 1,
+      "profile": "dither",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "dither",
+      "choiceChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "4263e7df345f3265b72912c910901995eb8ecc31cbf8cc664d113b597fb1bd25",
+          "visualReview": "inspected",
+          "note": "Clock hands/text, changed green/blue dither, drawn drag line, fractal contour or arc page visible with intact controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-DitherTest_example1"
+    },
+    {
+      "id": "html-DrawTest_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "536a6e68ffa268b7b26e4c51dadcb27730cacc80983ccd7246f25fbfa32060fc",
+          "visualReview": "inspected",
+          "note": "Clock hands/text, changed green/blue dither, drawn drag line, fractal contour or arc page visible with intact controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-DrawTest_1.1_example1"
+    },
+    {
+      "id": "html-DrawTest_example1",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "536a6e68ffa268b7b26e4c51dadcb27730cacc80983ccd7246f25fbfa32060fc",
+          "visualReview": "inspected",
+          "note": "Clock hands/text, changed green/blue dither, drawn drag line, fractal contour or arc page visible with intact controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-DrawTest_example1"
+    },
+    {
+      "id": "html-Fractal_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.1,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "cd9d563bc3d144970291f0f847b2579db7042ef597557960e5c38f3b2e0fe012",
+          "visualReview": "inspected",
+          "note": "Top-anchored resize keeps titles and all controls visible; fractal/graph curves render. PictureFrame empty boxes match the absent shipped Beeper.gif asset, with both explanatory labels visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/html-Fractal_1.1_example1"
+    },
+    {
+      "id": "html-Fractal_example1",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.07,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "cd9d563bc3d144970291f0f847b2579db7042ef597557960e5c38f3b2e0fe012",
+          "visualReview": "inspected",
+          "note": "Top-anchored resize keeps titles and all controls visible; fractal/graph curves render. PictureFrame empty boxes match the absent shipped Beeper.gif asset, with both explanatory labels visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/html-Fractal_example1"
+    },
+    {
+      "id": "html-GraphicsTest_example1",
+      "expectedWindows": 1,
+      "profile": "button:next",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "5c303f489289cab7e27b4e820f24ea3a80108754e6bc030c7046cb5ce8f95793",
+          "visualReview": "inspected",
+          "note": "Clock hands/text, changed green/blue dither, drawn drag line, fractal contour or arc page visible with intact controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-GraphicsTest_example1"
+    },
+    {
+      "id": "html-GraphLayout_example1",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "e6551c1d60f52eb5d37a2290d47729caba9a7737a9140465bc0d961aea09d608",
+          "visualReview": "inspected",
+          "note": "Graph vertices, connecting edges and controls visible after drag interaction; all four graph layouts inspected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-GraphLayout_example1"
+    },
+    {
+      "id": "html-GraphLayout_example2",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "c48a2325904762601861322b9c4255301d3ceb24050b142000a8bfa11dbc04c8",
+          "visualReview": "inspected",
+          "note": "Graph vertices, connecting edges and controls visible after drag interaction; all four graph layouts inspected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-GraphLayout_example2"
+    },
+    {
+      "id": "html-GraphLayout_example3",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "bca76126533e93b4e90323a9e6f8e6fce9366b88d839fcda5fc9090eb8f4b636",
+          "visualReview": "inspected",
+          "note": "Graph vertices, connecting edges and controls visible after drag interaction; all four graph layouts inspected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-GraphLayout_example3"
+    },
+    {
+      "id": "html-GraphLayout_example4",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "65b328e5273d932ae4cc634ca4a818b0a8e435bc0eb4b078aff19eea57c0efea",
+          "visualReview": "inspected",
+          "note": "Graph vertices, connecting edges and controls visible after drag interaction; all four graph layouts inspected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-full/html-GraphLayout_example4"
+    },
+    {
+      "id": "html-i18n_Collate_example1",
+      "expectedWindows": 1,
+      "profile": "i18n-applet",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.25,
+      "interaction": "i18n-applet",
+      "nestedWindowWaitSeconds": 33.3,
+      "nestedDemoChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "7ad5224171b52578977995f8e004a33417ac17b8b21fa38b5fab7c62297df6e9",
+          "visualReview": "inspected",
+          "note": "Collate launcher and native controls inspected; the complete 550x500 application client matches the original donor pixel-for-pixel. Accented text, rules and edited choices render correctly."
+        },
+        {
+          "window": "0xd",
+          "file": "client-1.png",
+          "sha256": "1706e9eacf8d411862a3d2849484c9a37e49f8f5f9e4898541d07100caddd5d8",
+          "visualReview": "inspected",
+          "note": "Collate launcher and native controls inspected; the complete 550x500 application client matches the original donor pixel-for-pixel. Accented text, rules and edited choices render correctly."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-collate-bounded-2/html-i18n_Collate_example1"
+    },
+    {
+      "id": "html-i18n_DateTimeFormat_example1",
+      "expectedWindows": 1,
+      "profile": "i18n-applet",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "i18n-applet",
+      "nestedDemoChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "6dbf2514b18c2597b9390810bceaf3afab1e143f55445e825810637653c5e5a2",
+          "visualReview": "inspected",
+          "note": "Launcher and formatting application inspected; labels, edited choices, text fields and resulting formatting visible without blank client or clipped controls."
+        },
+        {
+          "window": "0xd",
+          "file": "client-1.png",
+          "sha256": "adc94a131cf7e15dfa374e6becbcd90dd3a517a0fa8f0f27e1cf127f7e225de9",
+          "visualReview": "inspected",
+          "note": "Launcher and formatting application inspected; labels, edited choices, text fields and resulting formatting visible without blank client or clipped controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-remaining/html-i18n_DateTimeFormat_example1"
+    },
+    {
+      "id": "html-i18n_MessageFormat_example1",
+      "expectedWindows": 1,
+      "profile": "i18n-applet",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "i18n-applet",
+      "nestedDemoChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "b7c4f5784410c35c1b45df688dd77624dc5178846e4a6df29a659e0f32014c54",
+          "visualReview": "inspected",
+          "note": "Launcher and formatting application inspected; labels, edited choices, text fields and resulting formatting visible without blank client or clipped controls."
+        },
+        {
+          "window": "0xd",
+          "file": "client-1.png",
+          "sha256": "e52fe3bcce4f65dfd3d8cc65f8925e7a05d5c3ba4f92b511a87c0a0d4e6fe275",
+          "visualReview": "inspected",
+          "note": "Launcher and formatting application inspected; labels, edited choices, text fields and resulting formatting visible without blank client or clipped controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-remaining/html-i18n_MessageFormat_example1"
+    },
+    {
+      "id": "html-i18n_NumberFormat_example1",
+      "expectedWindows": 1,
+      "profile": "i18n-applet",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "i18n-applet",
+      "nestedDemoChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "604125cb1dc2d8659688085871c67a6129585983e54c067a047a7e0c94210f33",
+          "visualReview": "inspected",
+          "note": "Launcher and formatting application inspected; labels, edited choices, text fields and resulting formatting visible without blank client or clipped controls."
+        },
+        {
+          "window": "0xd",
+          "file": "client-1.png",
+          "sha256": "4206ca99012bdc4d6b6fbe69bc0e706e9bd49b3f7167ac674409190f5356504b",
+          "visualReview": "inspected",
+          "note": "Standalone date/time, message, number and text-boundary applications inspected after choice changes; complete text, labels and native controls are visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-remaining/html-i18n_NumberFormat_example1"
+    },
+    {
+      "id": "html-i18n_TextBound_example1",
+      "expectedWindows": 1,
+      "profile": "i18n-applet",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": "i18n-applet",
+      "nestedDemoChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "5c409924ab0f77a472a482a40969d05ee510291e79b3acfdfc2acfc8bcfaccdf",
+          "visualReview": "inspected",
+          "note": "Text-boundary text and controls, ImageMap photo/hover highlight, and JumpingBox outlined target inspected after input."
+        },
+        {
+          "window": "0xd",
+          "file": "client-1.png",
+          "sha256": "12a4176a4afe313eb55ba3718cf64fdc06785111f5670dac5938aa650d2820ff",
+          "visualReview": "inspected",
+          "note": "Standalone date/time, message, number and text-boundary applications inspected after choice changes; complete text, labels and native controls are visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-remaining/html-i18n_TextBound_example1"
+    },
+    {
+      "id": "html-ImageMap_example1",
+      "expectedWindows": 1,
+      "profile": "imagemap",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": {
+        "profile": "imagemap",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "6957905550271e2596429b50719153ac898088da7bedec1ebb8e544a696f8008",
+          "visualReview": "inspected",
+          "note": "Text-boundary text and controls, ImageMap photo/hover highlight, and JumpingBox outlined target inspected after input."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-remaining/html-ImageMap_example1"
+    },
+    {
+      "id": "html-JumpingBox_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "move",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "a7daa2d766a498ee52ce28eea1378707775832659e2010f615ed3228dce38e28",
+          "visualReview": "inspected",
+          "note": "Text-boundary text and controls, ImageMap photo/hover highlight, and JumpingBox outlined target inspected after input."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-remaining/html-JumpingBox_1.1_example1"
+    },
+    {
+      "id": "html-JumpingBox_example1",
+      "expectedWindows": 1,
+      "profile": "move",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 6.1,
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "c970249cbf1ad8fe1253241763eb218cbb6e34b8310e6af7ce5d0d249668efc9",
+          "visualReview": "inspected",
+          "note": "Outlined JumpingBox target, paused jittered NervousText lettering, and both resized SimpleGraph curves inspected. Each client renders its expected content."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-JumpingBox_example1"
+    },
+    {
+      "id": "html-MoleculeViewer_example1",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 6.21,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "f3d3c50cb8d479ad467bbe9e7beae7abf4dbc78114a1388d8d434ce5e1214912",
+          "visualReview": "inspected",
+          "note": "Post-review installed-image capture inspected; controls and molecule/box content visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-review-final/html-MoleculeViewer_example1"
+    },
+    {
+      "id": "html-MoleculeViewer_example2",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 6.5,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "1b6bc561b88e6120e675d1a38658d8e7b0ccbe2ef6d87c9ffdeb6edf43b335a8",
+          "visualReview": "inspected",
+          "note": "Post-review installed-image capture inspected; controls and molecule/box content visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-review-final/html-MoleculeViewer_example2"
+    },
+    {
+      "id": "html-MoleculeViewer_example3",
+      "expectedWindows": 4,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 4,
+      "startupSeconds": 11.55,
+      "interaction": {
+        "profile": "drag",
+        "targets": 4,
+        "windows": 4
+      },
+      "clientCaptures": [
+        {
+          "window": "0x16",
+          "file": "client-0.png",
+          "sha256": "b15f223697c5f981849e613c83adb4b6c7858a632613f0f0f9c7632963b93823",
+          "visualReview": "donor-limitation",
+          "note": "Final committed image: all four molecule clients inspected after drag; clean log and closure. Intermittent donor DPS startup failure is recorded separately."
+        },
+        {
+          "window": "0x1f",
+          "file": "client-1.png",
+          "sha256": "997bd103f98e856c45c654e3b280e5c1158116db44d88679349901a1b65e6533",
+          "visualReview": "donor-limitation",
+          "note": "Final committed image: all four molecule clients inspected after drag; clean log and closure. Intermittent donor DPS startup failure is recorded separately."
+        },
+        {
+          "window": "0x4",
+          "file": "client-2.png",
+          "sha256": "ca1770983eba2d2f666be2a7e49cc12a287e810b3f865ef62e560f75c786aa4f",
+          "visualReview": "donor-limitation",
+          "note": "Final committed image: all four molecule clients inspected after drag; clean log and closure. Intermittent donor DPS startup failure is recorded separately."
+        },
+        {
+          "window": "0xd",
+          "file": "client-3.png",
+          "sha256": "eaa828a9fae3a19b6b60f000dca5e7bdf1367fbafeb978fde1a23655eff32615",
+          "visualReview": "donor-limitation",
+          "note": "Final committed image: all four molecule clients inspected after drag; clean log and closure. Intermittent donor DPS startup failure is recorded separately."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-final-molecule/html-MoleculeViewer_example3"
+    },
+    {
+      "id": "html-NervousText_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "pause",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 4.89,
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "6c6e0fa77473d9ad38ecb658d7649907cc85690fccf4e06a25bcdce5089456b6",
+          "visualReview": "inspected",
+          "note": "Outlined JumpingBox target, paused jittered NervousText lettering, and both resized SimpleGraph curves inspected. Each client renders its expected content."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-NervousText_1.1_example1"
+    },
+    {
+      "id": "html-NervousText_example1",
+      "expectedWindows": 1,
+      "profile": "pause",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 11.09,
+      "movingBefore": true,
+      "interaction": {
+        "profile": "pause",
+        "targets": 1,
+        "windows": 1
+      },
+      "pauseStable": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "82dcad3151e690e59e8054eb50c2a503270d255f76fa841d91a624b450a45c21",
+          "visualReview": "inspected",
+          "note": "Outlined JumpingBox target, paused jittered NervousText lettering, and both resized SimpleGraph curves inspected. Each client renders its expected content."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-NervousText_example1"
+    },
+    {
+      "id": "html-SimpleGraph_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.18,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "dfa58894b8c5e3bfade3b64a18e5d49d053f61c6437d984f052501e5fb59f2dc",
+          "visualReview": "inspected",
+          "note": "Top-anchored resize keeps titles and all controls visible; fractal/graph curves render. PictureFrame empty boxes match the absent shipped Beeper.gif asset, with both explanatory labels visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/html-SimpleGraph_1.1_example1"
+    },
+    {
+      "id": "html-SimpleGraph_example1",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.35,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "dfa58894b8c5e3bfade3b64a18e5d49d053f61c6437d984f052501e5fb59f2dc",
+          "visualReview": "inspected",
+          "note": "Top-anchored resize keeps titles and all controls visible; fractal/graph curves render. PictureFrame empty boxes match the absent shipped Beeper.gif asset, with both explanatory labels visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/html-SimpleGraph_example1"
+    },
+    {
+      "id": "html-SortDemo_1.1_example1",
+      "expectedWindows": 3,
+      "profile": "click",
+      "review": "accepted within documented donor boundary",
+      "windows": 3,
+      "startupSeconds": 7.38,
+      "interaction": {
+        "profile": "click",
+        "targets": 3,
+        "windows": 3
+      },
+      "clientCaptures": [
+        {
+          "window": "0x12",
+          "file": "client-0.png",
+          "sha256": "78970ee3633321d99b3794ca3a6eb539bbe870c34d254dd11011aa767630bb51",
+          "visualReview": "inspected",
+          "note": "All six sorting clients show bars and active sort markers after input; spreadsheet shows its grid, values and edited input line."
+        },
+        {
+          "window": "0x4",
+          "file": "client-1.png",
+          "sha256": "4ce3a3b18e60e1a1790c5629652e4c358ae42512701487e1a25fc5d77fd8443a",
+          "visualReview": "inspected",
+          "note": "All six sorting clients show bars and active sort markers after input; spreadsheet shows its grid, values and edited input line."
+        },
+        {
+          "window": "0xd",
+          "file": "client-2.png",
+          "sha256": "88d56a1e3e6fa6f3b4eefefb1bb316384c87624659c1a63edc30b9731b517f00",
+          "visualReview": "inspected",
+          "note": "All six sorting clients show bars and active sort markers after input; spreadsheet shows its grid, values and edited input line."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-SortDemo_1.1_example1"
+    },
+    {
+      "id": "html-SortDemo_example1",
+      "expectedWindows": 3,
+      "profile": "click",
+      "review": "accepted within documented donor boundary",
+      "windows": 3,
+      "startupSeconds": 7.74,
+      "interaction": {
+        "profile": "click",
+        "targets": 3,
+        "windows": 3
+      },
+      "clientCaptures": [
+        {
+          "window": "0x12",
+          "file": "client-0.png",
+          "sha256": "f81b7689a1b6f9df730c6e7e230e2c5476004b07853f8b0dcae3051ca75c9729",
+          "visualReview": "inspected",
+          "note": "All six sorting clients show bars and active sort markers after input; spreadsheet shows its grid, values and edited input line."
+        },
+        {
+          "window": "0x4",
+          "file": "client-1.png",
+          "sha256": "a7d560cfa6fa05a1875aadf785a6d6eba148c94cc71e571faac706e5964ab411",
+          "visualReview": "inspected",
+          "note": "All six sorting clients show bars and active sort markers after input; spreadsheet shows its grid, values and edited input line."
+        },
+        {
+          "window": "0xd",
+          "file": "client-2.png",
+          "sha256": "7b30f0992dd1dffbc46ed507d236b5a3d90e1a5463b9bc439e65ed9a4af0e332",
+          "visualReview": "inspected",
+          "note": "All six sorting clients show bars and active sort markers after input; spreadsheet shows its grid, values and edited input line."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-SortDemo_example1"
+    },
+    {
+      "id": "html-SpreadSheet_example1",
+      "expectedWindows": 1,
+      "profile": "sheet",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 4.93,
+      "interaction": {
+        "profile": "sheet",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "4e8708f32db0e26159fbd8a0c1a899b8e822c1b4eb1abe73b3a89d477e714b84",
+          "visualReview": "inspected",
+          "note": "All six sorting clients show bars and active sort markers after input; spreadsheet shows its grid, values and edited input line."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-SpreadSheet_example1"
+    },
+    {
+      "id": "html-TicTacToe_1.1_example1",
+      "expectedWindows": 1,
+      "profile": "tic",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.22,
+      "interaction": {
+        "profile": "tic",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "6fc9bb99219fcba3e2f959a43b6503b95780ece639aa8efd2eb931846da144d7",
+          "visualReview": "inspected",
+          "note": "Both TicTacToe boards show the user mark and computer response; wireframe cube and dense triangulated model render after drag."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-TicTacToe_1.1_example1"
+    },
+    {
+      "id": "html-TicTacToe_example1",
+      "expectedWindows": 1,
+      "profile": "tic",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 13.09,
+      "interaction": {
+        "profile": "tic",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "6fc9bb99219fcba3e2f959a43b6503b95780ece639aa8efd2eb931846da144d7",
+          "visualReview": "inspected",
+          "note": "Both TicTacToe boards show the user mark and computer response; wireframe cube and dense triangulated model render after drag."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-TicTacToe_example1"
+    },
+    {
+      "id": "html-WireFrame_example1",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.19,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "042a712389c90f5ab7d0fa94bdf8ee9d1f476c849709875cb4ef5492c8259047",
+          "visualReview": "inspected",
+          "note": "Both TicTacToe boards show the user mark and computer response; wireframe cube and dense triangulated model render after drag."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-WireFrame_example1"
+    },
+    {
+      "id": "html-WireFrame_example2",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.01,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "689bc16d2ff271d8773cc4990d07f56640cfdef61774c4f9944f8c234e57fba2",
+          "visualReview": "inspected",
+          "note": "Both TicTacToe boards show the user mark and computer response; wireframe cube and dense triangulated model render after drag."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-WireFrame_example2"
+    },
+    {
+      "id": "html-WireFrame_example3",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.12,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "c5aec022b9bbb169a13e882ead826707209c4e4ac40e9e1c5cf5427dd95d3660",
+          "visualReview": "inspected",
+          "note": "Helicopter/ship wireframes render after drag; both standalone ArcTest variants show the filled red 45-degree sector and complete controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-WireFrame_example3"
+    },
+    {
+      "id": "html-WireFrame_example4",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.77,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "8025f0fa544a97a26e7dbc52942271e168f54efa6aaec9ea551f44b6536ee344",
+          "visualReview": "inspected",
+          "note": "Helicopter/ship wireframes render after drag; both standalone ArcTest variants show the filled red 45-degree sector and complete controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/html-WireFrame_example4"
+    },
+    {
+      "id": "main-ArcTest_1.0.2_ArcTest",
+      "expectedWindows": 1,
+      "profile": "button:Fill",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 3.45,
+      "interaction": "button:Fill",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "ad3ecb73f3a294a177d8dad78116194c174128627f752e85d9a32ae719893070",
+          "visualReview": "inspected",
+          "note": "Helicopter/ship wireframes render after drag; both standalone ArcTest variants show the filled red 45-degree sector and complete controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": true,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-ArcTest_1.0.2_ArcTest"
+    },
+    {
+      "id": "main-ArcTest_1.1_ArcTest",
+      "expectedWindows": 1,
+      "profile": "button:Fill",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 3.38,
+      "interaction": "button:Fill",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "ad3ecb73f3a294a177d8dad78116194c174128627f752e85d9a32ae719893070",
+          "visualReview": "inspected",
+          "note": "Helicopter/ship wireframes render after drag; both standalone ArcTest variants show the filled red 45-degree sector and complete controls."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": true,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-ArcTest_1.1_ArcTest"
+    },
+    {
+      "id": "main-awt-1.1_eventmodel_Click0",
+      "expectedWindows": 1,
+      "profile": "move",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 2.38,
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "a04098b756eda7e051fc82ef339c075d1b50d6a20c7701325ad8813e427dd94f",
+          "visualReview": "donor-limitation",
+          "note": "Click0 moves its Java puck bounds to the bottom, but repaint remains clipped by the original Java peer. Standalone 400x400 client is pixel-identical to original DR2 donor, with identical Box bounds x198/y377; the same create/translate defect affects the applet."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-awt-1.1_eventmodel_Click0"
+    },
+    {
+      "id": "main-awt-1.1_eventmodel_Click1",
+      "expectedWindows": 1,
+      "profile": "move",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 4.25,
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "cfaeffe8c81d05570a8cb571bf032dd27283b4ec1c147f809537db04be2d5bdb",
+          "visualReview": "inspected",
+          "note": "Standalone Click1/2/3 colored box rows render after motion input."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-awt-1.1_eventmodel_Click1"
+    },
+    {
+      "id": "main-awt-1.1_eventmodel_Click2",
+      "expectedWindows": 1,
+      "profile": "move",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 3.39,
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "5f3e1987f1b28d1491e9d03bea02fc65af4d7f6f4128e51c3977917189c30fda",
+          "visualReview": "inspected",
+          "note": "Standalone Click1/2/3 colored box rows render after motion input."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-awt-1.1_eventmodel_Click2"
+    },
+    {
+      "id": "main-awt-1.1_eventmodel_Click3",
+      "expectedWindows": 1,
+      "profile": "move",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 4.35,
+      "interaction": {
+        "profile": "move",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "53e9d7d618e677268fe2f24833ecaa20287fc29fe0e327d620964405cab2e9e0",
+          "visualReview": "inspected",
+          "note": "Standalone Click1/2/3 colored box rows render after motion input."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-awt-1.1_eventmodel_Click3"
+    },
+    {
+      "id": "main-awt-1.1_lightweight_Gauge_alternative_PictureFrame",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 3.31,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "73a5c16d87a7446cdd56f62a9f1416f42c108602826f3f29b4754c67d20a645d",
+          "visualReview": "inspected",
+          "note": "Corrected resize preserves full title and explanatory labels; empty image box corresponds to absent shipped Beeper.gif."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/main-awt-1.1_lightweight_Gauge_alternative_PictureFrame"
+    },
+    {
+      "id": "main-awt-1.1_lightweight_OpenlookButtons_alternative_PictureFrame",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 3.42,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "73a5c16d87a7446cdd56f62a9f1416f42c108602826f3f29b4754c67d20a645d",
+          "visualReview": "inspected",
+          "note": "Corrected resize preserves full title and explanatory labels; empty image box corresponds to absent shipped Beeper.gif."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/main-awt-1.1_lightweight_OpenlookButtons_alternative_PictureFrame"
+    },
+    {
+      "id": "main-awt-1.1_lightweight_RoundButtons_alternative_PictureFrame",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 3.36,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "73a5c16d87a7446cdd56f62a9f1416f42c108602826f3f29b4754c67d20a645d",
+          "visualReview": "inspected",
+          "note": "Corrected resize preserves full title and explanatory labels; empty image box corresponds to absent shipped Beeper.gif."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/main-awt-1.1_lightweight_RoundButtons_alternative_PictureFrame"
+    },
+    {
+      "id": "main-awt-1.1_lightweight_Spinner_alternative_PictureFrame",
+      "expectedWindows": 1,
+      "profile": "resize",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 4.38,
+      "interaction": "resize",
+      "resizeAnchored": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "73a5c16d87a7446cdd56f62a9f1416f42c108602826f3f29b4754c67d20a645d",
+          "visualReview": "inspected",
+          "note": "Corrected resize preserves full title and explanatory labels; empty image box corresponds to absent shipped Beeper.gif."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-resize-corrected/main-awt-1.1_lightweight_Spinner_alternative_PictureFrame"
+    },
+    {
+      "id": "main-awt-1.1_symboltest_SymbolTest",
+      "expectedWindows": 1,
+      "profile": "symbol",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 5.25,
+      "interaction": "symbol",
+      "textChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "a9a8c93e1ab07aa524e026a3c745c28e49c3e077e2d0e7e551d3965826916d4d",
+          "visualReview": "inspected",
+          "note": "SymbolTest updated to2200 with native Helvetica glyph coverage; CardTest border layout, DitherTest green/blue gradients, and DrawTest dragged line inspected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-awt-1.1_symboltest_SymbolTest"
+    },
+    {
+      "id": "main-CardTest_1.0.2_CardTest",
+      "expectedWindows": 1,
+      "profile": "button:next",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 4.85,
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "3f7c4bf1a6a65d18950276adb6131f9e3a95a5c26bae30654e144e4ee31fe7fb",
+          "visualReview": "inspected",
+          "note": "SymbolTest updated to2200 with native Helvetica glyph coverage; CardTest border layout, DitherTest green/blue gradients, and DrawTest dragged line inspected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": true,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-CardTest_1.0.2_CardTest"
+    },
+    {
+      "id": "main-CardTest_1.1_CardTest",
+      "expectedWindows": 1,
+      "profile": "button:next",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 4.8,
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "3f7c4bf1a6a65d18950276adb6131f9e3a95a5c26bae30654e144e4ee31fe7fb",
+          "visualReview": "inspected",
+          "note": "SymbolTest updated to2200 with native Helvetica glyph coverage; CardTest border layout, DitherTest green/blue gradients, and DrawTest dragged line inspected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": true,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-CardTest_1.1_CardTest"
+    },
+    {
+      "id": "main-DitherTest_1.0.2_DitherTest",
+      "expectedWindows": 1,
+      "profile": "dither",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 4.04,
+      "interaction": "dither",
+      "choiceChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "805f350861d96354c4b793b178f6a9d5c652a6c7251ecf7f621376fe6e2adec8",
+          "visualReview": "inspected",
+          "note": "SymbolTest updated to2200 with native Helvetica glyph coverage; CardTest border layout, DitherTest green/blue gradients, and DrawTest dragged line inspected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": true,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-DitherTest_1.0.2_DitherTest"
+    },
+    {
+      "id": "main-DitherTest_1.1_DitherTest",
+      "expectedWindows": 1,
+      "profile": "dither",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 3.94,
+      "interaction": "dither",
+      "choiceChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "805f350861d96354c4b793b178f6a9d5c652a6c7251ecf7f621376fe6e2adec8",
+          "visualReview": "inspected",
+          "note": "SymbolTest updated to2200 with native Helvetica glyph coverage; CardTest border layout, DitherTest green/blue gradients, and DrawTest dragged line inspected."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": true,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-DitherTest_1.1_DitherTest"
+    },
+    {
+      "id": "main-DrawTest_1.0.2_DrawTest",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 3.31,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "5f96466ca0b6612fb43093b1bb717cbb8eefa353a0dcce4bcd33c1cc0bfc3d1e",
+          "visualReview": "inspected",
+          "note": "DrawTest line, GraphicsTest outlined/filled concentric arcs, and standalone Collate controls/rules/accents inspected after interaction."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": true,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-DrawTest_1.0.2_DrawTest"
+    },
+    {
+      "id": "main-DrawTest_1.1_DrawTest",
+      "expectedWindows": 1,
+      "profile": "drag",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 3.19,
+      "interaction": {
+        "profile": "drag",
+        "targets": 1,
+        "windows": 1
+      },
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "5f96466ca0b6612fb43093b1bb717cbb8eefa353a0dcce4bcd33c1cc0bfc3d1e",
+          "visualReview": "inspected",
+          "note": "DrawTest line, GraphicsTest outlined/filled concentric arcs, and standalone Collate controls/rules/accents inspected after interaction."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": true,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-DrawTest_1.1_DrawTest"
+    },
+    {
+      "id": "main-GraphicsTest_GraphicsTest",
+      "expectedWindows": 1,
+      "profile": "button:next",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 4.11,
+      "interaction": "button:next",
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "7fcf7c75f1ea01f4af3c7947ab87644d40ab736b14dd5dd3b34c9e378c5e464e",
+          "visualReview": "inspected",
+          "note": "DrawTest line, GraphicsTest outlined/filled concentric arcs, and standalone Collate controls/rules/accents inspected after interaction."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-GraphicsTest_GraphicsTest"
+    },
+    {
+      "id": "main-i18n_code_CollateDemo",
+      "expectedWindows": 1,
+      "profile": "choice",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 36.51,
+      "interaction": "choice",
+      "choiceChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "6a9e8cdde6c10735ee9e6f3df0fb71dd1e0069becebd38d8caf738152fd02d0d",
+          "visualReview": "inspected",
+          "note": "DrawTest line, GraphicsTest outlined/filled concentric arcs, and standalone Collate controls/rules/accents inspected after interaction."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-i18n_code_CollateDemo"
+    },
+    {
+      "id": "main-i18n_code_DateTimeDemo",
+      "expectedWindows": 1,
+      "profile": "choice",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 15.71,
+      "interaction": "choice",
+      "choiceChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "b60322e0cbc2450379e8cc9f0cdf6ef52cd98a561e18cf2a5cee144912acd2f2",
+          "visualReview": "inspected",
+          "note": "Standalone date/time, message, number and text-boundary applications inspected after choice changes; complete text, labels and native controls are visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-i18n_code_DateTimeDemo"
+    },
+    {
+      "id": "main-i18n_code_MessageFormatDemo",
+      "expectedWindows": 1,
+      "profile": "choice",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 7.6,
+      "interaction": "choice",
+      "choiceChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "77ac2426bdc1aa7a542a49fc894a84196701f6acedc8680d89bfe6ddd0e2bc49",
+          "visualReview": "inspected",
+          "note": "Standalone date/time, message, number and text-boundary applications inspected after choice changes; complete text, labels and native controls are visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-i18n_code_MessageFormatDemo"
+    },
+    {
+      "id": "main-i18n_code_NumberFormatDemo",
+      "expectedWindows": 1,
+      "profile": "choice",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 8.16,
+      "interaction": "choice",
+      "choiceChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "4206ca99012bdc4d6b6fbe69bc0e706e9bd49b3f7167ac674409190f5356504b",
+          "visualReview": "inspected",
+          "note": "Standalone date/time, message, number and text-boundary applications inspected after choice changes; complete text, labels and native controls are visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-i18n_code_NumberFormatDemo"
+    },
+    {
+      "id": "main-i18n_code_TextBoundDemo",
+      "expectedWindows": 1,
+      "profile": "choice",
+      "review": "accepted within documented donor boundary",
+      "windows": 1,
+      "startupSeconds": 3.23,
+      "interaction": "choice",
+      "choiceChanged": true,
+      "clientCaptures": [
+        {
+          "window": "0x4",
+          "file": "client-0.png",
+          "sha256": "12a4176a4afe313eb55ba3718cf64fdc06785111f5670dac5938aa650d2820ff",
+          "visualReview": "inspected",
+          "note": "Standalone date/time, message, number and text-boundary applications inspected after choice changes; complete text, labels and native controls are visible."
+        }
+      ],
+      "interactionCompleted": true,
+      "aliveAfterClose": false,
+      "executionPassed": true,
+      "artifactDirectory": "out/rhapsody115/demos-next/main-i18n_code_TextBoundDemo"
+    }
+  ],
+  "implementationCommit": "1499425",
+  "environment": "Rhapsody 5.6 Intel DR2 private QEMU v3 snapshot, AppKit 800x600, installed reconstructed image",
+  "clientViewsInspected": 96,
+  "unchangedDemoFilesVerified": 474,
+  "limitations": [
+    "Original Apple RScreenGraphics.create translates the stored clip twice. RoundButtons loses its third button and clips repaint; Click0 moves its Java bounds but leaves stale or clipped puck pixels. Native oracle fixtures match and the Click0 client is pixel-identical to the donor. Original peer class bytes are preserved.",
+    "Four alternative PictureFrame mains refer to Beeper.gif, absent from the shipped demo files; their empty picture boxes are expected.",
+    "Glyph availability is that of the original DR2 native fonts; SymbolTest displays missing glyph boxes where Helvetica has no glyph.",
+    "The guest has no available SoundKit playback device. Donor-matched conversion and failure/retry tests pass; audible playback is not established.",
+    "Original printing remains incomplete: disabled Java print branch, empty native printPage, and unsupported direct getGraphics behavior. Print dialog cancellation, property handling and corrected disposal are tested.",
+    "MoleculeViewer example3 intermittently raises DPS invalidid/nextimage during startup in both the original donor and reconstructed runtime. Acceptance uses a separate clean four-window run; failed attempts remain rejected and retained."
+  ],
+  "platformSuites": {
+    "windowsDebug": {
+      "passed": 204,
+      "seconds": 187.88
+    },
+    "windowsRelease": {
+      "passed": 199,
+      "seconds": 145.77
+    },
+    "linuxDebug": {
+      "passed": 161,
+      "audioDeviceSkipped": 1,
+      "seconds": 267.7
+    },
+    "linuxRelease": {
+      "passed": 161,
+      "audioDeviceSkipped": 1,
+      "seconds": 203.98
+    }
+  },
+  "nativeProvenance": {
+    "installed": [
+      {
+        "path": "lib/libjavai.dylib",
+        "sha256": "81e76dff086c522da09f442bb079dae82eb94ea39e8bbc3a4d1296d5a57e21c9"
+      },
+      {
+        "path": "lib/libnet.dylib",
+        "sha256": "5b44d748e41264f46461a00a02d0827738da48c317aa901aaa46afc5fe1106af"
+      },
+      {
+        "path": "lib/libzip.dylib",
+        "sha256": "114233ba6bfb40b0f32bb360d030feac7369bcb921d9a1839ffe8f0281f830e4"
+      },
+      {
+        "path": "lib/libmath.dylib",
+        "sha256": "3b282dded47d746effdc347c5bd0ddec1444e92893186afaf40c22a2b9a565d4"
+      },
+      {
+        "path": "lib/libsysresource.dylib",
+        "sha256": "4ce272796223361287ab5a4e55829095c28ccf86fba745921600fb2e072effa3"
+      },
+      {
+        "path": "lib/libjpeg.dylib",
+        "sha256": "abb07125f2a450b22c886208c89e6ef2c7d0a7df10e3fec61dab18ae315f3af1"
+      },
+      {
+        "path": "lib/libagent.dylib",
+        "sha256": "976b078fbf2abe7d241e5899e47e53a31cde8470ff9faf6d7469874bbd3029b5"
+      },
+      {
+        "path": "lib/classes.zip",
+        "sha256": "750757205976f91cf54017dd4193af0f2abab7e9c829c6a9761389fe090fbb2d"
+      },
+      {
+        "path": "lib/libawt.dylib",
+        "sha256": "755a20122127776b2f32d05a0b4dd9a7157f6b14093d75862d84c790e249b2c5"
+      },
+      {
+        "path": "lib/libmmedia.dylib",
+        "sha256": "e2bd1c7dd639fed3e66c3fb400596df677897aa8fe077f793496679729a20aa9"
+      },
+      {
+        "path": "lib/rhapsody-peers.zip",
+        "sha256": "920249e0c57c6ff23b9f51f5eaec2d8ae51174531f63673a6f446ac00d800361"
+      }
+    ]
+  },
+  "acceptanceScope": "Each unchanged manifest case has a clean functional run and reviewed captures. This does not assert that every attempt passed; donor limitations and failed attempts are recorded separately.",
+  "nativeChecks": {
+    "releaseAppKitTargets": 53,
+    "releaseTypesCoreLibraries": "passed",
+    "releaseInstalledAwt": "passed",
+    "debugInstalledAwt": "passed",
+    "debugCoreLibrariesInstalledConsole": "passed",
+    "debuggerModes": 5,
+    "finalReview": "two Important findings fixed and verified; no deferred minors"
+  },
+  "knownIntermittentFailures": [
+    {
+      "case": "html-MoleculeViewer_example3",
+      "error": "DPS invalidid / nextimage",
+      "donorEvidence": "tests/awt-dr2/molecule-donor-error.txt",
+      "donorAttempt": "out/rhapsody115/donor-demos-molecule-repeat-0/results.json",
+      "reconstructedFailedAttempt": "out/rhapsody115/demos-review-final/results.json",
+      "decision": "Preserve documented donor rendering behavior; accept a separate clean run, without claiming universal DPS recovery."
+    }
+  ],
+  "observerLogNotes": {
+    "cases": [
+      "html-BarChart_1.1_example1",
+      "html-Clock_index",
+      "html-Fractal_example1",
+      "html-JumpingBox_example1",
+      "html-SortDemo_1.1_example1",
+      "html-SortDemo_example1",
+      "html-TicTacToe_1.1_example1"
+    ],
+    "explanation": "These accepted runs log a caught test-observer getLocationOnScreen exception when a component closes during snapshot collection. The observer retries; it is separate from application event-dispatch exceptions, which the runner rejects."
+  }
+}

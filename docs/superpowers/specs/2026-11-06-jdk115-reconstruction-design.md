@@ -211,6 +211,13 @@ function by function"; `include/` gives the structure layouts.
    indexed palettes and preserved donor Java limitations are documented in
    `tests/awt118/compatibility.md`. Detailed results and decisions accompany it.
 7. **Rhapsody**: build the tree on DR2, reconstruct AppKit `libawt`. Milestone: demos on DR2.
+   **Complete:** native Intel DR2 VM/tools/support libraries and 168 selected AppKit
+   peer bindings; 81 unchanged demo cases have clean runs and 96 inspected views.
+   Release native regressions, Debug installed-image checks and Windows/Linux
+   Debug/Release suites passed. Final review's callback-reference and drawing-focus
+   cleanup defects were fixed and retested. Donor printing/clipping behavior,
+   intermittent MoleculeViewer DPS errors and unavailable audible playback remain
+   explicit in `tests/awt-dr2/demo-results.json` and `bridge-evidence.md`.
 8. **Port Solaris JDK 1.1.8 changes and fixes into the reconstructed tree** (owner requested).
    Audit the supplied 1.1.8 binaries and classes against the reconstructed 1.1.5 baseline,
    then port applicable changes across the VM, native libraries, Java classes and tools.

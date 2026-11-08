@@ -182,3 +182,10 @@ original demo files, and a private QEMU guest. Inspect each client capture as we
 as the recorded interactions and cleanup. The SoundKit device is unavailable in
 the current test guest; controlled conversion/retry tests verify native audio
 behavior, but physical playback is not established.
+
+DR2 Phase 7 acceptance is recorded in [demo-results.json](../tests/awt-dr2/demo-results.json).
+All 81 unchanged cases have clean runs and 96 inspected client views. The original
+printing and clipping limitations remain. MoleculeViewer's intermittent DPS
+invalidid/nextimage startup error was also reproduced with the donor runtime;
+failed attempts are retained separately from accepted clean runs. Native regression
+and donor evidence is in [bridge-evidence.md](../tests/awt-dr2/bridge-evidence.md).

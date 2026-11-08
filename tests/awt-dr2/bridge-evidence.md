@@ -1454,3 +1454,108 @@ then reflect the same geometry and event mask on the JNI caller after AppKit
 returns. Ordinary window-manager moves/resizes retain their delegate callbacks.
 Apply the same correction to borderless-window creation. This deliberately fixes
 the donor deadlock while preserving minimum-size coordinates and original peers.
+
+## Final review: callback roots and drawing failure cleanup
+
+The whole-branch review found unreleased event locals in List selection/action
+callbacks and checkbox-menu callbacks. Native probes now count live references
+on the persistent AppKit JNI frame, including exception injection at the actual
+application dispatch method. Before the fix, ordinary callbacks retained six
+List references and one menu reference. Injected dispatch failures retained two
+List references and one menu reference. Both successful and exceptional paths
+now delete the event local; the same tests report zero retained references and
+continue through GC, callback disposal and native object lifetime checks.
+
+Drawing cleanup now covers color/clip/origin setup, primitive bodies and both
+flush operations. A test-only current-thread DPS procedure hook injects failures
+at primitive output, flushgraphics output and PSFlush; a color object injects
+setup failure. The hook restores the real procedure table before raising. All
+four stages left an actual NSImage focus acquisition unmatched before the fix.
+They now preserve the original exception, release focus and permit subsequent
+drawing. The 32 scaling/cropping/mirroring raster checks still match the donor.
+Cleanup does not submit more drawing commands while handling an exception.
+
+The post-fix gate passes all 53 AppKit targets plus types, core, libraries and
+installed-AWT checks. The final Debug installed-AWT check also passes.
+
+## MoleculeViewer donor error and Click0 clipping parity
+
+The four-window MoleculeViewer example3 intermittently logs a DPS invalidid error
+with OffendingCommand nextimage, surfacing in RGraphics.fillRect during XYZApp
+painting. The original /usr/bin/java wrapper and JavaVM.framework/Commands/javai
+reproduced the same exception and stack trace with the unchanged demo. A separate
+reconstructed run opened and exercised all four clients, closed cleanly and logged
+only APPLET_COUNT 4. The demo runner rejects dispatch-exception logs, so a failed
+attempt cannot silently count as acceptance.
+
+This remains an intermittent donor rendering limitation, not a claim of reliable
+recovery from every DPS server error. The final-review focus cleanup prevents an
+additional retained drawing focus on our exception path. The original cached-image
+scaling behavior and its raster goldens are retained. Acceptance records identify
+the clean run and this limitation rather than describing the intermittent error
+as repaired.
+
+For Click0, the original main and reconstructed main have pixel-identical 400x400
+client captures after moving the JavaBox. Its Java bounds move, but the original
+peer clip translation leaves stale/clipped puck pixels. This confirms the same
+unchanged Java-peer clipping boundary already recorded for RoundButtons.
+
+The full post-review run exposed a timing-dependent native menu count after
+synthetic callbacks. As in the existing BareWindow and Print probes, AppKit can
+wait inside nextEventMatchingMask without advancing its outer autorelease pool.
+The menu lifetime probe now posts an ordinary application-defined wake event
+before recounting. The zero-object assertion is unchanged. Three complete menu
+and popup repetitions pass; production menu ownership is unchanged by this
+measurement correction.
+
+## Phase 7 implementation decisions
+
+These decisions are preserved from the execution ledger in their original order.
+
+- Keep the baseline classes and exclude 13 duplicate Apple classes; the initial audit establishes structure only. Cost: runtime compatibility requires separate tests.
+- Use the supplied v3 guest as the DR2 build environment, despite its modified kernel. Cost: pristine-kernel compatibility is not established.
+- Use native GNU Make instead of the plan's provisional CMake filenames, following the spec. Cost: maintain a separate DR2 build recipe.
+- Respect the observed DR2 select descriptor limit and reject oversized descriptors. Cost: high-descriptor sockets fail explicitly; Linux poll is unchanged.
+- Dispose native windows, content views and peer roots instead of retaining the donor no-op. Cost: native ownership and callback timing differ.
+- Own transported Java throwables through NSException userInfo/global roots. Cost: an extra internal owner replaces the donor transport representation.
+- Implement initial screen graphics before completing widgets so normal paint delivery can be tested. Cost: task order changed, with scope retained.
+- Clear borrowed peers and reject stale input after callback disposal. Cost: disposed windows no longer receive input the donor leaves alive.
+- Extend disposal ownership to borrowed tracking/input targets. Cost: native resource lifetime intentionally differs from the donor no-op.
+- Release temporary global references and attached-environment locals. Cost: internal reference ownership differs from donor leaks.
+- Apply real disposal to components, clearing peers before native detachment. Cost: autorelease cleanup is asynchronous and bounded in tests.
+- Preserve the donor echo-character no-op. Cost: password masking remains unavailable.
+- Limit the field-editor hook to AwtWindow and preserve AppKit fallback elsewhere. Cost: new native host-window types would need reassessment.
+- Release the thread-dictionary field-editor cache on window destruction. Cost: its lifetime differs from the donor no-op disposal.
+- Preserve charsWidth byte interpretation while using checked JNI array storage. Cost: invalid ranges throw instead of corrupting memory.
+- Check polygon bounds and release JNI arrays on exceptions. Cost: invalid direct calls throw instead of reproducing undefined reads.
+- Retain native images across consumer callbacks and clear raw representation pointers on release. Cost: destruction may wait for callback completion.
+- Validate image source arrays and destination rectangles. Cost: invalid inputs throw, and tightly packed last rows can be accepted beyond donor checks.
+- Guard raw bitmap source rectangles. Cost: invalid direct calls raise RuntimeException instead of reading outside the allocation.
+- Preserve unfinished donor printing while correcting native disposal. Cost: disposal is safe, but print-output functionality is not added.
+- Preserve the obsolete RDispatcher native exception. Cost: no invented replacement dispatch loop is supplied.
+- Preserve original Apple peer bytes and their double-translated clipping. Cost: RoundButtons and Click0 retain missing, stale or clipped pixels.
+- Perform creation-time geometry notification on the JNI caller after delegate-suppressed AppKit resizing. Cost: the creation callback thread differs, removing the donor tree-lock deadlock.
+- Allow bounded 120-second window startup and 30-second command acknowledgements on the slow guest. Cost: real failures can take longer to report; functional assertions stay unchanged.
+- Leave owner-authored Phase 9/10 and PowerPC JIT additions outside this review. Cost: those future features are not validated by Phase 7.
+- Accept controlled SoundKit conversion/error-recovery evidence without claiming audible playback. Cost: real-device playback remains unverified.
+- Retain documented donor printing, obsolete dispatcher, clipping, echo, icon, font and widget behavior. Cost: applications retain those original limitations.
+- Retain MoleculeViewer's intermittent DPS invalidid/nextimage behavior after reproducing it in the donor. Cost: some multi-applet starts can log a painting exception; acceptance uses a separate clean run, not a universal recovery claim.
+- Advance AppKit's outer event loop before counting menu lifetimes after synthetic callbacks, as window/print probes do. Cost: the assertion establishes quiescent cleanup after event processing, not immediate release while AppKit waits.
+
+The final independent review reported no Critical findings and two Important
+findings: callback JNI roots and drawing focus cleanup. Both have focused
+RED/GREEN evidence above. There are no deferred minor findings. The reviewer
+set aside owner-authored future phases, audible playback without hardware, and
+explicitly preserved donor behavior; their scope and costs are recorded above.
+
+Final acceptance uses native implementation commit 1499425 (including callback
+fix b69d719). The complete post-fix gate passed 53 AppKit targets plus types,
+core, libraries and installed-AWT checks. Debug relocated java/jre AWT and audio
+checks passed. The final four-window MoleculeViewer run on that installed image
+opened, received drag input, closed all clients and logged only APPLET_COUNT 4;
+all four captures were inspected. Its separate failed attempts and donor error
+remain documented rather than being treated as a repaired intermittent defect.
+The acceptance report verifies 81 functional runs, 96 capture hashes/reviews and
+474 unchanged demo files. Seven logs contain caught test-observer snapshot races
+at window closure; none of the selected runs logs an application event-dispatch
+exception. Installed native/archive hashes were refreshed after the fixes.

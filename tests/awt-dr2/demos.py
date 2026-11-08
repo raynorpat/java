@@ -284,6 +284,9 @@ def main():
             time.sleep(.5)
         finally:
             record["processLog"] = remote("cat " + quote(guest + "/process.log"), False).stdout
+            if "Exception occurred during event dispatching:" in record["processLog"]:
+                record["executionPassed"] = False
+                record["error"] = "Demo logged an event-dispatch exception"
             remote("kill " + str(pid) + " 2>/dev/null || :")
             results.append(record)
             (args.output / "results.json").write_text(json.dumps(results, indent=2) + "\n")

@@ -38,6 +38,14 @@ for tool in java jre; do
     diff expected "$tool.actual"
     test ! -s "$tool.errors"
 done
-cmp "$build/lib/libawt.dylib" "$home/lib/libawt.dylib"
-cmp "$build/lib/libmmedia.dylib" "$home/lib/libmmedia.dylib"
+for library in javai net zip math sysresource jpeg agent awt mmedia; do
+    cmp "$build/lib/lib$library.dylib" "$home/lib/lib$library.dylib"
+    /usr/bin/otool -L "$home/lib/lib$library.dylib" > "$library.dependencies"
+    if grep 'JavaVM.framework' "$library.dependencies"; then
+        echo 'Installed image depends on a donor Java library' >&2
+        exit 1
+    fi
+done
+cmp "$build/lib/classes.zip" "$home/lib/classes.zip"
+cmp "$build/lib/rhapsody-peers.zip" "$home/lib/rhapsody-peers.zip"
 echo "Installed AWT launchers passed: $work"

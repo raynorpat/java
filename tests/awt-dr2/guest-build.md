@@ -21,7 +21,8 @@ mkdir -p "$JAVA_HOME/tests/selfhost"
 This builds the reconstructed core dylib, java, javah and the Java-class tool launchers
 with Apple cc-771.4/GCC 2.7.2.1 and GNU Make 3.74. Outputs remain under out/dr2;
 nothing is installed in JavaVM.framework. JRE, AppKit and SoundKit audio are now
-included in the private image; full demo acceptance and final review remain pending.
+included in the private image. Phase 7 acceptance and final review are complete
+within the donor limitations recorded in demo-results.json and bridge-evidence.md.
 
 The Makefile uses `-traditional-cpp` to avoid cpp-precomp's crash on jni.c and
 incorrect parsing of check_code.c, and `-fno-common` because the DR2 dylib linker
@@ -207,8 +208,8 @@ WinAwtDemoApplet115.java into a private helper directory with the reconstructed
 javac. Build demoprobe115.m as a dynamic library linked to the reconstructed
 AppKit library and system AppKit/Foundation. Supply that directory as --helpers.
 The Animator pilot checks changing image pixels before input, stable pixels after
-pause, native interaction, screenshots and clean window closure. Full matrix
-acceptance and visual review are still pending.
+pause, native interaction, screenshots and clean window closure. The complete matrix has 81 clean functional runs and 96 inspected client views;
+see demo-results.json for hashes, provenance and donor limitations.
 
 DR2 acceptance uses bounded waits of up to two minutes for initial and nested
 windows, thirty seconds for native command acknowledgement, and ten seconds for
