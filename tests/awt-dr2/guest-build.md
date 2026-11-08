@@ -169,3 +169,21 @@ sysMonitorWait at 0x5c1362f4 does not inspect pending Java exceptions; this corr
 is specific to the reconstructed bounded-wait adaptation. The protocol fixture
 also accepts the observed asynchronous run acknowledgement between event text and
 its prompt without relaxing the stack, locals or continuation assertions.
+
+## Installed AppKit image
+
+The native image now includes reconstructed libawt and libmmedia alongside the
+separate, byte-preserving rhapsody-peers.zip. The baseline classes.zip is unchanged.
+DR2 selects RToolkit by default; VM invocation, tool launchers and JRE include
+the peer archive in their default runtime paths. Explicit Java classpaths retain
+their normal override semantics.
+
+`check-installed-awt` copies the installed image to a fresh path containing a
+space, unsets home/library/classpath environment variables, compiles a plain AWT
+fixture, and launches it through both java and jre without a toolkit override or
+test native library. It opens/disposes a Frame/Button and loads mmedia. Both pass;
+installed AWT/audio files compare byte-for-byte with the reconstructed build.
+The relocated console/JRE/javah gate and check-core/check-libraries also pass.
+The sound-device probe returns -1 on this guest, matching the donor; controlled
+SoundKit conversion and JNI failure/retry tests pass, but audible playback has
+not been established.

@@ -109,7 +109,11 @@ sysGetClassPath(void)
 			char peers[MAXPATHLEN + 32];
 			struct stat info;
 			sprintf(def, ".:%s/lib/classes.zip", sysJavaHome());
+#ifdef JDK115_CTHREADS
+			sprintf(peers, "%s/lib/rhapsody-peers.zip", sysJavaHome());
+#else
 			sprintf(peers, "%s/lib/motif-peers.zip", sysJavaHome());
+#endif
 			if (stat(peers, &info) == 0 && S_ISREG(info.st_mode)) {
 				strcat(def, ":");
 				strcat(def, peers);

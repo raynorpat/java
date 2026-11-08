@@ -76,7 +76,11 @@ int main(int argc, char **argv)
         char *peers = malloc(strlen(home) + 32);
         struct stat peer_info;
         if (!peers) { free(args); free(path); return 1; }
+#ifdef JDK115_CTHREADS
+        sprintf(peers, "%s/lib/rhapsody-peers.zip", home);
+#else
         sprintf(peers, "%s/lib/motif-peers.zip", home);
+#endif
         if (stat(peers, &peer_info) == 0 && S_ISREG(peer_info.st_mode)) {
             strcat(path, ":");
             strcat(path, peers);

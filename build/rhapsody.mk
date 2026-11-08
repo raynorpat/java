@@ -131,7 +131,8 @@ TOOL_FLAGS_jdb = -DTOOL_CLASS='"sun.tools.ttydebug.TTY"' -DTOOL_SIMPLE -DTOOL_HE
 .PHONY: all image check-types check-core check-libraries
 all: $(BUILD)/bin/java $(BUILD)/bin/javah $(BUILD)/bin/jre $(addprefix $(BUILD)/bin/,$(TOOLS) $(DEBUG_TOOLS)) $(addprefix $(BUILD)/lib/lib,net.dylib zip.dylib math.dylib sysresource.dylib jpeg.dylib agent.dylib)
 
-image: all
+image: all $(BUILD)/lib/libawt.dylib $(BUILD)/lib/libmmedia.dylib
+	cp $(RHAPSODY_PEERS) $(BUILD)/lib/rhapsody-peers.zip
 	mkdir -p $(BUILD)/lib/security
 	cp $(JDK115_DIR)/lib/classes.zip $(BUILD)/lib/classes.zip
 	cp $(JDK115_DIR)/lib/security/java.security $(BUILD)/lib/security/java.security
@@ -299,8 +300,8 @@ install: image
 	test -n "$(INSTALL_DIR)"
 	mkdir -p "$(INSTALL_DIR)/bin" "$(INSTALL_DIR)/libexec" "$(INSTALL_DIR)/lib/security" "$(INSTALL_DIR)/include/unix"
 	for name in java javah jre $(TOOLS) $(DEBUG_TOOLS); do cp "$(BUILD)/bin/$$name" "$(INSTALL_DIR)/libexec/$$name"; cp tools/rhapsody-launcher.sh "$(INSTALL_DIR)/bin/$$name"; chmod +x "$(INSTALL_DIR)/bin/$$name"; done
-	for name in javai net zip math sysresource jpeg agent; do cp "$(BUILD)/lib/lib$$name.dylib" "$(INSTALL_DIR)/lib/"; done
-	cp "$(BUILD)/lib/classes.zip" "$(INSTALL_DIR)/lib/"
+	for name in javai net zip math sysresource jpeg agent awt mmedia; do cp "$(BUILD)/lib/lib$$name.dylib" "$(INSTALL_DIR)/lib/"; done
+	cp "$(BUILD)/lib/classes.zip" "$(BUILD)/lib/rhapsody-peers.zip" "$(INSTALL_DIR)/lib/"
 	cp $(BUILD)/lib/*.properties "$(INSTALL_DIR)/lib/"
 	cp "$(BUILD)/lib/security/java.security" "$(INSTALL_DIR)/lib/security/"
 	cp -R src/share/java/include/. "$(INSTALL_DIR)/include/"
@@ -309,6 +310,10 @@ install: image
 
 check-install: install
 	/bin/sh tests/awt-dr2/check-install.sh "$(INSTALL_DIR)"
+
+.PHONY: check-installed-awt
+check-installed-awt: install $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-installed-awt.sh "$(INSTALL_DIR)" "$(BUILD)" "$(DESKTOP_PID)"
 
 $(BUILD)/tests/autorelease: tests/awt-dr2/autorelease115.m src/rhapsody/sun/awt/awt_AutoreleasePool.m src/rhapsody/sun/awt/awt_AutoreleasePool.h
 	mkdir -p $(@D)
@@ -391,12 +396,12 @@ $(BUILD)/awtgen/.stamp: $(BUILD)/bin/javah $(JDK115_DIR)/lib/classes.zip $(RHAPS
 	$(BUILD)/bin/javah -classpath $(RHAPSODY_PEERS):$(JDK115_DIR)/lib/classes.zip -d $(@D) sun.awt.image.ImageRepresentation sun.awt.image.OffScreenImageSource sun.awt.image.GifImageDecoder java.awt.Color java.awt.image.IndexColorModel java.awt.image.DirectColorModel com.apple.rhapsody.awt.RGraphics
 	touch $@
 
-# Partial AWT is confined to tests until the complete peer surface is recovered.
+# Build the audited AppKit implementation once; install only reconstructed dylibs.
 $(BUILD)/obj/awt-gif.o: src/share/sun/awt/gifdecoder.c $(BUILD)/awtgen/.stamp
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD)/awtgen $(INCLUDES) -c $< -o $@
 
-$(BUILD)/tests/toolkit/libawt.dylib: $(AWT_TOOLKIT_SOURCES) $(AWT_TOOLKIT_HEADERS) $(BUILD)/lib/libjavai.dylib $(BUILD)/awtgen/.stamp $(BUILD)/obj/awt-gif.o build/rhapsody.mk
+$(BUILD)/lib/libawt.dylib: $(AWT_TOOLKIT_SOURCES) $(AWT_TOOLKIT_HEADERS) $(BUILD)/lib/libjavai.dylib $(BUILD)/awtgen/.stamp $(BUILD)/obj/awt-gif.o build/rhapsody.mk
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -I$(BUILD)/awtgen -dynamiclib $(AWT_TOOLKIT_SOURCES) $(BUILD)/obj/awt-gif.o -framework AppKit -framework Foundation -L$(BUILD)/lib -ljavai -o $@
 
@@ -666,6 +671,10 @@ check-image: image $(BUILD)/tests/toolkit/libimage115.dylib $(BUILD)/tests/toolk
 check-producer-image: image $(BUILD)/tests/toolkit/libimage115.dylib $(BUILD)/tests/toolkit/libraster115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-producer-image.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
 
+.PHONY: check-image-delivery
+check-image-delivery: image $(BUILD)/tests/toolkit/libraster115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-image-delivery.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
 .PHONY: check-scaling-image
 check-scaling-image: image $(BUILD)/tests/toolkit/libimage115.dylib $(BUILD)/tests/toolkit/libprimitives115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-scaling-image.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
@@ -695,8 +704,8 @@ check-dispatcherentry: image $(BUILD)/tests/toolkit/libdispatcherentry115.dylib 
 check-codecs: image $(BUILD)/tests/toolkit/libawt.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-codecs.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
 
-$(BUILD)/tests/toolkit/libmmedia.dylib: src/rhapsody/sun/audio/audio.m src/rhapsody/sun/audio/audio.h $(BUILD)/tests/toolkit/libawt.dylib
-	$(CC) $(CFLAGS) -dynamiclib -Isrc/share/java/include -Isrc/unix/java/include $< -framework SoundKit -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+$(BUILD)/lib/libmmedia.dylib: src/rhapsody/sun/audio/audio.m src/rhapsody/sun/audio/audio.h $(BUILD)/lib/libawt.dylib
+	$(CC) $(CFLAGS) -dynamiclib -Isrc/share/java/include -Isrc/unix/java/include $< -framework SoundKit -framework AppKit -framework Foundation -L$(BUILD)/lib -lawt -o $@
 
 $(BUILD)/tests/toolkit/libaudio115.dylib: tests/awt-dr2/audio115.c $(BUILD)/tests/toolkit/libmmedia.dylib
 	$(CC) $(CFLAGS) -dynamiclib -Isrc/share/java/include -Isrc/unix/java/include $< -o $@
@@ -707,3 +716,11 @@ $(BUILD)/tests/toolkit/libaudiobackend115.dylib: tests/awt-dr2/audiobackend115.m
 .PHONY: check-audio
 check-audio: image $(BUILD)/tests/toolkit/libaudio115.dylib $(BUILD)/tests/toolkit/libaudiobackend115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-audio.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libawt.dylib: $(BUILD)/lib/libawt.dylib
+	mkdir -p $(@D)
+	ln -sf ../../lib/libawt.dylib $@
+
+$(BUILD)/tests/toolkit/libmmedia.dylib: $(BUILD)/lib/libmmedia.dylib
+	mkdir -p $(@D)
+	ln -sf ../../lib/libmmedia.dylib $@

@@ -157,7 +157,11 @@ java_lang_System_initProperties(struct Hjava_lang_System *this,
 
     /* toolkit properties */
 #ifdef XP_UNIX
+#ifdef JDK115_CTHREADS
+    PUTPROP(props, "awt.toolkit", "com.apple.rhapsody.awt.RToolkit");
+#else
     PUTPROP(props, "awt.toolkit", "sun.awt.motif.MToolkit");
+#endif
 #endif
 #ifdef XP_PC
     v = getenv("JAVA_AWT");

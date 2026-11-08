@@ -65,7 +65,11 @@ void sysGetDefaultJavaVMInitArgs(void *opaque)
             char *peers = malloc(strlen(home) + 32);
             struct stat info;
             if (!peers) { out_of_memory(); return; }
+#ifdef JDK115_CTHREADS
+            sprintf(peers, "%s/lib/rhapsody-peers.zip", home);
+#else
             sprintf(peers, "%s/lib/motif-peers.zip", home);
+#endif
             if (stat(peers, &info) == 0 && S_ISREG(info.st_mode)) {
                 strcat(defaultClasspath, ":");
                 strcat(defaultClasspath, peers);

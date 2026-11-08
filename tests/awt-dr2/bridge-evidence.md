@@ -1411,3 +1411,15 @@ conversion/allocation failures raise instead of continuing with invalid buffers;
 write exceptions release converted buffers and JNI byte-array elements before
 leaving the native bridge. These do not change valid donor conversion results.
 `check-audio` additionally runs the unchanged AudioLibrary115 AU parsing fixture.
+
+## Partial and aborted image delivery
+
+ImageDelivery115 uses a controlled ImageProducer with two-row partial uploads,
+two SINGLEFRAMEDONE notifications and IMAGEABORTED. Three cycles match the donor:
+red/blue first frame, green updated rows, partial/frame/abort observer flags and
+consumer removal after flush. Every observer callback reenters Toolkit.sync and
+runs GC. Donor39890 and reconstruction12327 pass; the tracked target exposed a
+build integration fault: copied libawt files let dyld load two Objective-C images
+when a linked test helper loaded. GDB showed two libawt load addresses and a null
+AppKit state in the second copy. One canonical build/lib dylib, with test-directory
+symlinks, fixes it. Tracked image/audio/toolkit62902 and relocated install54692 pass.

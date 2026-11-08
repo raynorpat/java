@@ -38,9 +38,13 @@ char *JRE_GetDefaultRuntimeLib(const char *dir)
 
 char *JRE_GetDefaultClassPath(const char *dir)
 {
-    char *path = JRE_Malloc(strlen(dir) * 4 + 64);
+    char *path = JRE_Malloc(strlen(dir) * 5 + 96);
     sprintf(path, "%s/lib/rt.jar:%s/lib/i18n.jar:%s/lib/classes.zip:%s/classes",
             dir, dir, dir, dir);
+#ifdef JDK115_CTHREADS
+    strcat(path, ":"); strcat(path, dir);
+    strcat(path, "/lib/rhapsody-peers.zip");
+#endif
     return path;
 }
 
