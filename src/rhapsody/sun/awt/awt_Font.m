@@ -1,7 +1,123 @@
-/* DR2 libawt.A.dylib: 540149f0--54014cf4. */
+/* DR2 libawt.A.dylib: 540149f0--540157c4. */
 #import "awt_Conversions.h"
 #import "awt_ThreadContext.h"
 #import "awt_Exception.h"
+
+static NSFont *metricsFont(JNIEnv *env, jobject metrics)
+{
+    jclass cls = (*env)->GetObjectClass(env, metrics);
+    jfieldID field = (*env)->GetFieldID(env, cls, "font", "Ljava/awt/Font;");
+    jobject value;
+    NSFont *font;
+    if (!field) [AwtException raiseUsingEnv:env];
+    value = (*env)->GetObjectField(env, metrics, field);
+    font = javaToNSFont(env, value);
+    (*env)->DeleteLocalRef(env, value);
+    (*env)->DeleteLocalRef(env, cls);
+    return font;
+}
+
+JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RFontMetrics_init(JNIEnv *env, jobject metrics)
+{
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        NSFont *font = metricsFont(env, metrics);
+        NSFont *screen = [font screenFont];
+        NSRect bounds;
+        int descent, index;
+        jint widths[256], values[8];
+        const char *names[] = {"ascent", "maxAscent", "descent", "maxDescent",
+                               "height", "maxHeight", "maxAdvance", "leading"};
+        jclass cls = (*env)->GetObjectClass(env, metrics);
+        jintArray array;
+        jfieldID field;
+        if (!screen) screen = font;
+        bounds = [screen boundingRectForFont];
+        descent = (int)([font descender] - 0.5);
+        if (descent < 0) descent = -descent;
+        values[0] = values[1] = (int)bounds.size.height - 1 - descent;
+        values[2] = values[3] = descent;
+        values[4] = values[5] = (int)bounds.size.height;
+        values[6] = (int)bounds.size.width;
+        values[7] = 1;
+        for (index = 0; index < 256; index++)
+            widths[index] = (int)([screen advancementForGlyph:index].width + 0.5);
+        for (index = 0; index < 8; index++) {
+            field = (*env)->GetFieldID(env, cls, names[index], "I");
+            if (!field) [AwtException raiseUsingEnv:env];
+            (*env)->SetIntField(env, metrics, field, values[index]);
+        }
+        array = (*env)->NewIntArray(env, 256);
+        if (!array) [AwtException raiseUsingEnv:env];
+        (*env)->SetIntArrayRegion(env, array, 0, 256, widths);
+        field = (*env)->GetFieldID(env, cls, "widths", "[I");
+        if (!field) [AwtException raiseUsingEnv:env];
+        (*env)->SetObjectField(env, metrics, field, array);
+        (*env)->DeleteLocalRef(env, array);
+        (*env)->DeleteLocalRef(env, cls);
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+}
+
+JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RFontMetrics_stringWidth(JNIEnv *env, jobject metrics, jstring text)
+{
+    jint result = 0;
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        NSFont *font = metricsFont(env, metrics);
+        result = (jint)[font widthOfString:javaToNSString(env, text)];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+    return result;
+}
+
+static jint metricsArrayWidth(JNIEnv *env, jobject metrics, jarray text,
+                              jint offset, jint length, BOOL characters)
+{
+    jint result = 0;
+    void *volatile buffer = NULL;
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        NSFont *font = metricsFont(env, metrics);
+        jsize count;
+        NSString *string;
+        if (!text) [AwtException raise:env exceptionName:"java/lang/NullPointerException" reason:"Null text array"];
+        count = (*env)->GetArrayLength(env, text);
+        if (offset < 0 || length < 0 || offset > count || length > count - offset)
+            [AwtException raise:env exceptionName:"java/lang/ArrayIndexOutOfBoundsException" reason:"Text array range"];
+        if (length) {
+            if (characters) buffer = (*env)->GetCharArrayElements(env, (jcharArray)text, NULL);
+            else buffer = (*env)->GetByteArrayElements(env, (jbyteArray)text, NULL);
+            if (!buffer) [AwtException raiseUsingEnv:env];
+            /* The donor measures length bytes of UTF-16 storage for charsWidth.
+               Preserve that result without its undersized temporary buffer. */
+            string = [NSString stringWithCString:(const char *)buffer + offset * (characters ? sizeof(jchar) : 1) length:length];
+        } else string = @"";
+        result = (jint)[font widthOfString:string];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (buffer) {
+        if (characters) (*env)->ReleaseCharArrayElements(env, (jcharArray)text, (jchar *)buffer, JNI_ABORT);
+        else (*env)->ReleaseByteArrayElements(env, (jbyteArray)text, (jbyte *)buffer, JNI_ABORT);
+    }
+    if (pool) NativeMethodExit(env, pool);
+    return result;
+}
+
+JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RFontMetrics_charsWidth(JNIEnv *env, jobject metrics, jcharArray text, jint offset, jint length)
+{
+    return metricsArrayWidth(env, metrics, text, offset, length, YES);
+}
+
+JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RFontMetrics_bytesWidth(JNIEnv *env, jobject metrics, jbyteArray text, jint offset, jint length)
+{
+    return metricsArrayWidth(env, metrics, text, offset, length, NO);
+}
 
 @interface NSFontManager (AwtDR2)
 - (NSDictionary *)_defaultFontSet;

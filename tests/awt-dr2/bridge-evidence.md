@@ -1208,3 +1208,23 @@ Fresh check-filedialog, check-dialog, check-barewindow, check-window, check-menu
 check-textfield, check-input, check-keyboard, check-dispatch and check-toolkit pass.
 The test-only library has 142 JNI entries. Graphics/fonts/images/printing and the
 full Phase 7 installed-image acceptance remain pending.
+
+## Font metrics
+
+Recovered RFontMetrics init/stringWidth/charsWidth/bytesWidth from donor entries
+54014ec0--5401553c. Metrics use the screen font's bounding rectangle and glyph
+advances, with the original font's descender and string widths. Fonts115 records
+48 family/style/size combinations, including Unicode strings; fonts.expected is
+the DR2 donor output. The reconstructed runtime initially failed on missing init.
+All records now match exactly. Offset/empty array checks also pass on the donor.
+
+The donor charsWidth copies UTF-16 characters into a byte-sized buffer and then
+measures only length bytes. This encoding quirk is preserved, but the reconstruction
+uses JNI array storage with checked ranges rather than reproducing the overflow.
+Reconstruction-only tests cover 127/128/129/255/256/257/1023-character slices, nulls,
+negative/out-of-range/overflowing ranges, and recovery after exceptions. JNI storage
+is released even when native measurement raises. All 48 cases run GC between them.
+
+Fresh check-fonts, check-font-values, check-label, check-textfield, check-menu and
+check-toolkit pass. The library now supplies 146 JNI entries; the remaining Task 5
+drawing, image and printing work and full Phase 7 acceptance are still pending.

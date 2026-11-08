@@ -630,3 +630,7 @@ $(BUILD)/tests/toolkit/libfiledialog115.dylib: tests/awt-dr2/filedialog115.m $(B
 .PHONY: check-filedialog
 check-filedialog: image $(BUILD)/tests/toolkit/libfiledialog115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-filedialog.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+.PHONY: check-fonts
+check-fonts: image $(BUILD)/tests/toolkit/libawt.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-fonts.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
