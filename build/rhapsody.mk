@@ -509,3 +509,10 @@ $(BUILD)/tests/toolkit/libqueueread115.dylib: tests/awt-dr2/queueread115.m $(BUI
 .PHONY: check-queue-read
 check-queue-read: image $(BUILD)/tests/toolkit/libqueueread115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-queue-read.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libchildviews115.dylib: tests/awt-dr2/childviews115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/childviews115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-child-views
+check-child-views: image $(BUILD)/tests/toolkit/libchildviews115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-child-views.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

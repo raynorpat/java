@@ -17,6 +17,15 @@
 @end
 
 @implementation NSView (AWTViewState)
+/* 5400f63c: scroll documents stay at the clip origin; invalidate old/new areas. */
+- (void)setFrame:(NSRect)frame display:(BOOL)display
+{
+    if ([[[self superview] superview] isKindOfClass:[NSScrollView class]])
+        frame.origin = NSMakePoint(0, 0);
+    if (display) [[self superview] setNeedsDisplayInRect:[self frame]];
+    [self setFrame:frame];
+    if (display) [self setNeedsDisplay:YES];
+}
 - (BOOL)isAwtEnabled
 {
     return ![self superview] || [[self superview] isAwtEnabled];
@@ -148,6 +157,14 @@
 @end
 
 @implementation AwtView
++ (void)discardView:(int)address
+{
+    AwtView *view = (AwtView *)address;
+    [view clearPeer];
+    [view resignFirstResponderIfNecessary];
+    [view removeFromSuperview];
+    [view release];
+}
 - (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor
 {
     self = [super initWithFrame:frame];

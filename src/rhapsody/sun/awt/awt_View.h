@@ -5,6 +5,7 @@
 #include "jni.h"
 
 @interface NSView (AWTViewState)
+- (void)setFrame:(NSRect)frame display:(BOOL)display;
 - (BOOL)isAwtEnabled;
 - (id)outermostJavaContainer;
 - (void)resignFirstResponderIfNecessary;
@@ -31,6 +32,7 @@
     int _trackingRectTag;
     BOOL _wantsMouseMotionEvents;
 }
++ (void)discardView:(int)address;
 /* NSConnection must transmit the 32-bit JNI handle as a value, not a pointer. */
 - (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor;
 - (jobject)peer;

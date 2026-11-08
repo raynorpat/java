@@ -722,3 +722,36 @@ Phase 7 acceptance are still pending.
 
 Fresh queue-read, synthetic-input, keyboard, input, toolkit, handoff, dispatch and
 window regression targets all pass with clean streamed output.
+
+### Phase 7 child-view checkpoint
+
+Recovered shared View/Canvas/Container construction (540124f8/540112e0/54013344),
+parent-controlled attachment (5401272c), enabled state (54012890), and bounds
+(540129e8). The original constructor's second boolean is visibility, not a parent
+handle. Attachment occurs through the Java parent's peer after construction.
+The bounds helper is an AWT NSView category (5400f63c), not an AppKit SDK method:
+it invalidates the old parent rectangle, changes the frame, and marks the child
+for display. Scroll document views retain a zero origin.
+
+ChildViews115 first passed on the donor and failed on the reconstruction's missing
+container constructor. After adding constructors it exposed the missing bounds
+category. The reconstructed fixture now passes painting, signed origins, resizing,
+disable/enable, hide/show, removal, reattachment and three complete lifetimes.
+Reconstruction-only allocation tracking also checks Java font exceptions and
+native exceptions after view initialization for Canvas and Panel, preserving the
+Java throwable identity and releasing every owned native view. Disposal waits up
+to two seconds for pending AppKit references to drain, as the window fixture does.
+The test target requires exact output and has an owned-process timeout.
+
+Ruling: component disposal releases the native view and global peer reference,
+where the donor's 54012954 is a no-op. This extends the existing window ownership
+policy: clear the borrowed peer before detaching, dispose on the AppKit thread,
+and release the global afterward. Constructor failures use the same cleanup.
+The partial test library now has 49 JNI entries. Generic component construction
+shares the tested helper but does not yet have a direct Java fixture; scroll
+origin handling also awaits the scroll-widget tests. Neither is claimed covered.
+Task 4 and Phase 7 remain incomplete.
+
+Fresh check-child-views, check-view, check-container-draw, check-window,
+check-input, check-keyboard, check-queue-read and check-handoff all pass in the
+native DR2 guest. The window group includes raster painting and failure cleanup.
