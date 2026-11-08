@@ -6,6 +6,7 @@ public class Widgets115 {
     static native int state(Component component);
     static native int alignment(Label label);
     static native String label(Component component);
+    static native int foreground(Component component);
     static void click(Checkbox box) throws Exception {
         int before=changes;
         Window115.click(box);
@@ -14,12 +15,16 @@ public class Widgets115 {
         if (changes==before) throw new RuntimeException("missing item callback");
     }
     public static void main(String[] args) throws Exception {
+        try { run(); } catch (Throwable error) { error.printStackTrace(); System.exit(1); }
+    }
+    static void run() throws Exception {
         System.getProperties().put("awt.toolkit", "sun.awt.motif.MToolkit");
         Toolkit.getDefaultToolkit(); System.loadLibrary("motif118xprobe");
         for (int cycle=0;cycle<8;cycle++) {
             Frame frame=new Frame("Widgets");
             frame.setLayout(null);
             Label title=new Label("Before",Label.CENTER);
+            title.setForeground(Color.red);
             Checkbox box=new Checkbox("Check");
             CheckboxGroup group=new CheckboxGroup();
             Checkbox first=new Checkbox("First",group,true),second=new Checkbox("Second",group,false);
@@ -32,6 +37,9 @@ public class Widgets115 {
             box.addItemListener(listener); first.addItemListener(listener); second.addItemListener(listener);
             frame.setSize(170,150); frame.show(); Toolkit.getDefaultToolkit().sync();
             if (!label(title).equals("Before") || alignment(title)!=1) throw new RuntimeException("initial label");
+            if (foreground(title)!=0xff0000) throw new RuntimeException("initial foreground overwritten");
+            title.setBackground(Color.white);
+            if (foreground(title)!=0xff0000) throw new RuntimeException("background overwrote foreground");
             title.setText("After"); title.setAlignment(Label.RIGHT);
             if (!label(title).equals("After") || alignment(title)!=2) throw new RuntimeException("label update");
             title.setText(null);

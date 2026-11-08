@@ -221,14 +221,23 @@ void sun_awt_motif_MComponentPeer_pSetForeground(Hsun_awt_motif_MComponentPeer *
     }
     AWT_UNLOCK();
 }
+/* Solaris debug changeBackground 3c598 preserves explicit foreground while
+ * Motif derives the other shadow/select colors from the new background. */
+static void change_background(Widget widget,Pixel background)
+{
+    Pixel foreground;
+    XtVaGetValues(widget,XmNforeground,&foreground,NULL);
+    XmChangeColor(widget,background);
+    XtVaSetValues(widget,XmNforeground,foreground,NULL);
+}
 void sun_awt_motif_MComponentPeer_pSetBackground(Hsun_awt_motif_MComponentPeer *self,Hjava_awt_Color *color)
 {
     AwtPeer *data;
     if (!color) { SignalError(EE(),"java/lang/NullPointerException",NULL); return; }
     AWT_LOCK(); data=awt118_peer(self);
     if (data && data->widget) {
-        XmChangeColor(data->widget,awt118_pixel(unhand(color)->value));
-        if (data->content) XmChangeColor(data->content,awt118_pixel(unhand(color)->value));
+        change_background(data->widget,awt118_pixel(unhand(color)->value));
+        if (data->content) change_background(data->content,awt118_pixel(unhand(color)->value));
     }
     AWT_UNLOCK();
 }

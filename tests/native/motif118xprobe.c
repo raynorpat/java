@@ -28,6 +28,27 @@ static Widget widget(Hjava_awt_Component *target)
     return data ? (data->content ? data->content : data->widget) : NULL;
 }
 
+JAVA_PUBLIC_API(stack_item *) Java_sun_awt_DemoObserver115_windowId_stub(stack_item *p,struct execenv *ee)
+{
+    Hsun_awt_motif_MComponentPeer *peer;
+    AwtPeer *data;
+    AWT_LOCK();
+    peer=(Hsun_awt_motif_MComponentPeer *)unhand((Hjava_awt_Component *)p[0].p)->peer;
+    data=peer ? awt118_peer(peer) : NULL;
+    p[0].i=data && data->shell && XtIsRealized(data->shell) ? XtWindow(data->shell) : 0;
+    AWT_UNLOCK(); return p+1;
+}
+
+JAVA_PUBLIC_API(stack_item *) Java_Widgets115_foreground_stub(stack_item *p,struct execenv *ee)
+{
+    XColor color;
+    AWT_LOCK();
+    XtVaGetValues(widget(p[0].p),XmNforeground,&color.pixel,NULL);
+    XQueryColor(awt_display,awt_cmap,&color);
+    p[0].i=((color.red>>8)<<16)|((color.green>>8)<<8)|(color.blue>>8);
+    AWT_UNLOCK(); return p+1;
+}
+
 static int warning_banner(Widget w,const char *expected)
 {
     if (XmIsLabel(w)) {
