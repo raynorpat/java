@@ -54,6 +54,7 @@
     if ([action isEqual:@"close"]) { [window performClose:nil]; return; }
     if ([action isEqual:@"resize"]) {
         NSRect frame = [window frame]; frame.size.width += x; frame.size.height += y;
+        frame.origin.y -= y; /* Keep the top edge fixed, as a WM corner drag does. */
         [window setFrame:frame display:YES]; return;
     }
     point = [window convertScreenToBase:NSMakePoint(x, screen.size.height - y)];

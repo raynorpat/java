@@ -221,6 +221,11 @@ def main():
             record["interaction"] = shared.interact(case, entries, clients)
             time.sleep(3)
             after = snapshot(output / "after-controls.tsv")
+            if record["profile"] == "resize":
+                record["resizeAnchored"] = all(
+                    next(c for c in entries if c["owner"] == window)["y"] ==
+                    next(c for c in after if c["owner"] == window)["y"]
+                    for window in clients)
             if record["profile"] == "pause":
                 first = animation_sample(output / "paused.png", after)
                 time.sleep(.7)
@@ -267,7 +272,7 @@ def main():
                 time.sleep(.5)
                 record["aliveAfterClose"] = remote("kill -0 " + str(pid), False).returncode == 0
             record["executionPassed"] = all(record.get(name, True) for name in
-                ("movingBefore", "pauseStable", "choiceChanged", "textChanged", "nestedDemoChanged")) and (
+                ("movingBefore", "pauseStable", "choiceChanged", "textChanged", "nestedDemoChanged", "resizeAnchored")) and (
                 not record["aliveAfterClose"] or case["cleanup"] == "plain-frame-bounded-termination")
             if not record["executionPassed"] and record["aliveAfterClose"]:
                 remote("kill -3 " + str(pid) + " 2>/dev/null || :", False)
@@ -283,6 +288,9 @@ def main():
             results.append(record)
             (args.output / "results.json").write_text(json.dumps(results, indent=2) + "\n")
             print(json.dumps({key: value for key, value in record.items() if key != "processLog"}), flush=True)
+
+    if not all(record.get("executionPassed", False) for record in results):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
