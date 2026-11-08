@@ -3,6 +3,7 @@ import java.awt.event.*;
 
 public class Choice115 {
     static volatile int changes;
+    static native void mouse(Choice choice, boolean pressed);
     static native int selected(Choice choice);
     static native int itemCount(Choice choice);
     static native boolean colorsMatch(Choice choice);
@@ -24,7 +25,7 @@ public class Choice115 {
             frame.setLayout(null); frame.add(choice);
             frame.addNotify();
             choice.setBounds(10,10,130,30);
-            frame.setSize(170,100); frame.show(); Toolkit.getDefaultToolkit().sync();
+            frame.setSize(170,100); frame.setLocation(150,150); frame.show(); Toolkit.getDefaultToolkit().sync();
             choice.setBounds(0,0,0,0);
             choice.setBounds(10,10,130,30);
             choice.select(1);
@@ -33,14 +34,16 @@ public class Choice115 {
             if (selected(choice)!=0 || itemCount(choice)!=2) throw new RuntimeException("choice removal");
             choice.setFont(new Font("Dialog",Font.BOLD,14));
             choice.setBackground(Color.yellow); choice.setForeground(Color.blue);
+            Thread.sleep(500);
             int before=changes;
-            Window115.click(choice);
+            mouse(choice,true); Thread.sleep(100); mouse(choice,false);
             Thread.sleep(400);
-            Input115.key(0xff54,0); Input115.key(0xff0d,0);
+            Input115.key(0xff54,0); Thread.sleep(350); Input115.key(0xff0d,0);
             long deadline=System.currentTimeMillis()+3000;
             while (changes==before && System.currentTimeMillis()<deadline) Thread.sleep(10);
             if (changes==before || choice.getSelectedIndex()!=1 || selected(choice)!=1)
-                throw new RuntimeException("choice popup selection");
+                throw new RuntimeException("choice popup selection: changes="+changes+" before="+before+
+                    " Java="+choice.getSelectedIndex()+" native="+selected(choice));
             choice.removeAll();
             if (itemCount(choice)!=0) throw new RuntimeException("choice clear");
             for (int i=0;i<50;i++) choice.add("Item "+i);

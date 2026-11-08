@@ -18,7 +18,7 @@
 
 /* Obtain insets before Window.pack lays out its children. JDK 1.1.5 has no
  * later isPacked field used by Solaris 1.1.8's reparenting correction. */
-static void initial_extents(AwtPeer *data,Classjava_awt_Insets *insets)
+void awt118_initial_extents(AwtPeer *data,Classjava_awt_Insets *insets)
 {
     XEvent request={0};
     Atom actual,atom=XInternAtom(awt_display,"_NET_REQUEST_FRAME_EXTENTS",False);
@@ -190,7 +190,7 @@ void sun_awt_motif_MFramePeer_addTextComponent(Hsun_awt_motif_MFramePeer *self)
     }
     AWT_UNLOCK();
 }
-static void shell_event(Widget widget,XtPointer closure,XEvent *event,Boolean *dispatch)
+void awt118_shell_event(Widget widget,XtPointer closure,XEvent *event,Boolean *dispatch)
 {
     Hsun_awt_motif_MFramePeer *peer=(Hsun_awt_motif_MFramePeer *)closure;
     Hjava_awt_Component *target=unhand(peer)->target;
@@ -232,7 +232,7 @@ static void shell_event(Widget widget,XtPointer closure,XEvent *event,Boolean *d
         unhand(target)->width=width;
         unhand(target)->height=height;
         execute_java_dynamic_method(EE(),(HObject *)peer,"handleResize","(II)V",width,height);
-    } else if (event->type==FocusIn || event->type==FocusOut) {
+    } else if ((event->type==FocusIn || event->type==FocusOut) && event->xfocus.mode==NotifyNormal) {
         execute_java_dynamic_method(EE(),(HObject *)peer,event->type==FocusIn ? "handleActivate" : "handleDeactivate","()V");
     }
     awt118_callback_done();
@@ -263,7 +263,7 @@ void sun_awt_motif_MEmbeddedFramePeer_NEFcreate(Hsun_awt_motif_MEmbeddedFramePee
                 XmNmarginWidth,0,XmNmarginHeight,0,XmNresizePolicy,XmRESIZE_NONE,
                 XmNtopAttachment,XmATTACH_FORM,XmNbottomAttachment,XmATTACH_FORM,
                 XmNleftAttachment,XmATTACH_FORM,XmNrightAttachment,XmATTACH_FORM,NULL);
-            XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask,False,shell_event,self);
+            XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask,False,awt118_shell_event,self);
             XFlush(awt_display);
         }
     }
@@ -307,8 +307,8 @@ void sun_awt_motif_MFramePeer_create(Hsun_awt_motif_MFramePeer *self,Hsun_awt_mo
             XmNleftAttachment,XmATTACH_FORM,XmNrightAttachment,XmATTACH_FORM,NULL);
         close=XmInternAtom(awt_display,"WM_DELETE_WINDOW",False);
         XmAddWMProtocolCallback(data->shell,close,close_window,self);
-        XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask|PropertyChangeMask,False,shell_event,self);
-        initial_extents(data,bounds);
+        XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask|PropertyChangeMask,False,awt118_shell_event,self);
+        awt118_initial_extents(data,bounds);
     }
     AWT_UNLOCK();
 }
@@ -355,7 +355,7 @@ void sun_awt_motif_MFramePeer_pDispose(Hsun_awt_motif_MFramePeer *self)
     AwtPeer *data;
     AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
     if (data && data->shell) {
-        XtRemoveEventHandler(data->shell,StructureNotifyMask|FocusChangeMask|PropertyChangeMask,False,shell_event,self);
+        XtRemoveEventHandler(data->shell,StructureNotifyMask|FocusChangeMask|PropertyChangeMask,False,awt118_shell_event,self);
         XmRemoveWMProtocolCallback(data->shell,XmInternAtom(awt_display,"WM_DELETE_WINDOW",False),close_window,self);
     }
     awt118_dispose_peer((Hsun_awt_motif_MComponentPeer *)self);

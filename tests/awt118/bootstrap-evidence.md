@@ -481,3 +481,19 @@ LatePanel115 reproduces this independently (RED -> GREEN). The previously crashi
 DrawTest/CardTest/DitherTest/symbol demos survive the bounded rerun; complete demo
 interaction and visual acceptance remain open. Focused Debug suite: 38/38 passed,
 141.99 seconds. Full Debug/Release must be rerun after these changes.
+
+Dialog decoration follow-up: Decorated115 also packs a Dialog around a 200x100
+preferred Canvas. RED zero dialog insets -> GREEN after sharing the shell extent
+query/event handling with Frame. Focus activation follows original shellEH's
+NotifyNormal restriction (menu grabs do not activate/deactivate Java windows).
+
+Choice keyboard validation now runs with and without Openbox. A standalone
+OpenMotif C reproducer showed that a zero-duration XTest click can leave the
+popup in drag mode, where MenuTraverseDown does nothing. Separating press/release
+by 100 ms restores normal click-to-post behavior; this is a test-input correction,
+not a replacement Choice implementation. Removed the ineffective navigation
+resource experiment. Focused Linux Debug: 39/39 passed, 191.42 seconds.
+
+Post-monitor-fix Windows Debug: 203/204 passed; MotionLifetime115 reported motion
+delivery stalled once, then passed three consecutive focused reruns. This
+intermittent failure remains recorded for the final regression assessment.

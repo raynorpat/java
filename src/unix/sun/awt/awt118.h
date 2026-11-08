@@ -33,6 +33,9 @@ typedef struct AwtPeer {
     struct AwtPeer *next;
     void (*cleanup)(struct AwtPeer *);
 } AwtPeer;
+struct Classjava_awt_Insets;
+void awt118_initial_extents(AwtPeer *data,struct Classjava_awt_Insets *insets);
+void awt118_shell_event(Widget widget,XtPointer closure,XEvent *event,Boolean *dispatch);
 AwtPeer *awt118_peer(Hsun_awt_motif_MComponentPeer *peer);
 AwtPeer *awt118_new_peer(Hsun_awt_motif_MComponentPeer *peer);
 void awt118_release_peer(AwtPeer *data);

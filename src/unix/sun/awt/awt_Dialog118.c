@@ -33,17 +33,6 @@ static void shell_destroyed(Widget widget,XtPointer closure,XtPointer call)
 { AwtPeer *data=(AwtPeer *)closure; awt118_end_modal(data); data->shell=NULL; }
 static void close_dialog(Widget widget,XtPointer closure,XtPointer call)
 { execute_java_dynamic_method(EE(),(HObject *)closure,"handleQuit","()V"); awt118_callback_done(); }
-static void shell_event(Widget widget,XtPointer closure,XEvent *event,Boolean *dispatch)
-{
-    Hsun_awt_motif_MDialogPeer *self=(Hsun_awt_motif_MDialogPeer *)closure;
-    Hjava_awt_Component *target=unhand(self)->target;
-    if (event->type==ConfigureNotify) {
-        unhand(target)->width=event->xconfigure.width; unhand(target)->height=event->xconfigure.height;
-        execute_java_dynamic_method(EE(),(HObject *)self,"handleResize","(II)V",event->xconfigure.width,event->xconfigure.height);
-    } else if (event->type==FocusIn || event->type==FocusOut)
-        execute_java_dynamic_method(EE(),(HObject *)self,event->type==FocusIn ? "handleActivate" : "handleDeactivate","()V");
-    awt118_callback_done();
-}
 void sun_awt_motif_MDialogPeer_create(Hsun_awt_motif_MDialogPeer *self,Hsun_awt_motif_MComponentPeer *parent,struct Hjava_lang_Object *insets)
 {
     AwtPeer *data,*owner;
@@ -72,8 +61,9 @@ void sun_awt_motif_MDialogPeer_create(Hsun_awt_motif_MDialogPeer *self,Hsun_awt_
             XmNtopAttachment,XmATTACH_FORM,XmNbottomAttachment,XmATTACH_FORM,
             XmNleftAttachment,XmATTACH_FORM,XmNrightAttachment,XmATTACH_FORM,NULL);
         XtAddCallback(data->shell,XtNdestroyCallback,shell_destroyed,data);
-        XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask,False,shell_event,self);
+        XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask|PropertyChangeMask,False,awt118_shell_event,self);
         XmAddWMProtocolCallback(data->shell,XmInternAtom(awt_display,"WM_DELETE_WINDOW",False),close_dialog,self);
+        awt118_initial_extents(data,bounds);
     }
     AWT_UNLOCK();
 }
@@ -110,7 +100,7 @@ void sun_awt_motif_MDialogPeer_pDispose(Hsun_awt_motif_MDialogPeer *self)
     AwtPeer *data;
     AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
     if (data && data->shell) {
-        XtRemoveEventHandler(data->shell,StructureNotifyMask|FocusChangeMask,False,shell_event,self);
+        XtRemoveEventHandler(data->shell,StructureNotifyMask|FocusChangeMask|PropertyChangeMask,False,awt118_shell_event,self);
         XmRemoveWMProtocolCallback(data->shell,XmInternAtom(awt_display,"WM_DELETE_WINDOW",False),close_dialog,self);
         XtPopdown(data->shell);
     }

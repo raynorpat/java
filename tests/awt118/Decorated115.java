@@ -43,7 +43,12 @@ public class Decorated115 {
             Thread.sleep(500);
             if (preferred.getSize().width!=200 || preferred.getSize().height!=100)
                 throw new RuntimeException("packed content clipped: "+preferred.getSize());
-            packed.dispose();
+            Dialog dialog=new Dialog(packed,"Packed dialog",false);
+            Canvas dialogCanvas=new Preferred(); dialog.add(dialogCanvas); dialog.pack(); dialog.show();
+            Thread.sleep(500);
+            if (dialog.getInsets().top<=0 || dialogCanvas.getSize().width!=200 || dialogCanvas.getSize().height!=100)
+                throw new RuntimeException("decorated dialog packing: "+dialog.getInsets()+" "+dialogCanvas.getSize());
+            dialog.dispose(); packed.dispose();
             System.out.println("decorated frame bounds and client layout passed");
             System.exit(0);
         } catch (Throwable failure) {

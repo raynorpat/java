@@ -180,6 +180,15 @@ JAVA_PUBLIC_API(stack_item *) Java_List115_itemCount_stub(stack_item *p,struct e
     AWT_UNLOCK();
     return p+1;
 }
+JAVA_PUBLIC_API(stack_item *) Java_Choice115_mouse_stub(stack_item *p,struct execenv *ee)
+{
+    AWT_LOCK();
+    if (p[1].i) XWarpPointer(awt_display,None,XtWindow(widget(p[0].p)),0,0,0,0,10,10);
+    XTestFakeButtonEvent(awt_display,Button1,p[1].i,CurrentTime);
+    XFlush(awt_display);
+    AWT_UNLOCK();
+    return p;
+}
 JAVA_PUBLIC_API(stack_item *) Java_Choice115_selected_stub(stack_item *p,struct execenv *ee)
 {
     Widget selected;
