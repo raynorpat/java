@@ -31,6 +31,13 @@ and the five `demo/i18n` demos.
   3. Rhapsody: reconstruct Apple's **AppKit** AWT (`libawt.A.dylib` + `com.apple.rhapsody.awt`),
      built and tested on a real Rhapsody DR2 install (the owner's DR2 VM image). This comes
      **after** the main reconstruction is complete and ready for build testing.
+- **SGI IRIX (Phase 9, owner requested):** reconstruct SGI's Java Execution Environment
+  3.1.1, including its **MIPS JIT** (`libmipsjit`), as an IRIX port of our 1.1.5 tree. It is
+  built for and tested on a real IRIX machine, which the owner is setting up. Scope:
+  `native_threads` only, for both the **o32** and **n32** ABIs. SGI's release is based on
+  Sun 1.1.6: only the IRIX platform code, SGI's AWT differences and the JIT come over.
+  Sun's 1.1.6 changes to shared code go into a ledger, not into the tree.
+  The JIT is MIPS-only; x86 builds keep the interpreter.
 
 ## Goals, non-goals, anti-goals
 
@@ -48,7 +55,7 @@ and the five `demo/i18n` demos.
   Phase 8 is an explicit later exception: reconstruct the Java changes needed to port
   audited 1.1.8 fixes and behavior, while preserving both original archives as inputs.
 - 64-bit support (the VM stays 32-bit, as today).
-- JIT compilers, Java 1.2+ features, Swing (beyond what a demo needs, which is none).
+- JIT compilers other than SGI's MIPS JIT (Phase 9), Java 1.2+ features, Swing (beyond what a demo needs, which is none).
 
 **Anti-goals** (failure even if it "works")
 - Editing a demo to make it run.
@@ -91,6 +98,21 @@ native libraries, tools and resources. Phase 6 uses the X11/Motif material first
 Phase 8 audits the full supplied distribution for changes applicable to this tree.
 See the [Solaris intake](../plans/2026-11-06-solaris118-inventory.md) for inventory
 and provenance. Original binaries and archives remain read-only, uncommitted inputs.
+
+**SGI Java Execution Environment 3.1.1 (Sun JRE 1.1.6), IRIX/MIPS, 13 July 1998** —
+`C:\Users\raynorpat\Downloads\SGI_JDK_3.1.1_eoe.tardist` and `SGI_JDK_3.1.1_dev.tardist`.
+Each is a tar of an SGI inst image (`java_*` product file, `.idb` index and `.sw`/`.sw32`/`.man`
+archives). The `.idb` maps each installed path to its subsystem.
+- `eoe` contains: `lib/sgi/{green,native}_threads/lib{java,awt,mipsjit,net,zip,math,mmedia,jpeg,sysresource,JdbcOdbc}.so`
+  for o32, the same set under `lib32/` for n32, `rt.jar`, `i18n.jar`, and `lib/*.properties`.
+- `dev` adds:
+  - `_g` builds of every library, including `libmipsjit_g.so`, plus `libagent`, `libtawt` and
+    the tool launchers.
+  - Sun's and SGI's headers: `include/irix/*_md.h`,
+    `include/native_threads/include/mutex_md.h` and `include/green_threads/include/*`.
+  - Java source for `java.*` (1.1.6).
+  - SGI demos: JNI, invocation, and Java with X, OpenGL and video.
+- Only `native_threads` is in scope. The green-threads headers are reference material.
 
 **Already in the tree:** Sun's **1.0.2 Windows AWT in C++** (`awt/windows/*.cpp`, unbuilt) is
 the starting point for `winawt`, exactly as the 1.0.2 VM is for `javai`. `classsrc/` (1.0.2
@@ -222,6 +244,64 @@ function by function"; `include/` gives the structure layouts.
 **Milestone:** all inventoried applicable 1.1.8 changes are integrated and verified,
 all platform-specific exclusions are explained, the resulting class/native boundary
 is reproducible, and no unresolved applicable delta or regression remains.
+
+9. **SGI IRIX port and MIPS JIT** (owner requested). This follows the existing phases
+   without renumbering them. It depends on Phases 1–3 and 6, because it reuses the
+   pthreads-era Unix code and the Motif AWT. It does not depend on Phases 7 or 8.
+
+### Phase 9 scope and completion gates
+
+Owner's decisions:
+- Build for real IRIX; the owner provides the IRIX machine.
+- `native_threads` only, for both o32 and n32.
+- Port onto our 1.1.5 tree.
+- The JIT is MIPS-only.
+
+My calls:
+- **Extraction:** a small committed tool unpacks the inst archives using the `.idb` offsets.
+  The extracted files go to `vendor/sgi-jee3.1.1/` (git-ignored).
+- **Committed source:** SGI's shipped headers. The `irix/*_md.h` files and `mutex_md.h` go
+  under `src/irix/java/include/`, by the same rule that commits Sun's 1.1.5 headers.
+- **Build:** a plain `build/irix.mk`, like `build/rhapsody.mk`, using MIPSpro `cc -o32` or
+  `cc -n32` with C89 settings. CMake is not assumed to exist on IRIX.
+
+Scope and gates:
+- **Inventory first.** List the exports and imports of each SGI library against our 1.1.5
+  libraries. Sort every difference into one of four groups:
+  - IRIX platform code (`*_md`, threads, signals, `dlopen`) — port it.
+  - SGI AWT changes — port them.
+  - JIT interface — port it.
+  - Sun 1.1.6 shared-code changes — record them in a delta ledger with the same
+    dispositions as Phase 8. These are not merged in this phase.
+- **IRIX platform layer.** Reconstruct SGI's native-threads code under its own `#ifdef`
+  (e.g. `JDK115_IRIX_NATIVE_THREADS`), next to pthreads and cthreads. Use the shipped
+  `mutex_md.h` and `irix/*_md.h` layouts verbatim.
+  - The VM stays 32-bit. n32 keeps 32-bit pointers, so that rule holds.
+  - This is the first **big-endian** target. Byte order, the class reader, `zip`, image
+    decoding, serialization and `jni_md.h` must be checked on it, not assumed.
+- **MIPS JIT.** Reconstruct `libmipsjit` from the release and `_g` builds, for both ABIs.
+  - It plugs into the VM's existing 1.1 compiler interface (`compiler.c`,
+    `InitializeForCompiler`, `java.compiler`). Any extra exports the JIT imports from
+    `libjava` are reconstructed from SGI's `libjava`.
+  - Code generation must follow the disassembly, not be redesigned.
+  - The JIT is never built into x86 images.
+- **AWT.** The IRIX image uses our Phase 6 Motif AWT, built against IRIX's own X11/Motif,
+  plus SGI-specific native changes found in the inventory.
+  - Whether `libtawt` is needed is decided by the inventory; if it is, it's reconstructed.
+  - The IRIX image uses Sun's 1.1.5 classes. SGI's `rt.jar` is not used.
+- **Oracle.** SGI's own installed `java` on the same IRIX machine. Run each check with
+  SGI's VM and with ours, in four combinations: JIT on and off (`-nojit` or
+  `JAVA_COMPILER=NONE`) × o32 and n32.
+- **Tests.**
+  - The existing VM tests.
+  - A JIT bytecode-coverage test that forces compilation of every opcode group, including
+    exceptions, longs and doubles, `monitorenter`/`monitorexit`, `invokeinterface`, and
+    deep recursion.
+  - SGI's JNI and invocation demos, unedited.
+
+**Milestone:** the unchanged 1.1.5 demo matrix and SGI's JNI demos run on IRIX on our VM, for
+o32 and n32, with the JIT on and off, and their output matches SGI's VM. The Windows and Linux
+suites stay green, and no SGI binaries are committed.
 
 ## Verification
 
