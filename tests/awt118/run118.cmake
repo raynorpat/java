@@ -47,6 +47,8 @@ else()
       sh "${ROOT}/tests/awt118/with-wm.sh" "${JAVA}" "-Djava.home=${OUT}/home"
       -classpath "${cp}" "${main_class}")
     set(expected "decorated frame bounds and client layout passed")
+  elseif(CLASS STREQUAL "Warning115")
+    set(expected "untrusted window warning banners and client bounds passed")
   elseif(CLASS STREQUAL "LatePanel115")
     set(expected "late applet and nested panel geometry passed")
   elseif(CLASS STREQUAL "Fonts115")

@@ -13,6 +13,8 @@
 #include <Xm/ScrolledW.h>
 #include <Xm/FileSB.h>
 #include <Xm/PushB.h>
+#include <Xm/Label.h>
+#include <stdlib.h>
 #include <string.h>
 
 static Widget widget(Hjava_awt_Component *target)
@@ -20,6 +22,46 @@ static Widget widget(Hjava_awt_Component *target)
     Hsun_awt_motif_MComponentPeer *peer=(Hsun_awt_motif_MComponentPeer *)unhand(target)->peer;
     AwtPeer *data=peer ? awt118_peer(peer) : NULL;
     return data ? (data->content ? data->content : data->widget) : NULL;
+}
+
+static int warning_banner(Widget w,const char *expected)
+{
+    if (XmIsLabel(w)) {
+        XmString value; char *text=NULL; XColor background,foreground;
+        XWindowAttributes attributes; int match;
+        XtVaGetValues(w,XmNlabelString,&value,XmNbackground,&background.pixel,
+            XmNforeground,&foreground.pixel,NULL);
+        XmStringGetLtoR(value,XmFONTLIST_DEFAULT_TAG,&text);
+        match=text && !strcmp(text,expected);
+        if (text) XtFree(text);
+        XmStringFree(value);
+        if (match && XtIsRealized(w)) {
+            XImage *image; int painted;
+            XQueryColor(awt_display,awt_cmap,&background); XQueryColor(awt_display,awt_cmap,&foreground);
+            XGetWindowAttributes(awt_display,XtWindow(w),&attributes);
+            if (attributes.map_state!=IsViewable) return 0;
+            image=XGetImage(awt_display,XtWindow(w),attributes.width-1,attributes.height-1,1,1,AllPlanes,ZPixmap);
+            painted=image && XGetPixel(image,0,0)==background.pixel;
+            if(image) XDestroyImage(image);
+            return painted && (background.red>>8)==255 &&
+                (background.green>>8)==225 && !background.blue &&
+                !foreground.red && !foreground.green && !foreground.blue;
+        }
+    }
+    if (XtIsComposite(w)) {
+        WidgetList children; Cardinal count,i;
+        XtVaGetValues(w,XtNchildren,&children,XtNnumChildren,&count,NULL);
+        for(i=0;i<count;i++) if(warning_banner(children[i],expected)) return 1;
+    }
+    return 0;
+}
+JAVA_PUBLIC_API(stack_item *) Java_Warning115_banner_stub(stack_item *p,struct execenv *ee)
+{
+    Widget w; char *text; int result;
+    AWT_LOCK(); w=widget(p[0].p); text=allocCString(p[1].p);
+    while(w && !XtIsShell(w)) w=XtParent(w);
+    result=w && warning_banner(w,text); free(text);
+    AWT_UNLOCK(); p[0].i=result; return p+1;
 }
 
 static int embedded_retired;

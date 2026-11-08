@@ -64,6 +64,7 @@ void sun_awt_motif_MDialogPeer_create(Hsun_awt_motif_MDialogPeer *self,Hsun_awt_
         XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask|PropertyChangeMask,False,awt118_shell_event,self);
         XmAddWMProtocolCallback(data->shell,XmInternAtom(awt_display,"WM_DELETE_WINDOW",False),close_dialog,self);
         awt118_initial_extents(data,bounds);
+        awt118_create_warning(data);
     }
     AWT_UNLOCK();
 }

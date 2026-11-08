@@ -4,6 +4,7 @@
 #include "java_awt_Component.h"
 #include <X11/Shell.h>
 #include <Xm/DrawingA.h>
+#include <Xm/Form.h>
 
 static void shell_destroyed(Widget widget,XtPointer closure,XtPointer call)
 { ((AwtPeer *)closure)->shell=NULL; }
@@ -21,8 +22,13 @@ void sun_awt_motif_MWindowPeer_create(Hsun_awt_motif_MWindowPeer *self,Hsun_awt_
             XtNwidth,unhand(target)->width>0 ? unhand(target)->width : 1,
             XtNheight,unhand(target)->height>0 ? unhand(target)->height : 1,
             XmNmwmDecorations,0,XmNmwmFunctions,0,NULL);
-        data->widget=XtVaCreateManagedWidget("windowClient",xmDrawingAreaWidgetClass,data->shell,
+        data->container=XtVaCreateManagedWidget("main",xmFormWidgetClass,data->shell,
             XmNmarginWidth,0,XmNmarginHeight,0,XmNresizePolicy,XmRESIZE_NONE,NULL);
+        data->widget=XtVaCreateManagedWidget("windowClient",xmDrawingAreaWidgetClass,data->container,
+            XmNmarginWidth,0,XmNmarginHeight,0,XmNresizePolicy,XmRESIZE_NONE,
+            XmNtopAttachment,XmATTACH_FORM,XmNbottomAttachment,XmATTACH_FORM,
+            XmNleftAttachment,XmATTACH_FORM,XmNrightAttachment,XmATTACH_FORM,NULL);
+        awt118_create_warning(data);
         XtAddCallback(data->shell,XtNdestroyCallback,shell_destroyed,data);
     }
     AWT_UNLOCK();

@@ -55,7 +55,7 @@ static void canvas_event(Widget widget,XtPointer closure,XEvent *event,Boolean *
         AwtPeer *data=awt118_peer(peer);
         execute_java_dynamic_method(EE(),(HObject *)peer,"handleExpose","(IIII)V",
             event->xexpose.x+(data ? data->decorLeft : 0),
-            event->xexpose.y+(data ? data->decorTop+data->menuHeight : 0),
+            event->xexpose.y+(data ? data->decorTop+data->menuHeight+data->warningHeight : 0),
             event->xexpose.width,event->xexpose.height);
         awt118_callback_done();
     }
@@ -142,7 +142,7 @@ void sun_awt_motif_MComponentPeer_pReshape(Hsun_awt_motif_MComponentPeer *self,l
     Hjava_awt_Component *target=unhand(self)->target;
     AWT_LOCK(); data=awt118_peer(self);
     if (unhand(target)->parent) parent=awt118_peer((Hsun_awt_motif_MComponentPeer *)unhand((Hjava_awt_Component *)unhand(target)->parent)->peer);
-    if (parent) { x-=parent->decorLeft; y-=parent->menuHeight+parent->decorTop; }
+    if (parent) { x-=parent->decorLeft; y-=parent->menuHeight+parent->decorTop+parent->warningHeight; }
     if (data && data->widget) {
         Widget owner=XtParent(data->widget);
         int unmanage=XtIsManaged(data->widget) &&

@@ -98,7 +98,7 @@ static void post_mouse(AwtPeer *peer,XEvent *event,int id,int count,int popup,in
     unsigned int state=event->xbutton.state;
     if (event->xany.window!=XtWindow(peer->widget))
         XTranslateCoordinates(awt_display,event->xany.window,XtWindow(peer->widget),x,y,&x,&y,&child);
-    x+=peer->decorLeft; y+=peer->decorTop+peer->menuHeight;
+    x+=peer->decorLeft; y+=peer->decorTop+peer->menuHeight+peer->warningHeight;
     if (event->type==ButtonPress && event->xbutton.button<=3)
         state|=Button1Mask<<(event->xbutton.button-1);
     javaEvent=(Hjava_awt_AWTEvent *)execute_java_constructor(EE(),"java/awt/event/MouseEvent",NULL,

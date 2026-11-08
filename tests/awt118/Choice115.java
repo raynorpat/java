@@ -24,10 +24,11 @@ public class Choice115 {
             });
             frame.setLayout(null); frame.add(choice);
             frame.addNotify();
-            choice.setBounds(10,10,130,30);
+            Insets insets=frame.getInsets();
+            choice.setBounds(10+insets.left,10+insets.top,130,30);
             frame.setSize(170,100); frame.setLocation(150,150); frame.show(); Toolkit.getDefaultToolkit().sync();
             choice.setBounds(0,0,0,0);
-            choice.setBounds(10,10,130,30);
+            choice.setBounds(10+insets.left,10+insets.top,130,30);
             choice.select(1);
             if (selected(choice)!=1 || itemCount(choice)!=3) throw new RuntimeException("choice select");
             choice.remove(0);

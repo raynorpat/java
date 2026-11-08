@@ -2,6 +2,7 @@
 #include "awt118.h"
 #include "sun_awt_motif_MChoicePeer.h"
 #include "java_awt_Color.h"
+#include "java_awt_Component.h"
 #include <Xm/RowColumn.h>
 #include <Xm/PushB.h>
 #include <stdlib.h>
@@ -152,7 +153,11 @@ void sun_awt_motif_MChoicePeer_remove(Hsun_awt_motif_MChoicePeer *self,long inde
 void sun_awt_motif_MChoicePeer_pReshape(Hsun_awt_motif_MChoicePeer *self,long x,long y,long width,long height)
 {
     AwtChoice *data;
+    Hjava_awt_Component *target=unhand(self)->target;
+    AwtPeer *parent=NULL;
     AWT_LOCK(); data=choice(self);
+    if (unhand(target)->parent) parent=awt118_peer((Hsun_awt_motif_MComponentPeer *)unhand((Hjava_awt_Component *)unhand(target)->parent)->peer);
+    if (parent) { x-=parent->decorLeft; y-=parent->decorTop+parent->menuHeight+parent->warningHeight; }
     if (data) {
         Widget button=XmOptionButtonGadget(data->peer.widget);
         /* Solaris awt_util_reshape temporarily unmanages each child. Avoid

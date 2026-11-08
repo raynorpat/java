@@ -497,3 +497,13 @@ resource experiment. Focused Linux Debug: 39/39 passed, 191.42 seconds.
 Post-monitor-fix Windows Debug: 203/204 passed; MotionLifetime115 reported motion
 delivery stalled once, then passed three consecutive focused reruns. This
 intermittent failure remains recorded for the final regression assessment.
+
+Untrusted-window warning slice: Solaris debug awt_util_createWarningWindow
+6b9e4 and its Frame/Dialog/Window callers establish a yellow (255,225,0),
+black-text native warning above client content. Warning115 first failed with
+zero top insets, then exposed Choice's custom reshape ignoring parent insets.
+The warning remains outside application drawing, reserves space during pack,
+and survives menu attachment, resize, hide/show and disposal. Native observation
+checks actual text, mapped state, colors and an untouched warning pixel after
+application painting. Bare Xvfb and Openbox cases pass. Focused Debug: 41/41,
+223.04 seconds. Windows Release after the monitor fix: 199/199, 166.46 seconds.

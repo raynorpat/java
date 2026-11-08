@@ -5,16 +5,42 @@
 #include "sun_awt_motif_MEmbeddedFramePeer.h"
 #include "java_awt_Component.h"
 #include "java_awt_Insets.h"
+#include "java_awt_Window.h"
 #include <X11/Shell.h>
 #include <X11/Xatom.h>
 #include <Xm/DrawingA.h>
 #include <Xm/Form.h>
+#include <Xm/Label.h>
 #include <Xm/Protocols.h>
 #include <Xm/Text.h>
 #include <Xm/TextF.h>
 #include <Xm/XmIm.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+/* Solaris debug awt_util_createWarningWindow 6b9e4: a yellow, black-text
+ * warning above the client, outside the application's drawing surface. */
+void awt118_create_warning(AwtPeer *data)
+{
+    Hsun_awt_motif_MFramePeer *peer=(Hsun_awt_motif_MFramePeer *)data->javaPeer;
+    Hjava_lang_String *warning=unhand((Hjava_awt_Window *)unhand(peer)->target)->warningString;
+    Dimension height;
+    XmString label;
+    char *text;
+    if (!warning) return;
+    text=allocCString(warning); label=XmStringCreateLocalized(text);
+    data->warning=XtVaCreateManagedWidget("warning",xmLabelWidgetClass,data->container,
+        XmNlabelString,label,XmNalignment,XmALIGNMENT_BEGINNING,
+        XmNbackground,awt118_pixel(0xffe100),XmNforeground,awt118_pixel(0),
+        XmNhighlightThickness,0,XmNtraversalOn,False,
+        XmNtopAttachment,XmATTACH_FORM,XmNleftAttachment,XmATTACH_FORM,
+        XmNrightAttachment,XmATTACH_FORM,NULL);
+    XmStringFree(label); free(text);
+    XtVaGetValues(data->warning,XmNheight,&height,NULL);
+    data->warningHeight=height;
+    XtVaSetValues(data->widget,XmNtopAttachment,XmATTACH_WIDGET,XmNtopWidget,data->warning,NULL);
+    if (unhand(peer)->insets) unhand(unhand(peer)->insets)->top+=height;
+}
 
 /* Obtain insets before Window.pack lays out its children. JDK 1.1.5 has no
  * later isPacked field used by Solaris 1.1.8's reparenting correction. */
@@ -214,7 +240,7 @@ void awt118_shell_event(Widget widget,XtPointer closure,XEvent *event,Boolean *d
                 data->decorLeft=values[0]; data->decorRight=values[1];
                 data->decorTop=values[2]; data->decorBottom=values[3];
                 insets->left=data->decorLeft; insets->right=data->decorRight;
-                insets->top=data->decorTop+data->menuHeight;
+                insets->top=data->decorTop+data->menuHeight+data->warningHeight;
                 insets->bottom=data->decorBottom+data->imHeight;
                 width=unhand(target)->width-data->decorLeft-data->decorRight;
                 height=unhand(target)->height-data->decorTop-data->decorBottom;
@@ -309,6 +335,7 @@ void sun_awt_motif_MFramePeer_create(Hsun_awt_motif_MFramePeer *self,Hsun_awt_mo
         XmAddWMProtocolCallback(data->shell,close,close_window,self);
         XtAddEventHandler(data->shell,StructureNotifyMask|FocusChangeMask|PropertyChangeMask,False,awt118_shell_event,self);
         awt118_initial_extents(data,bounds);
+        awt118_create_warning(data);
     }
     AWT_UNLOCK();
 }
@@ -394,7 +421,8 @@ void sun_awt_motif_MFramePeer_pSetMenuBar(Hsun_awt_motif_MFramePeer *self,struct
         if (data->menuBar && data->menuBar!=menu) XtUnmanageChild(data->menuBar);
         data->menuBar=menu;
         if (menu) {
-            XtVaSetValues(menu,XmNtopAttachment,XmATTACH_FORM,XmNleftAttachment,XmATTACH_FORM,
+            XtVaSetValues(menu,XmNtopAttachment,data->warning ? XmATTACH_WIDGET : XmATTACH_FORM,
+                XmNtopWidget,data->warning,XmNleftAttachment,XmATTACH_FORM,
                 XmNrightAttachment,XmATTACH_FORM,NULL);
             XtSetMappedWhenManaged(menu,True); XtManageChild(menu);
             XtVaGetValues(menu,XmNheight,&height,NULL);
@@ -403,8 +431,8 @@ void sun_awt_motif_MFramePeer_pSetMenuBar(Hsun_awt_motif_MFramePeer *self,struct
                 height=preferred.height; XtVaSetValues(menu,XmNheight,height,NULL);
             }
         }
-        XtVaSetValues(data->widget,XmNtopAttachment,menu ? XmATTACH_WIDGET : XmATTACH_FORM,
-            XmNtopWidget,menu,NULL);
+        XtVaSetValues(data->widget,XmNtopAttachment,(menu || data->warning) ? XmATTACH_WIDGET : XmATTACH_FORM,
+            XmNtopWidget,menu ? menu : data->warning,NULL);
         if (unhand(self)->insets) unhand(unhand(self)->insets)->top+=height-data->menuHeight;
         data->menuHeight=height; XFlush(awt_display);
     }

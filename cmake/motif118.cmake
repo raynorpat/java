@@ -139,6 +139,12 @@ if(UNIX AND NOT APPLE)
     "-DLIBDIR=$<TARGET_FILE_DIR:awt>" -DCLASS=Choice115 -DMODE=window-manager
     -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
   set_tests_properties(motif118-choice-wm PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
+  add_test(NAME motif118-warning-wm COMMAND ${CMAKE_COMMAND}
+    "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
+    "-DJAVA=$<TARGET_FILE:java>" "-DJAVAC=$<TARGET_FILE:javac>"
+    "-DLIBDIR=$<TARGET_FILE_DIR:awt>" -DCLASS=Warning115 -DMODE=window-manager
+    -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
+  set_tests_properties(motif118-warning-wm PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
   add_test(NAME motif118-scrollbar COMMAND ${CMAKE_COMMAND}
     "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
     "-DJAVA=$<TARGET_FILE:java>" "-DJAVAC=$<TARGET_FILE:javac>"
@@ -243,7 +249,7 @@ if(UNIX AND NOT APPLE)
     "-DLIBDIR=$<TARGET_FILE_DIR:awt>" "-DCLASS=InputMethod115"
     -P "${CMAKE_SOURCE_DIR}/tests/awt118/run118.cmake")
   set_tests_properties(motif118-input-method PROPERTIES TIMEOUT 60 RUN_SERIAL TRUE)
-  foreach(peer Embedded115 InputThread115 Decorated115 LatePanel115)
+  foreach(peer Embedded115 InputThread115 Decorated115 LatePanel115 Warning115)
     add_test(NAME motif118-${peer} COMMAND ${CMAKE_COMMAND}
       "-DROOT=${CMAKE_SOURCE_DIR}" "-DJDK=${JDK115_DIR}" "-DOUT=${motif118_out}"
       "-DJAVA=$<TARGET_FILE:java>" "-DJAVAC=$<TARGET_FILE:javac>"
