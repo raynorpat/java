@@ -4,6 +4,8 @@
 #import <AppKit/AppKit.h>
 #include "jni.h"
 
+void awtNotifyJavaFrameChanged(JNIEnv *env, jobject peer, NSRect frame, float screenHeight);
+
 @interface AwtWindow : NSWindow {
     jobject _peer;
     id _menuBar;

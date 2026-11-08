@@ -35,6 +35,34 @@
 }
 @end
 
+void awtNotifyJavaFrameChanged(JNIEnv *env, jobject peer, NSRect frame, float screenHeight)
+{
+    jclass cls;
+    jfieldID field;
+    jmethodID method;
+    jobject source;
+    jlong mask;
+    cls = (*env)->FindClass(env, "com/apple/rhapsody/awt/RComponentPeer");
+    if (!cls) [AwtException raiseUsingEnv:env];
+    field = (*env)->GetFieldID(env, cls, "fJavaCounterpart", "Ljava/awt/Component;");
+    if (!field) [AwtException raiseUsingEnv:env];
+    source = (*env)->GetObjectField(env, peer, field);
+    (*env)->DeleteLocalRef(env, cls);
+    cls = (*env)->FindClass(env, "java/awt/Component");
+    if (!cls) [AwtException raiseUsingEnv:env];
+    field = (*env)->GetFieldID(env, cls, "eventMask", "J");
+    if (!field) [AwtException raiseUsingEnv:env];
+    mask = (*env)->GetLongField(env, source, field);
+    (*env)->SetLongField(env, source, field, mask | 1);
+    method = (*env)->GetMethodID(env, cls, "setBounds", "(IIII)V");
+    if (!method) [AwtException raiseUsingEnv:env];
+    (*env)->CallVoidMethod(env, source, method, (int)frame.origin.x,
+        (int)(screenHeight - NSMaxY(frame)), (int)frame.size.width, (int)frame.size.height);
+    (*env)->DeleteLocalRef(env, cls);
+    (*env)->DeleteLocalRef(env, source);
+    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+}
+
 @implementation AwtWindow
 /* 54010f08: Java controls supply their shared AWT field editor. */
 - (NSText *)fieldEditor:(BOOL)create forObject:(id)object
@@ -136,33 +164,9 @@
 /* 540107dc: enable Component events before reflecting window-manager geometry. */
 - (void)notifyJavaFrameChanged
 {
-    JNIEnv *env = [NSApp appkitEnv];
-    jclass cls;
-    jfieldID field;
-    jmethodID method;
-    jobject source;
-    jlong mask;
     NSRect frame = [self frame];
     NSRect screen = [[self screen] visibleFrame];
-    cls = (*env)->FindClass(env, "com/apple/rhapsody/awt/RComponentPeer");
-    if (!cls) [AwtException raiseUsingEnv:env];
-    field = (*env)->GetFieldID(env, cls, "fJavaCounterpart", "Ljava/awt/Component;");
-    if (!field) [AwtException raiseUsingEnv:env];
-    source = (*env)->GetObjectField(env, _peer, field);
-    (*env)->DeleteLocalRef(env, cls);
-    cls = (*env)->FindClass(env, "java/awt/Component");
-    if (!cls) [AwtException raiseUsingEnv:env];
-    field = (*env)->GetFieldID(env, cls, "eventMask", "J");
-    if (!field) [AwtException raiseUsingEnv:env];
-    mask = (*env)->GetLongField(env, source, field);
-    (*env)->SetLongField(env, source, field, mask | 1);
-    method = (*env)->GetMethodID(env, cls, "setBounds", "(IIII)V");
-    if (!method) [AwtException raiseUsingEnv:env];
-    (*env)->CallVoidMethod(env, source, method, (int)frame.origin.x,
-        (int)(screen.size.height - NSMaxY(frame)), (int)frame.size.width, (int)frame.size.height);
-    (*env)->DeleteLocalRef(env, cls);
-    (*env)->DeleteLocalRef(env, source);
-    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    awtNotifyJavaFrameChanged([NSApp appkitEnv], _peer, frame, screen.size.height);
 }
 - (void)windowDidMove:(NSNotification *)notification { [self notifyJavaFrameChanged]; }
 - (void)windowDidResize:(NSNotification *)notification { [self notifyJavaFrameChanged]; }

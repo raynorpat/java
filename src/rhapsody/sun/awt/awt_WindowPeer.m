@@ -47,7 +47,10 @@ JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RWindowPeer_createNativeWindo
                 frame.size.height = minimum.height;
                 frame.origin.y -= minimum.height;
             }
-            [window setFrame:frame display:NO];
+            /* Creation may hold the Java tree lock. Reflect the minimum
+             * geometry on this caller after AppKit returns, not in its delegate. */
+            [window awtSetFrame:frame display:NO];
+            awtNotifyJavaFrameChanged(env, peer, frame, screen.size.height);
         }
         if (!view || !window)
             [AwtException raise:env exceptionName:"java/lang/OutOfMemoryError" reason:"Cannot allocate AwtContainer/AwtWindow"];
