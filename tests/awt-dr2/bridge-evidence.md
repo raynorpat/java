@@ -1062,3 +1062,31 @@ Fresh native check-scrollpane, check-scrollbar, check-textarea, check-child-view
 check-component-state, check-window, check-input, check-keyboard, check-dispatch
 and check-toolkit all pass. The test-only library has 100 JNI entries. Remaining
 controls, complete graphics and full installed-image acceptance remain pending.
+
+### Phase 7 scrolling-list checkpoint
+
+AwtScrollingList (5400ac8c--5400bca0), ItemPair (5400bcd8--5400bde8),
+AwtTableView (5400d798--5400daf4) and ten RListPeer bindings
+(540176fc--54017f70) implement list contents, selection, row sizing and callbacks.
+The native table is a one-column, noneditable view with a vertical scroller.
+Preferred sizes measure the donor's fixed string 0123456789abcde and multiply
+cell height by the requested row count: 128x34 for two rows and 128x94 for six.
+
+A donor quirk is preserved: sequential programmatic select(1), select(3) keeps
+both ItemPair flags even in single-selection mode. Native row selection updates
+those flags separately. The fixture explicitly distinguishes this from expected
+single-selection API behavior rather than silently changing the reconstruction.
+Duplicate/Unicode/empty titles, insertion/removal, selected-index shifts, refill,
+font sizing and multiple-selection changes match the donor.
+
+Queued native row clicks deliver ItemEvents with integer indexes; double clicks
+deliver ActionEvents containing the selected label. Both reenter AppKit and run
+GC. Disabled native clicks are ignored. Four Java/native constructor failures
+preserve throwable identity and release partial controls. Disposal during an
+item callback leaves neither a scrolling list nor its table view alive. Cleared
+peers detach the table's data source, delegate and target before release.
+
+Fresh check-list, check-scrollpane, check-scrollbar, check-textarea,
+check-textfield, check-component-state, check-window, check-input, check-keyboard,
+check-dispatch and check-toolkit pass. The test-only library has 110 JNI entries;
+menus, dialogs, clipboard, complete graphics and full acceptance remain pending.
