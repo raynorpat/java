@@ -381,3 +381,11 @@ $(BUILD)/tests/toolkit/libtoolkitprobe115.dylib: tests/awt-dr2/dispatcher115.m $
 .PHONY: check-toolkit
 check-toolkit: image $(BUILD)/tests/toolkit/libtoolkitprobe115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-toolkit.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/libvalues115.dylib: tests/awt-dr2/values115.m src/rhapsody/sun/awt/awt_Conversions.m src/rhapsody/sun/awt/awt_Conversions.h src/rhapsody/sun/awt/awt_Exception.m src/rhapsody/sun/awt/awt_Exception.h
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/values115.m src/rhapsody/sun/awt/awt_Conversions.m src/rhapsody/sun/awt/awt_Exception.m -framework AppKit -framework Foundation -o $@
+
+.PHONY: check-values
+check-values: image $(BUILD)/tests/libvalues115.dylib
+	/bin/sh tests/awt-dr2/check-values.sh "$(BUILD)"

@@ -193,3 +193,28 @@ those functions were implemented. The test-only library remains under tests/tool
 no partial AWT library is installed. Private fixtures now exit explicitly on Java
 failure and the durable runner bounds each process to 30 seconds. Dispatcher and
 four-mode handoff regressions pass after integrating AwtApplication.
+
+## Window construction dependencies
+
+Window115 passes three original Frame lifetimes against the donor and currently
+fails at createNativeFrame on the reconstruction. It covers bounds, insets,
+location, title, resizability, hide/show, GC and disposal; this is the next
+integration gate, not a passing reconstructed-window claim.
+
+The Frame constructor at 5401599c needs shared Java-to-native conversions.
+javaToNSString (5401f3c8) now preserves UTF-16 code units, including embedded NULs
+and unpaired surrogates; javaToNSColor (5401f5f8) maps getRGB channels into an
+opaque device-RGB NSColor. Its disassembly confirms distinct red/green/blue
+channels despite misleading decompiler stack-variable reuse. Values115 passes
+unchanged against donor and reconstruction, with seven null/Unicode string cases,
+256 distinct color combinations across 20 GC cycles, and null-color handling.
+The initial reconstruction probe failed to link both missing helpers; the durable
+`make -f build/rhapsody.mk check-values` now passes.
+
+Runtime Objective-C metadata must guide the upcoming view/window reconstruction:
+AwtView's peer is at byte 80; AwtWindow's peer is at 132 and its menu bar at 136.
+IDA's imported superclass layout mislabeled the menu-bar release in window
+dealloc as a release of the JNI peer. A native runtime inventory confirmed the
+actual names, types and offsets. The donor WindowPeer.dispose and ComponentPeer
+nDispose entries contain only entry/exception/exit scaffolding; native ownership
+and disposal therefore require explicit investigation before implementing them.
