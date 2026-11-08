@@ -403,3 +403,11 @@ $(BUILD)/tests/toolkit/libcursors115.dylib: tests/awt-dr2/cursors115.m $(BUILD)/
 .PHONY: check-cursors
 check-cursors: image $(BUILD)/tests/toolkit/libcursors115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-cursors.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/view: tests/awt-dr2/view115.m src/rhapsody/sun/awt/awt_View.m src/rhapsody/sun/awt/awt_View.h
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include tests/awt-dr2/view115.m src/rhapsody/sun/awt/awt_View.m -framework AppKit -framework Foundation -o $@
+
+.PHONY: check-view
+check-view: $(BUILD)/tests/view $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-view.sh "$(BUILD)" "$(DESKTOP_PID)"

@@ -255,3 +255,20 @@ unknown type returned by a Cursor subclass. The initial reconstructed probe fail
 to link javaToNSCursor. This verifies conversion and thread handoff; actual cursor
 tracking rectangles and view mouse-enter/exit behavior remain part of window/input
 integration. The test uses the original Toolkit peer and a live desktop namespace.
+
+## Native view state and hit testing
+
+AwtView state (5400ed94--5400f51c) now preserves peer identity, retained font,
+color and cursor values, immediate Java-view color/font inheritance, enabled-state
+inheritance across native views, event eligibility, and cursor/tracking rectangles.
+The enabled setter calls resetCursorRects, as confirmed by its selector; it does
+not request a redraw. NSWindow's deepest-view lookup (54010b20) converts window
+coordinates into the content superview and walks upward to an eligible view.
+
+The unchanged view115 probe passes against donor and reconstruction. It checks
+nested and detached views, an intervening ordinary NSView, mouse-motion gating,
+disabled hit testing, cursor identity and exact release of shared retained values.
+The reconstruction initially failed because AwtView was absent; the native
+check-view target now passes. This standalone checkpoint does not yet implement
+Canvas drawing, Java focus callbacks or native Frame creation, and is not linked
+into the partial Toolkit test library.
