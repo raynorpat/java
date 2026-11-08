@@ -145,3 +145,19 @@ character-array String constructor and copies UTF-16 units back into an
 autoreleased NSString. Native allocation/constructor failure conversion remains
 part of the exception work in Task 5; these successful round trips do not test
 out-of-memory behavior.
+
+## Selector mapping and diagnostics
+
+`check-selectors.sh` compares forward/reverse lookup, signature-specific
+overrides, generic fallbacks, array parameter counting, inherited Objective-C
+method reuse, nil inputs and replacement behavior. A reused inherited selector
+matches its first name component even when the Java argument count differs.
+Reverse lookup of an unknown selector caches its first component as a generic
+mapping. Conflicting registrations log errors but still update their maps;
+replacing one direction leaves the old entry in the other direction.
+
+The same fixture compares normalized donor/reconstruction diagnostics for
+duplicates and conflicts, custom banners, once-per-type suppression and reset.
+Banner state and four complaint-type bytes are reconstructed from 0x53d043ac
+and 0x53d04408. Table setup is separate from the later Java selector class/type
+initialization; this test does not claim those Java wrapper classes work yet.

@@ -1,0 +1,16 @@
+no-args=fixtureNoArgs
+two-args=fixtureArgs::
+arrays=fixtureArrays::
+inherited=choose:with:
+nil-name=<nil>
+bad-signature=<nil>
+specific=fixtureInteger:
+fallback=fixtureDefault:
+reverse-specific=fixtureMapped,(I)V
+reverse-derived=fixtureUnknown,<nil>
+reverse-cached=fixtureUnknown:with:
+nil-selector=0
+replacement=fixtureAfter:
+old-reverse=fixtureReplace
+replacement-reverse=fixtureOther
+old-forward=fixtureAfter:
