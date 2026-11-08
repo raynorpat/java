@@ -39,7 +39,9 @@ and the five `demo/i18n` demos.
   Sun's 1.1.6 changes to shared code go into a ledger, not into the tree.
   The MIPS JIT is IRIX-only.
 - **Sun x86 JIT (Phase 10, owner requested):** port Sun's Solaris/x86 JIT (`libsunwjit`, from
-  `SUNWjvjit` 1.1.8/16) to our x86 builds.
+  `SUNWjvjit` 1.1.8/16) to our x86 builds. The same phase also reconstructs Apple's
+  Rhapsody PowerPC JIT (`libjitc_ppc`). That part is blocked until the owner has a PowerPC
+  Rhapsody or Mac OS X Server machine.
 
 ## Goals, non-goals, anti-goals
 
@@ -140,7 +142,8 @@ function by function"; `include/` gives the structure layouts.
 
 - **C89** for all C code, compiled with MSVC (32-bit) and GCC (`-m32`, `-std=c89`-clean).
   **Exception (owner's decision):** `winawt` is C++, as Sun wrote it; the Rhapsody AWT is
-  Objective-C, as Apple wrote it. Nothing else may use C++ or Objective-C.
+  Objective-C, as Apple wrote it. Apple's PowerPC JIT (`libjitc_ppc`, Phase 10) is C++, as
+  Apple wrote it. Nothing else may use C++ or Objective-C.
 - **Source only in git (owner's decision).** Sun's and Apple's binaries and data (1.1.5
   `classes.zip`, `lib/*.properties`, demos, original DLLs, Rhapsody libraries and
   jars) are copied into a folder inside the repo working tree that is **git-ignored**, never
@@ -368,6 +371,46 @@ Gates:
 - **Milestone:** with the JIT on, on both Windows and Linux, the unchanged demo matrix runs,
   `javac` builds the test classes, and every suite matches the JIT-off output. No Sun
   binary is committed.
+
+#### Phase 10b: Apple Rhapsody PowerPC JIT (owner requested)
+
+This part is **blocked on hardware.** The Intel DR2 machine in QEMU can't run PowerPC code, so
+nothing here can be tested until the owner has a PowerPC Rhapsody DR2 or Mac OS X Server 1.x
+machine. The x86 work in Phase 10 does not wait for 10b.
+
+**Sources:**
+- `libjitc_ppc.A.dylib` from the universal DR2 framework
+  (`Downloads\test\DR2\Frameworks\JavaVM.framework\Libraries`, 750 KB, PowerPC Mach-O).
+  This one is the reconstruction target.
+- The Mac OS X Server 1.2 build (`Downloads\test\Frameworks\...`, 860 KB, JDK 1.1.6).
+  This is a cross-check only.
+- The Intel DR2 kit ships no JIT.
+
+**What the binaries show:**
+- It's Apple's own **C++** JIT, not Sun's `cjit`. Apple's source paths name
+  `src/rhapsody/java/jitc_ppc/` with six files: `Jitc.cpp`, `JitcPPC.cpp`,
+  `PPCarithmetic.cpp`, `Translator.cpp`, `TranslatorPPC.cpp` and `peepholePPC.cpp`.
+- It uses C++ exceptions: `JitcBadByteCodeException` and `JitcOutOfMemoryException`.
+- Its symbols are readable, mangled C++ names, such as `java_lang_Compiler_start`,
+  `invokeVMFromJitc`, `enableJITC`/`disableJITC`, `buildVMStackToMatch` and `isJitcFrame`.
+- It checks which VM it's loaded into ("JavaVersion ... doesn't match DEFINES").
+
+**My calls:**
+- **Location and language:** the files keep Apple's names under `src/rhapsody/java/jitc_ppc/`,
+  in C++ (see Constraints). They're built by the Rhapsody makefile with the DR2 or
+  Mac OS X Server developer tools.
+- **A PowerPC VM build comes first.** That means building our VM for big-endian PowerPC
+  Rhapsody, with cthreads. It shares the big-endian checks from Phase 9, and if Phase 9 has
+  run, they're already done.
+- **VM interface:** the interface the JIT uses (`execenv`, its frame layout, the
+  `invokeVMFromJitc` path and the version check) is diffed against our 1.1.5 VM. Any
+  difference goes in the Phase 8 ledger and is resolved the same way as Phase 10's
+  version-mismatch rule.
+- **Test reference:** Apple's own VM with this JIT on the same PowerPC machine, plus our
+  VM with the JIT off.
+
+**Milestone:** on PowerPC Rhapsody, with the JIT on and off, the unchanged demo matrix and
+the shared JIT coverage test run, and their output matches Apple's VM.
 
 ## Verification
 
