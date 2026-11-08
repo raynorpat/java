@@ -346,3 +346,11 @@ $(BUILD)/tests/libnativeentry115.dylib: tests/awt-dr2/nativeentry115.m src/rhaps
 .PHONY: check-native-entry
 check-native-entry: image $(BUILD)/tests/libnativeentry115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-native-entry.sh "$(BUILD)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/handoff: tests/awt-dr2/handoff115.m src/rhapsody/sun/awt/awt_Application.m src/rhapsody/sun/awt/awt_Application.h src/rhapsody/sun/awt/awt_Dispatcher.m src/rhapsody/sun/awt/awt_Dispatcher.h src/rhapsody/sun/awt/awt_Proxy.m
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include tests/awt-dr2/handoff115.m src/rhapsody/sun/awt/awt_Application.m src/rhapsody/sun/awt/awt_Dispatcher.m src/rhapsody/sun/awt/awt_Proxy.m -framework AppKit -framework Foundation -o $@
+
+.PHONY: check-handoff
+check-handoff: $(BUILD)/tests/handoff $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-handoff.sh "$(BUILD)" "$(DESKTOP_PID)"

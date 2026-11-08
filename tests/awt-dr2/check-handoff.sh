@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+image=`cd "$1" && pwd`
+"$image/tests/desktop-launch" "$2" "$image/tests/handoff" > "$image/tests/handoff.log" 2>&1 &
+pid=$!
+count=0
+while kill -0 $pid 2>/dev/null; do
+    count=`expr $count + 1`
+    if test "$count" -ge 30; then
+        kill $pid
+        wait $pid || :
+        cat "$image/tests/handoff.log"
+        echo 'DR2 AppKit handoff timed out' >&2
+        exit 1
+    fi
+    sleep 1
+done
+status=0
+wait $pid || status=$?
+cat "$image/tests/handoff.log"
+exit $status

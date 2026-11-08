@@ -108,3 +108,28 @@ AWT cookie after the callbacks. No production changes were needed for this gate.
 `make -f build/rhapsody.mk check-native-entry DESKTOP_PID=<Workspace PID>` runs
 this check with a 30-second timeout. It does not prove AppKit event dispatch or
 Toolkit startup; those remain pending.
+
+## AppKit connection and proxy handoff
+
+The application connection setup follows 54002858 and 54002f6c--54003080:
+register a connection name using the donor's ten-name range, expose NSApplication
+as its root, record the owning NSThread and JNI environment, and register modal,
+tracking and AwtProcessRequestsMode request modes. Dispatcher construction and
+port registration follow 54004a14--54004b38. Event dispatch handlers are not yet
+implemented; these sources are linked only into focused tests at this checkpoint.
+
+NSObject instance/class appkitProxy, windowProxy and allocInAppkitThread follow
+54004c9c--54004de4. Class proxies require the donor's class-method override of
+replacementObjectForPortCoder: to return an NSDistantObject. Without it, instance
+calls passed but class calls incorrectly ran on the requesting worker; the test
+caught that implementation failure before the override was recovered.
+
+`make -f build/rhapsody.mk check-handoff DESKTOP_PID=<Workspace PID>` passes the
+same handoff115.m used with the donor. It verifies owning-thread identity for
+20 instance and class calls in each of default, modal, tracking and AWT request
+modes, direct identity when already on the AppKit thread, windowProxy identity,
+allocation on the AppKit thread, and a remote Objective-C exception. Initial
+execution without these sources failed at the missing application setup selector.
+The returned allocation proxy is autoreleased: the test balances the remote
+allocation via a separate method instead of over-releasing the local proxy.
+This is not yet a Toolkit startup or Java event-dispatch acceptance result.
