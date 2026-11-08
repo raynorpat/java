@@ -23,5 +23,6 @@ jobject nsMouseEventToJavaEvent(JNIEnv *env, NSEvent *event, jobject source, id 
 
 NSEvent *makeWrappedPaintEvent(JNIEnv *env, id view, int type, NSRect rect);
 NSEvent *makeWrappedWindowEvent(JNIEnv *env, id window, int type);
+NSEvent *makeWrappedFocusEvent(JNIEnv *env, id view, BOOL gained, BOOL temporary);
 
 #endif

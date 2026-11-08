@@ -541,3 +541,22 @@ and check-dispatch pass. Hover enter/exit delivery, initial motion subscription
 before the first press, keyboard/focus translation, synthetic input and remaining
 widgets are still incomplete; this checkpoint does not establish full input
 acceptance. The partial library remains confined to tests.
+
+### Phase 7 responder focus checkpoint
+
+Donor AwtView becomeFirstResponder (5400f51c) and resignFirstResponder
+(5400f578) call their superclass and queue a non-temporary Java focus event only
+on success. NSView dispatchFocusEventGained:temporary: (5400fcb8) appends the
+synthetic cover; makeWrappedFocusEvent (540065c4) constructs FocusEvent with
+ID 1004/1005 and the supplied temporary flag. The reconstruction now implements
+that path and skips callbacks after the borrowed peer handle has been cleared.
+
+Input115 invokes both native responder callbacks on the AppKit thread and checks
+exact lost/gained order, Java source identity, non-temporary flags, callback GC,
+and Toolkit re-entry. The unmodified reconstruction failed with no focus events;
+the donor passed. Window activation can independently emit temporary focus
+notifications, so the fixture limits its collection to the explicit transition.
+Window key-status focus notifications and hover delivery remain separate work.
+
+Fresh check-input, check-mouse-values, check-toolkit, check-window, check-handoff
+and check-dispatch all pass with the responder focus bridge enabled.

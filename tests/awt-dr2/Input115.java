@@ -3,14 +3,28 @@ import java.awt.Toolkit;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 
-public class Input115 extends Frame implements MouseListener, MouseMotionListener {
+public class Input115 extends Frame implements MouseListener, MouseMotionListener, FocusListener {
     static { System.loadLibrary("input115"); }
     static native void inject(Frame frame);
+    static native void focus(Frame frame);
+    volatile String focusEvents = "";
+    volatile boolean checkingFocus;
     volatile int pressed, dragged, released, clicked;
     volatile boolean consumePress, consumeRelease, disposeOnPress;
     volatile Throwable failure;
-    Input115() { addMouseListener(this); addMouseMotionListener(this); }
+    Input115() { addMouseListener(this); addMouseMotionListener(this); addFocusListener(this); }
+    void inspectFocus(FocusEvent event, String value) {
+        if (!checkingFocus) return;
+        if (event.getSource() != this || event.isTemporary()) failure = new Error("native focus values: " + event);
+        Toolkit.getDefaultToolkit().getScreenSize();
+        System.gc();
+        focusEvents += value;
+    }
+    public void focusGained(FocusEvent event) { inspectFocus(event, "G"); }
+    public void focusLost(FocusEvent event) { inspectFocus(event, "L"); }
     void inspect(MouseEvent event) {
         if (event.getSource() != this || event.getX() != 30 || event.getY() != 50 || event.getModifiers() != 3)
             failure = new Error("native input values: " + event);
@@ -34,6 +48,13 @@ public class Input115 extends Frame implements MouseListener, MouseMotionListene
             Input115 frame = new Input115();
             frame.setBounds(350, 100, 300, 180);
             frame.show();
+            Thread.sleep(100);
+            frame.focusEvents = "";
+            frame.checkingFocus = true;
+            focus(frame);
+            for (int wait = 0; wait < 200 && frame.focusEvents.length() < 2; wait++) Thread.sleep(10);
+            if (!frame.focusEvents.equals("LG")) throw new Error("native focus sequence: " + frame.focusEvents);
+            frame.checkingFocus = false;
             frame.consumePress = true;
             inject(frame);
             for (int wait = 0; wait < 200 && frame.clicked != 1; wait++) Thread.sleep(10);

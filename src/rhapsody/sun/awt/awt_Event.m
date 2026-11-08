@@ -68,6 +68,25 @@ NSEvent *makeWrappedWindowEvent(JNIEnv *env, id window, int type)
     return cover;
 }
 
+/* 540065c4: responder transitions are queued synthetic Java events. */
+NSEvent *makeWrappedFocusEvent(JNIEnv *env, id view, BOOL gained, BOOL temporary)
+{
+    jobject source = javaComponentForView(env, view), event;
+    jclass cls = (*env)->FindClass(env, "java/awt/event/FocusEvent");
+    jmethodID constructor;
+    NSEvent *cover;
+    if (!cls) [AwtException raiseUsingEnv:env];
+    constructor = (*env)->GetMethodID(env, cls, "<init>", "(Ljava/awt/Component;IZ)V");
+    if (!constructor) [AwtException raiseUsingEnv:env];
+    event = (*env)->NewObject(env, cls, constructor, source, gained ? 1004 : 1005, temporary);
+    (*env)->DeleteLocalRef(env, cls);
+    (*env)->DeleteLocalRef(env, source);
+    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    cover = [SyntheticEvent coverEventForJavaEvent:event inEnv:env];
+    (*env)->DeleteLocalRef(env, event);
+    return cover;
+}
+
 /* 54006684: preserve the native rectangle's truncation toward zero. */
 NSEvent *makeWrappedPaintEvent(JNIEnv *env, id view, int type, NSRect rect)
 {

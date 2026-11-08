@@ -5,8 +5,15 @@
 @end
 @interface InputProbe : NSObject
 + (void)injectView:(int)address;
++ (void)focusView:(int)address;
 @end
 @implementation InputProbe
++ (void)focusView:(int)address
+{
+    NSView *view = (NSView *)address;
+    [view resignFirstResponder];
+    [view becomeFirstResponder];
+}
 + (void)injectView:(int)address
 {
     NSView *view = (NSView *)address;
@@ -23,6 +30,17 @@
     }
 }
 @end
+JNIEXPORT void JNICALL Java_Input115_focus(JNIEnv *env, jclass cls, jobject frame)
+{
+    id pool = [[NSAutoreleasePool alloc] init];
+    jclass component = (*env)->FindClass(env, "java/awt/Component");
+    jmethodID method = (*env)->GetMethodID(env, component, "getPeer", "()Ljava/awt/peer/ComponentPeer;");
+    jobject peer = (*env)->CallObjectMethod(env, frame, method);
+    jclass peerClass = (*env)->FindClass(env, "com/apple/rhapsody/awt/RComponentPeer");
+    jfieldID field = (*env)->GetFieldID(env, peerClass, "nNativeView", "I");
+    [[InputProbe appkitProxy] focusView:(*env)->GetIntField(env, peer, field)];
+    [pool release];
+}
 JNIEXPORT void JNICALL Java_Input115_inject(JNIEnv *env, jclass cls, jobject frame)
 {
     id pool = [[NSAutoreleasePool alloc] init];

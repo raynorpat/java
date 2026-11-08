@@ -86,6 +86,13 @@
         [self updateMouseMotionEventStatus];
 }
 - (void)awtContainerChangedBackground { }
+/* 5400fcb8: append to the native queue, preserving responder event order. */
+- (void)dispatchFocusEventGained:(BOOL)gained temporary:(BOOL)temporary
+{
+    JNIEnv *env = [NSApp appkitEnv];
+    if (env && [(AwtView *)self peer])
+        [NSApp postEvent:makeWrappedFocusEvent(env, self, gained, temporary) atStart:NO];
+}
 - (BOOL)dispatchesAwtEventsOfType:(int)type { return NO; }
 @end
 
@@ -189,4 +196,17 @@
     return [self isAwtEnabled];
 }
 - (BOOL)acceptsFirstResponder { return [self isAwtEnabled]; }
+/* 5400f51c, 5400f578: only successful native transitions notify Java. */
+- (BOOL)becomeFirstResponder
+{
+    BOOL result = [super becomeFirstResponder];
+    if (result) [self dispatchFocusEventGained:YES temporary:NO];
+    return result;
+}
+- (BOOL)resignFirstResponder
+{
+    BOOL result = [super resignFirstResponder];
+    if (result) [self dispatchFocusEventGained:NO temporary:NO];
+    return result;
+}
 @end
