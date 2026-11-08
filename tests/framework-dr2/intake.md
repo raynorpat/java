@@ -119,3 +119,19 @@ dyld's loaded images and rejects JavaVM.framework and /usr/lib/java dependencies
 This establishes the low-level adapter, not NSRuntime initialization or class
 bridging. The source's temporary classpath copy is freed after creation because
 the reconstructed JNI runtime duplicates it; the donor leaks that allocation.
+
+## Method signature encoding
+
+`check-signature.sh` compares 15 native donor/reconstruction cases, then runs
+long-input bounds checks. The conversion maps Java char, byte and boolean to
+Objective-C `c`, long to `q`, and references/arrays to `@`. Encodings contain
+zero offsets, as in the donor. An object-array parameter leaves its semicolon
+to be parsed as an unknown type, inserting a NUL that truncates subsequent
+parameter encodings; this observable donor limitation is retained.
+
+The reconstructed allocation allows two output bytes per input byte instead of
+the donor's insufficient strlen+8 allocation. Truncated object descriptors stop
+at the terminator. `signature-bounds.c` passed native DR2 checks and a WSL build
+with AddressSanitizer and UndefinedBehaviorSanitizer, including 128 parameters
+and truncated object/object-array descriptors. These bounds cases are not run
+through the donor's unsafe allocator/parser.
