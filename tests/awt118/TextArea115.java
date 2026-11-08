@@ -39,6 +39,7 @@ public class TextArea115 {
             if (!size.equals(area.getSize()) || area.getMinimumSize().width<=0 || area.getMinimumSize().height<=0)
                 throw new RuntimeException("area font geometry");
             area.setCursor(new Cursor(Cursor.CROSSHAIR_CURSOR)); area.hide(); area.show();
+            area.setText("caf\u00e9\n\u00e0 bient\u00f4t"); text(area,"caf\u00e9\n\u00e0 bient\u00f4t");
             frame.dispose(); System.gc();
         }
         System.out.println("text area edits, selection, scrolling and disposal passed");

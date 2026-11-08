@@ -239,7 +239,7 @@ void sun_awt_motif_MComponentPeer_pSetFont(Hsun_awt_motif_MComponentPeer *self,s
     XmFontList list;
     AWT_LOCK(); data=awt118_peer(self); xfont=awt118_font(font);
     if (data && data->widget && xfont) {
-        list=XmFontListCreate(xfont,XmFONTLIST_DEFAULT_TAG);
+        list=awt118_font_list(font);
         XtVaSetValues(data->content ? data->content : data->widget,XmNfontList,list,NULL); XmFontListFree(list);
     }
     AWT_UNLOCK();

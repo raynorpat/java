@@ -69,14 +69,13 @@ long sun_awt_motif_MListPeer_isSelected(Hsun_awt_motif_MListPeer *self,long inde
 void sun_awt_motif_MListPeer_addItem(Hsun_awt_motif_MListPeer *self,Hjava_lang_String *value,long index)
 {
     Widget widget;
-    char *text;
     XmString item;
     if (!value) { SignalError(EE(),"java/lang/NullPointerException",NULL); return; }
     AWT_LOCK(); widget=list_widget(self);
     if (widget) {
-        text=allocCString(value); item=XmStringCreateLocalized(text);
+        item=awt118_string(value,(HObject *)unhand(self)->target);
         XmListAddItemUnselected(widget,item,index+1);
-        XmStringFree(item); free(text); XFlush(awt_display);
+        XmStringFree(item); XFlush(awt_display);
     }
     AWT_UNLOCK();
 }

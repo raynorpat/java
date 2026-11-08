@@ -39,6 +39,8 @@ public class TextField115 {
             while (actions==old && System.currentTimeMillis()<deadline) Thread.sleep(10);
             if (actions!=old+1) throw new RuntimeException("action callback");
             field.setEditable(false); Input115.key('h',0); Thread.sleep(600); text(field,"abcdefg");
+            field.setText("caf\u00e9"); text(field,"caf\u00e9");
+            field.setText("abcdefg");
             field.setEditable(true); field.setEchoChar('*');
             if (!displayed(field).equals("*******")) throw new RuntimeException("echo display");
             text(field,"abcdefg"); field.setCaretPosition(7);

@@ -6,6 +6,7 @@
 #include "sun_awt_motif_X11Graphics.h"
 #include <X11/extensions/XTest.h>
 #include <X11/keysym.h>
+#include <X11/Xatom.h>
 #include <X11/XKBlib.h>
 #include <X11/Shell.h>
 #include <Xm/ToggleB.h>
@@ -15,6 +16,8 @@
 #include <Xm/FileSB.h>
 #include <Xm/PushB.h>
 #include <Xm/Label.h>
+#include <Xm/RowColumn.h>
+#include <Xm/List.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -500,4 +503,50 @@ JAVA_PUBLIC_API(stack_item *) Java_Icon115_pixel_stub(stack_item *p,struct exece
     if(image) { pixel=XGetPixel(image,0,0); XDestroyImage(image); }
     if(hints) XFree(hints);
     AWT_UNLOCK(); p[0].i=pixel; return p+1;
+}
+
+stack_item *Java_Fonts115_mixedLabel_stub(stack_item *stack,struct execenv *ee)
+{
+    Widget w; XmString label; XmStringContext context;
+    XmFontList fonts; XmFontContext fontContext; XmFontListEntry entry;
+    char *text,*tag,*alphaTag=NULL; XmStringDirection direction; Boolean separator;
+    int segments=0,alpha=0,fontCount=0,symbolFont=0;
+    AWT_LOCK(); w=widget((Hjava_awt_Component *)stack[0].p);
+    if (XmIsRowColumn(w)) {
+        Widget menu; WidgetList items; Cardinal count;
+        XtVaGetValues(w,XmNsubMenuId,&menu,NULL);
+        XtVaGetValues(menu,XmNchildren,&items,XmNnumChildren,&count,NULL);
+        if (count) w=items[0];
+    }
+    if (XmIsList(w)) {
+        XmStringTable items; int count;
+        XtVaGetValues(w,XmNitems,&items,XmNitemCount,&count,XmNfontList,&fonts,NULL);
+        label=count ? XmStringCopy(items[0]) : XmStringCreateLocalized("");
+    } else XtVaGetValues(w,XmNlabelString,&label,XmNfontList,&fonts,NULL);
+    if (XmStringInitContext(&context,label)) {
+        while (XmStringGetNextSegment(context,&text,&tag,&direction,&separator)) {
+            segments++; if (!strcmp(text,"a")) { alpha++; alphaTag=strdup(tag); }
+            XtFree(text); XtFree(tag);
+        }
+        XmStringFreeContext(context);
+    }
+    if (XmFontListInitFontContext(&fontContext,fonts)) {
+        while ((entry=XmFontListNextEntry(fontContext))!=NULL) {
+            XmFontType type; XFontStruct *xfont;
+            tag=XmFontListEntryGetTag(entry); fontCount++;
+            xfont=(XFontStruct *)XmFontListEntryGetFont(entry,&type);
+            if (alphaTag && !strcmp(tag,alphaTag) && type==XmFONT_IS_FONT) {
+                unsigned long name;
+                if (XGetFontProperty(xfont,XA_FONT,&name)) {
+                    char *fontName=XGetAtomName(awt_display,name);
+                    symbolFont=strstr(fontName,"-symbol-")!=NULL || strstr(fontName,"-standard symbols l-")!=NULL; XFree(fontName);
+                }
+            }
+            XtFree(tag);
+        }
+        XmFontListFreeFontContext(fontContext);
+    }
+    XmStringFree(label); AWT_UNLOCK();
+    free(alphaTag);
+    stack[0].i=segments==3 && alpha==1 && fontCount>1 && symbolFont; return stack+1;
 }

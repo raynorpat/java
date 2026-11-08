@@ -59,18 +59,12 @@ static void dispose(HObject *peer)
     if (data->frame) awt118_release_peer(data->frame);
     free(data);
 }
-static XmString label(Hjava_lang_String *value)
-{
-    char *text=value ? allocCString(value) : NULL;
-    XmString result=XmStringCreateLocalized(text ? text : "");
-    free(text); return result;
-}
 static void font(Widget widget,Hjava_awt_MenuItem *target)
 {
     struct Hjava_awt_Font *value=(struct Hjava_awt_Font *)execute_java_dynamic_method(EE(),(HObject *)target,"getFont","()Ljava/awt/Font;");
     XFontStruct *xfont=value ? awt118_font(value) : NULL;
     if (xfont) {
-        XmFontList list=XmFontListCreate(xfont,XmFONTLIST_DEFAULT_TAG);
+        XmFontList list=awt118_font_list(value);
         XtVaSetValues(widget,XmNfontList,list,NULL); XmFontListFree(list);
     }
 }
@@ -100,7 +94,7 @@ static void create_menu(Hsun_awt_motif_MMenuPeer *self,Widget parent)
     data->pulldown=XmCreatePulldownMenu(parent,"menu",NULL,0);
     XtAddCallback(data->pulldown,XmNdestroyCallback,destroyed,data);
     XtVaSetValues(data->pulldown,XmNtearOffModel,unhand(target)->tearOff ? XmTEAR_OFF_ENABLED : XmTEAR_OFF_DISABLED,NULL);
-    text=label(unhand(target)->label);
+    text=awt118_string(unhand(target)->label,(HObject *)target);
     data->widget=XtVaCreateManagedWidget("menu",xmCascadeButtonWidgetClass,parent,
         XmNsubMenuId,data->pulldown,XmNlabelString,text,XmNsensitive,unhand(target)->enabled,NULL);
     XmStringFree(text); font(data->widget,(Hjava_awt_MenuItem *)target);
@@ -142,7 +136,7 @@ void sun_awt_motif_MMenuItemPeer_createMenuItem(Hsun_awt_motif_MMenuItemPeer *se
         text=unhand(target)->label ? allocCString(unhand(target)->label) : NULL;
         if (text && !strcmp(text,"-")) data->widget=XmCreateSeparatorGadget(owner->pulldown,"separator",NULL,0);
         else {
-            string=label(unhand(target)->label);
+            string=awt118_string(unhand(target)->label,(HObject *)target);
             data->widget=XtVaCreateWidget("item",unhand(self)->isCheckbox ? xmToggleButtonWidgetClass : xmPushButtonWidgetClass,
                 owner->pulldown,XmNlabelString,string,XmNsensitive,unhand(target)->enabled,NULL);
             XmStringFree(string); font(data->widget,target);
@@ -163,7 +157,7 @@ void sun_awt_motif_MMenuItemPeer_pSetLabel(Hsun_awt_motif_MMenuItemPeer *self,Hj
     Widget widget; XmString string;
     AWT_LOCK(); widget=awt118_menu_widget((HObject *)self);
     if (widget && !XmIsSeparatorGadget(widget)) {
-        string=label(value); XtUnmanageChild(widget); XtVaSetValues(widget,XmNlabelString,string,NULL);
+        string=awt118_string(value,(HObject *)unhand(self)->target); XtUnmanageChild(widget); XtVaSetValues(widget,XmNlabelString,string,NULL);
         XtManageChild(widget); XmStringFree(string);
     }
     AWT_UNLOCK();
@@ -189,7 +183,7 @@ void sun_awt_motif_MPopupMenuPeer_createMenu(Hsun_awt_motif_MPopupMenuPeer *self
         XtUngrabButton(owner->widget,AnyButton,AnyModifier);
         XtUngrabPointer(owner->widget,CurrentTime);
         if (unhand(target)->label) {
-            text=label(unhand(target)->label);
+            text=awt118_string(unhand(target)->label,(HObject *)target);
             heading=XtVaCreateManagedWidget("title",xmLabelWidgetClass,data->widget,XmNlabelString,text,NULL);
             XmStringFree(text); font(heading,target);
             if (javaStringLength(unhand(target)->label)) {

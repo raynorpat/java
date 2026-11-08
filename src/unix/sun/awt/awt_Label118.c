@@ -20,17 +20,13 @@ void sun_awt_motif_MLabelPeer_create(Hsun_awt_motif_MLabelPeer *self,Hsun_awt_mo
 void sun_awt_motif_MLabelPeer_setText(Hsun_awt_motif_MLabelPeer *self,Hjava_lang_String *value)
 {
     AwtPeer *data;
-    char *text,*newline;
     XmString label;
     AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
     if (!data || !data->widget) SignalError(EE(),"java/lang/NullPointerException",NULL);
     else {
-        text=value ? allocCString(value) : NULL;
-        newline=text ? strchr(text,'\n') : NULL;
-        if (newline) *newline=0;
-        label=XmStringCreateLocalized(text ? text : "");
-        XtVaSetValues(data->widget,XmNlabelString,label,NULL);
-        XmStringFree(label); free(text); XFlush(awt_display);
+        label=awt118_string(value,(HObject *)unhand(self)->target);
+        if (label) { XtVaSetValues(data->widget,XmNlabelString,label,NULL); XmStringFree(label); }
+        XFlush(awt_display);
     }
     AWT_UNLOCK();
 }

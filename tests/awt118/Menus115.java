@@ -15,6 +15,7 @@ public class Menus115 {
             final Frame frame=new Frame("Menus");
             MenuBar bar=new MenuBar(); Menu menu=new Menu("File");
             MenuItem item=new MenuItem("Action"); CheckboxMenuItem toggle=new CheckboxMenuItem("Toggle");
+            item.setShortcut(new MenuShortcut(KeyEvent.VK_O));
             item.addActionListener(new ActionListener() { public void actionPerformed(ActionEvent event) { actionModifiers=event.getModifiers(); actions++; } });
             toggle.addItemListener(new ItemListener() { public void itemStateChanged(ItemEvent event) { changes++; } });
             menu.add(item); menu.addSeparator(); menu.add(toggle);
@@ -27,6 +28,12 @@ public class Menus115 {
             int before=actions; click(menu); Thread.sleep(150); click(item); Thread.sleep(400);
             check(actions==before+1,"menu activation");
             check((actionModifiers&InputEvent.BUTTON1_MASK)!=0,"menu action lost mouse modifiers");
+            before=actions; content.requestFocus(); Window115.click(content); Thread.sleep(150);
+            Input115.key('o',InputEvent.CTRL_MASK); Thread.sleep(400);
+            check(actions==before+1,"menu keyboard shortcut");
+            // Baseline MenuItem.handleShortcut uses the three-argument
+            // ActionEvent constructor, which intentionally supplies zero flags.
+            check(actionModifiers==0,"baseline shortcut action modifiers");
             before=changes; click(menu); Thread.sleep(150); click(toggle); Thread.sleep(400);
             check(changes==before+1 && toggle.getState(),"checkbox menu activation");
             PopupMenu popup=new PopupMenu("Popup"); MenuItem popupItem=new MenuItem("Popup action");

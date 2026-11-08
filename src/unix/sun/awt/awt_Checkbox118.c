@@ -14,17 +14,15 @@ void sun_awt_motif_MCheckboxPeer_create(Hsun_awt_motif_MCheckboxPeer *self,Hsun_
 {
     AwtPeer *data,*owner;
     Hjava_awt_Checkbox *target=(Hjava_awt_Checkbox *)unhand(self)->target;
-    char *text;
     XmString label;
     AWT_LOCK(); owner=awt118_peer(parent);
     if (!owner || !owner->widget || !target) SignalError(EE(),"java/lang/NullPointerException","null parent");
     else if ((data=awt118_new_peer((Hsun_awt_motif_MComponentPeer *)self))!=NULL) {
-        text=unhand(target)->label ? allocCString(unhand(target)->label) : NULL;
-        label=XmStringCreateLocalized(text ? text : "");
+        label=awt118_string(unhand(target)->label,(HObject *)target);
         data->widget=XtVaCreateManagedWidget("checkbox",xmToggleButtonWidgetClass,owner->widget,
             XmNlabelString,label,XmNrecomputeSize,False,XmNvisibleWhenOff,True,
             XmNtraversalOn,True,XmNspacing,0,XmNmappedWhenManaged,False,NULL);
-        XmStringFree(label); free(text);
+        XmStringFree(label);
         XtAddCallback(data->widget,XmNvalueChangedCallback,toggled,self);
     }
     AWT_UNLOCK();
@@ -58,15 +56,13 @@ long sun_awt_motif_MCheckboxPeer_pGetState(Hsun_awt_motif_MCheckboxPeer *self)
 void sun_awt_motif_MCheckboxPeer_setLabel(Hsun_awt_motif_MCheckboxPeer *self,Hjava_lang_String *value)
 {
     AwtPeer *data;
-    char *text;
     XmString label;
     AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
     if (!data || !data->widget) SignalError(EE(),"java/lang/NullPointerException",NULL);
     else {
-        text=value ? allocCString(value) : NULL;
-        label=XmStringCreateLocalized(text ? text : "");
+        label=awt118_string(value,(HObject *)unhand(self)->target);
         XtVaSetValues(data->widget,XmNlabelString,label,NULL);
-        XmStringFree(label); free(text); XFlush(awt_display);
+        XmStringFree(label); XFlush(awt_display);
     }
     AWT_UNLOCK();
 }

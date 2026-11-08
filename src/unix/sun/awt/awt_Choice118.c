@@ -105,7 +105,7 @@ void sun_awt_motif_MChoicePeer_addItem(Hsun_awt_motif_MChoicePeer *self,Hjava_la
     Widget *items,widget;
     Pixel foreground,background;
     XmString label;
-    char *text;
+    XmFontList fonts;
     int i;
     if (!value) { SignalError(EE(),"java/lang/NullPointerException",NULL); return; }
     AWT_LOCK(); data=choice(self);
@@ -117,12 +117,13 @@ void sun_awt_motif_MChoicePeer_addItem(Hsun_awt_motif_MChoicePeer *self,Hjava_la
                 if (!items) { SignalError(EE(),"java/lang/OutOfMemoryError",NULL); AWT_UNLOCK(); return; }
                 data->items=items; data->capacity+=20;
             }
-            text=allocCString(value); label=XmStringCreateLocalized(text);
+            label=awt118_string(value,(HObject *)unhand(self)->target);
             XtVaGetValues(data->peer.widget,XmNforeground,&foreground,XmNbackground,&background,NULL);
+            XtVaGetValues(XmOptionButtonGadget(data->peer.widget),XmNfontList,&fonts,NULL);
             widget=XtVaCreateManagedWidget("item",xmPushButtonWidgetClass,data->menu,
                 XmNlabelString,label,XmNpositionIndex,index,XmNuserData,(XtPointer)(index+1),
-                XmNforeground,foreground,XmNbackground,background,NULL);
-            XmStringFree(label); free(text);
+                XmNforeground,foreground,XmNbackground,background,XmNfontList,fonts,NULL);
+            XmStringFree(label);
             memmove(data->items+index+1,data->items+index,(data->count-index)*sizeof(Widget));
             data->items[index]=widget; data->count++;
             for (i=index+1;i<data->count;i++) XtVaSetValues(data->items[i],XmNuserData,(XtPointer)(long)(i+1),NULL);
@@ -181,9 +182,9 @@ void sun_awt_motif_MChoicePeer_setFont(Hsun_awt_motif_MChoicePeer *self,struct H
     int i;
     AWT_LOCK(); data=choice(self); xfont=awt118_font(font);
     if (data && xfont) {
-        list=XmFontListCreate(xfont,XmFONTLIST_DEFAULT_TAG);
-        XtVaSetValues(data->peer.widget,XmNfontList,list,NULL);
-        XtVaSetValues(data->menu,XmNfontList,list,NULL);
+        list=awt118_font_list(font);
+        XtVaSetValues(XmOptionButtonGadget(data->peer.widget),XmNfontList,list,NULL);
+        XtVaSetValues(data->menu,XmNbuttonFontList,list,NULL);
         for (i=0;i<data->count;i++) XtVaSetValues(data->items[i],XmNfontList,list,NULL);
         XmFontListFree(list);
     }

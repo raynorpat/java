@@ -535,3 +535,36 @@ remaps and Num Lock transitions. Linux XKB keypad symbols are normalized to
 the recovered navigation table. Menus115 RED lost BUTTON1 action modifiers;
 menu actions now share the recovered mouse/key modifier conversion. Fresh
 focused Linux Debug verification: 43/43 passed, 169.84 seconds.
+
+Dialog dispatch validation now covers nested modal show calls from Java event
+callbacks, blocking of both owner and outer dialog, inner/outer disposal and
+restoration of owner input. The original 1.1.5 Dialog.show dispatch proxy handles
+this without a new native event pump.
+
+Text validation exposed missing Motif compound strings and font lists. Solaris
+makeMultiFontString (debug 6dac0) and getFontList (6e02c) convert Java charset
+segments and pair them with descriptor-tagged native fonts. The reconstruction
+now uses that path for labels, buttons, checkboxes, lists, choices and menus.
+The mixed Latin/Greek fixture verifies encoded segments plus a native Symbol
+font, including replacement and new Choice items after changing the font.
+Linux's Adobe/URW Symbol and Dingbats registry is used for Solaris's equivalent
+sun-fontspecific descriptors. The host may report Symbol's URW alias.
+Choice's option-button gadget owns its font list; the RowColumn itself does not
+have XmNfontList. A GDB-confirmed invalid resource read during development was
+removed. New items explicitly inherit the option-button list.
+
+Latin-1 text round-trips through TextField and TextArea. Clipboard checks now
+cover accented text, STRING and COMPOUND_TEXT in both directions. The unchanged
+Solaris X11Selection.convertTargetsToFlavors bytecode only examines targetMap[0]
+(the mismatch jumps to offset 146 without advancing the mapping index). Thus a
+COMPOUND_TEXT-only owner reports no supported flavor, although requesting
+stringFlavor directly succeeds through convertFlavorToTargets. This donor Java
+limitation is preserved and tested, not silently repaired in the peer archive;
+a later Solaris class-delta phase can address it explicitly.
+
+Verification after the font/text changes: full Linux Debug 161 runnable tests
+passed with one unavailable audio-device skip (162 entries, 213.53 seconds).
+Windows Debug 204/204 passed (209.02 seconds), including MotionLifetime115.
+The expanded menu shortcut fixture subsequently passed in 14.63 seconds. Its
+ActionEvent flags are zero, matching baseline MenuItem.handleShortcut's original
+three-argument ActionEvent constructor; native mouse actions retain BUTTON1.

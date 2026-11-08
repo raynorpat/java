@@ -17,6 +17,8 @@ extern Hsun_awt_motif_MToolkit *awt_lock;
 struct Hjava_awt_Font;
 struct Hsun_awt_FontDescriptor;
 XFontStruct *awt118_font(struct Hjava_awt_Font *font);
+XmFontList awt118_font_list(struct Hjava_awt_Font *font);
+XmString awt118_string(Hjava_lang_String *value,HObject *target);
 XFontStruct *awt118_segment_font(struct Hjava_awt_Font *font, struct Hsun_awt_FontDescriptor *descriptor);
 typedef struct AwtPeer {
     Widget widget, shell, content, container, menuBar;

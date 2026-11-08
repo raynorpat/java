@@ -14,17 +14,15 @@ void sun_awt_motif_MButtonPeer_create(Hsun_awt_motif_MButtonPeer *self,Hsun_awt_
 {
     AwtPeer *data,*owner;
     Hjava_awt_Button *target=(Hjava_awt_Button *)unhand(self)->target;
-    char *text;
     XmString label;
     AWT_LOCK(); owner=awt118_peer(parent);
     if (!owner || !owner->widget) SignalError(EE(),"java/lang/NullPointerException",NULL);
     else if ((data=awt118_new_peer((Hsun_awt_motif_MComponentPeer *)self))!=NULL) {
-        text=unhand(target)->label ? allocCString(unhand(target)->label) : NULL;
-        label=XmStringCreateLocalized(text ? text : "");
+        label=awt118_string(unhand(target)->label,(HObject *)target);
         data->widget=XtVaCreateManagedWidget("button",xmPushButtonWidgetClass,owner->widget,
             XmNlabelString,label,XmNrecomputeSize,False,XmNmappedWhenManaged,False,
             XmNmarginWidth,0,XmNmarginHeight,0,NULL);
-        XmStringFree(label); free(text);
+        XmStringFree(label);
         XtAddCallback(data->widget,XmNactivateCallback,activated,self);
     }
     AWT_UNLOCK();
@@ -32,14 +30,12 @@ void sun_awt_motif_MButtonPeer_create(Hsun_awt_motif_MButtonPeer *self,Hsun_awt_
 void sun_awt_motif_MButtonPeer_setLabel(Hsun_awt_motif_MButtonPeer *self,Hjava_lang_String *value)
 {
     AwtPeer *data;
-    char *text;
     XmString label;
     AWT_LOCK(); data=awt118_peer((Hsun_awt_motif_MComponentPeer *)self);
     if (data && data->widget) {
-        text=value ? allocCString(value) : NULL;
-        label=XmStringCreateLocalized(text ? text : "");
+        label=awt118_string(value,(HObject *)unhand(self)->target);
         XtVaSetValues(data->widget,XmNlabelString,label,NULL);
-        XmStringFree(label); free(text); XFlush(awt_display);
+        XmStringFree(label); XFlush(awt_display);
     }
     AWT_UNLOCK();
 }

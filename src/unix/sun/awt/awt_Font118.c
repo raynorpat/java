@@ -2,11 +2,13 @@
 #include "awt118.h"
 #include "java_awt_Font.h"
 #include "sun_awt_FontDescriptor.h"
+#include "sun_awt_CharsetString.h"
 #include "sun_awt_motif_MFontPeer.h"
 #include "sun_awt_motif_X11FontMetrics.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 typedef struct {
     XFontStruct *base;
@@ -26,6 +28,9 @@ static XFontStruct *load_font(const char *name, int size)
         p=copy; fields[n++]=p;
         while (*p && n<14) { if (*p=='-') { *p=0; fields[n++]=p+1; } p++; }
         if (n==14) {
+            /* Linux core Symbol/Dingbats fonts use Adobe's registry for the
+             * same encoding that the Solaris properties call sun-fontspecific. */
+            if (!strcmp(fields[12],"sun") && !strcmp(fields[13],"fontspecific")) fields[12]="adobe";
             for (pass=0; pass<2; pass++) {
                 snprintf(pattern,sizeof(pattern),"-*-%s-%s-%s-*-*-%s-%d-*-*-*-*-%s-%s",
                     fields[1],fields[2],fields[3],pass ? "0" : "*",size*10,fields[12],fields[13]);
@@ -124,6 +129,86 @@ XFontStruct *awt118_segment_font(Hjava_awt_Font *font,Hsun_awt_FontDescriptor *d
         return data->fonts[i];
     }
     return data->base;
+}
+
+static char *font_tag(int index,char *buffer)
+{
+    if (!index) return XmFONTLIST_DEFAULT_TAG;
+    sprintf(buffer,"awt118-%d",index); return buffer;
+}
+
+/* Solaris debug getFontList 6e02c and makeMultiFontString 6dac0: use matching
+ * descriptor tags for converted Java segments and native Motif font entries. */
+XmFontList awt118_font_list(Hjava_awt_Font *font)
+{
+    AwtFont *data=font_data(font);
+    Hsun_awt_motif_MFontPeer *peer;
+    XmFontList list=NULL;
+    XmFontListEntry entry;
+    XFontStruct *xfont;
+    char tag[32]; int i;
+    if (!data) return NULL;
+    peer=(Hsun_awt_motif_MFontPeer *)unhand(font)->peer;
+    if (!data->count) return XmFontListCreate(data->base,XmFONTLIST_DEFAULT_TAG);
+    for (i=0;i<data->count;i++) {
+        xfont=awt118_segment_font(font,(Hsun_awt_FontDescriptor *)unhand(unhand(peer)->componentFonts)->body[i]);
+        if (xfont) {
+            entry=XmFontListEntryCreate(font_tag(i,tag),XmFONT_IS_FONT,xfont);
+            list=XmFontListAppendEntry(list,entry); XmFontListEntryFree(&entry);
+        }
+    }
+    return list;
+}
+
+XmString awt118_string(Hjava_lang_String *value,HObject *target)
+{
+    Hjava_awt_Font *font;
+    Hsun_awt_motif_MFontPeer *peer;
+    HArrayOfObject *segments;
+    Hsun_awt_CharsetString *segment;
+    Hsun_awt_FontDescriptor *descriptor;
+    HArrayOfByte *bytes;
+    XmString result=NULL,part,joined;
+    int i,j,capacity,length,maxBytes;
+    char tag[32];
+    if (!value || !javaStringLength(value)) return XmStringCreateLocalized("");
+    font=(Hjava_awt_Font *)execute_java_dynamic_method(EE(),target,"getFont","()Ljava/awt/Font;");
+    if (exceptionOccurred(EE())) return NULL;
+    if (!font) {
+        char *text=allocCString(value);
+        if (!text) return NULL;
+        result=XmStringCreateLocalized(text); free(text); return result;
+    }
+    peer=(Hsun_awt_motif_MFontPeer *)unhand(font)->peer;
+    segments=(HArrayOfObject *)execute_java_dynamic_method(EE(),(HObject *)peer,
+        "makeMultiCharsetString","(Ljava/lang/String;)[Lsun/awt/CharsetString;",value);
+    if (exceptionOccurred(EE()) || !segments) return NULL;
+    for (i=0;i<obj_length(segments);i++) {
+        segment=(Hsun_awt_CharsetString *)unhand(segments)->body[i];
+        descriptor=unhand(segment)->fontDescriptor;
+        maxBytes=execute_java_dynamic_method(EE(),(HObject *)unhand(descriptor)->fontCharset,"getMaxBytesPerChar","()I");
+        if (exceptionOccurred(EE())) break;
+        if (maxBytes<=0 || unhand(segment)->length>(INT_MAX-1)/maxBytes) {
+            SignalError(EE(),"java/lang/OutOfMemoryError",NULL); break;
+        }
+        capacity=unhand(segment)->length*maxBytes;
+        bytes=(HArrayOfByte *)ArrayAlloc(T_BYTE,capacity+1);
+        if (!bytes) { SignalError(EE(),"java/lang/OutOfMemoryError",NULL); break; }
+        execute_java_dynamic_method(EE(),(HObject *)unhand(descriptor)->fontCharset,"reset","()V");
+        length=execute_java_dynamic_method(EE(),(HObject *)unhand(descriptor)->fontCharset,
+            "convert","([CII[BII)I",unhand(segment)->charsetChars,unhand(segment)->offset,
+            unhand(segment)->offset+unhand(segment)->length,bytes,0,capacity);
+        if (exceptionOccurred(EE())) break;
+        unhand(bytes)->body[length]=0;
+        for (j=0;j<obj_length(unhand(peer)->componentFonts);j++)
+            if ((HObject *)descriptor==unhand(unhand(peer)->componentFonts)->body[j]) break;
+        part=XmStringCreate(unhand(bytes)->body,font_tag(j,tag));
+        joined=result ? XmStringConcat(result,part) : XmStringCopy(part);
+        if (result) XmStringFree(result);
+        XmStringFree(part); result=joined;
+    }
+    if (exceptionOccurred(EE())) { if (result) XmStringFree(result); return NULL; }
+    return result ? result : XmStringCreateLocalized("");
 }
 
 void sun_awt_motif_MFontPeer_dispose(Hsun_awt_motif_MFontPeer *self)

@@ -1,6 +1,7 @@
 /* Independent X11 client for the Motif clipboard integration fixture. */
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+#include <X11/Xutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,7 +12,7 @@ int main(int argc,char **argv)
 {
     Display *display=XOpenDisplay(NULL);
     Window window;
-    Atom clipboard,targets,property,type;
+    Atom clipboard,targets,property,type,textType;
     XEvent event,response;
     unsigned char *value;
     unsigned long length,remaining;
@@ -21,12 +22,13 @@ int main(int argc,char **argv)
     window=XCreateSimpleWindow(display,DefaultRootWindow(display),0,0,1,1,0,0,0);
     clipboard=XInternAtom(display,"CLIPBOARD",False); targets=XInternAtom(display,"TARGETS",False);
     property=XInternAtom(display,"TEST_SELECTION",False);
-    if (!strcmp(argv[1],"read")) {
-        XConvertSelection(display,clipboard,XA_STRING,property,window,CurrentTime); XFlush(display);
+    textType=strstr(argv[1],"compound") ? XInternAtom(display,"COMPOUND_TEXT",False) : XA_STRING;
+    if (!strncmp(argv[1],"read",4)) {
+        XConvertSelection(display,clipboard,textType,property,window,CurrentTime); XFlush(display);
         do { XNextEvent(display,&event); } while (event.type!=SelectionNotify);
         if (event.xselection.property==None) return 2;
         XGetWindowProperty(display,window,property,0,1024,True,AnyPropertyType,&type,&format,&length,&remaining,&value);
-        if (type!=XA_STRING || format!=8 || remaining) return 3;
+        if (type!=textType || format!=8 || remaining) return 3;
         fwrite(value,1,length,stdout); putchar('\n'); XFree(value);
     } else {
         XSetSelectionOwner(display,clipboard,window,CurrentTime); XSync(display,False);
@@ -51,11 +53,14 @@ int main(int argc,char **argv)
                 property=event.xselectionrequest.property;
                 if (property==None) property=event.xselectionrequest.target;
                 if (event.xselectionrequest.target==targets) {
-                    Atom supported[2]={targets,XA_STRING};
+                    Atom supported[2]={targets,textType};
                     XChangeProperty(display,event.xselectionrequest.requestor,property,XA_ATOM,32,PropModeReplace,(unsigned char *)supported,2);
                     response.xselection.property=property;
-                } else if (event.xselectionrequest.target==XA_STRING) {
-                    XChangeProperty(display,event.xselectionrequest.requestor,property,XA_STRING,8,PropModeReplace,(unsigned char *)"from X11",8);
+                } else if (event.xselectionrequest.target==textType) {
+                    /* Latin-1 graphic characters are also valid COMPOUND_TEXT
+                     * in its initial GL/GR character sets (no escape needed). */
+                    const char *text="caf\351 from X11";
+                    XChangeProperty(display,event.xselectionrequest.requestor,property,textType,8,PropModeReplace,(unsigned char *)text,strlen(text));
                     response.xselection.property=property;
                 }
                 XSendEvent(display,response.xselection.requestor,False,0,&response); XFlush(display);
