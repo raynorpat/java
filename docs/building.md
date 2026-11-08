@@ -189,3 +189,87 @@ printing and clipping limitations remain. MoleculeViewer's intermittent DPS
 invalidid/nextimage startup error was also reproduced with the donor runtime;
 failed attempts are retained separately from accepted clean runs. Native regression
 and donor evidence is in [bridge-evidence.md](../tests/awt-dr2/bridge-evidence.md).
+
+## Rhapsody Objective-C JavaVM.framework
+
+The separate framework entry point reuses the generic runtime's objects without
+changing the standalone build. Run it in the native DR2 source tree:
+
+```sh
+/bin/gnumake -f build/rhapsody-framework.mk framework
+/bin/gnumake -f build/rhapsody-framework.mk framework-layout
+/bin/gnumake -f build/rhapsody-framework.mk framework-check DESKTOP_PID=<Workspace-PID>
+/bin/gnumake -f build/rhapsody-framework.mk framework-install \
+  FRAMEWORK_INSTALL="/private/tmp/My Frameworks/JavaVM.framework"
+```
+
+Use `DEBUG=1` for `out/dr2-framework-debug/JavaVM.framework`; Release uses
+`out/dr2-framework/JavaVM.framework`. `APPLE_JAVA_CLASSES` identifies the retained
+DR2 Java class directory (default `/System/Library/Java`). The package overlays
+these original Apple classes and the reconstructed NSRuntime onto a private copy
+of the baseline classes archive. `Resources/apple-java-classes.list` and its
+checksum file record the input classes. The original archives stay unchanged.
+No donor JavaVM, ObjCJava, generated wrapper, AWT, or audio native library is
+copied. The retained FoundationJava/AppKitJava bytecode does not supply their separate
+generated native wrapper libraries. For example, Java NSArray/NSData wrappers
+require FoundationJava.B, which this build does not provide; this dependency is
+distinct from supported core NSJavaObject/NSObject embedding. Unsupported wrappers
+fail explicitly without
+a donor fallback. Supported paths are the reconstructed core Java/Objective-C
+bridge and the existing reconstructed Rhapsody AWT toolkit. See the
+[core export inventory](../tests/framework-dr2/core-exports.md),
+[wrapper dependency manifest](../tests/framework-dr2/generated-wrapper-dependencies.json),
+and [reconstruction boundaries](../tests/framework-dr2/intake.md) for the exact scope.
+
+The versioned facade, headers and resources are exposed through
+`Versions/Current`. `Libraries` holds one physical copy of each reconstructed
+native library; compatibility names and `Home/lib` are symbolic links.
+`Classes` holds the class archives. `Commands` and `Home/bin` expose the same
+command wrappers, which select the adjacent private libraries and Java home.
+For example:
+
+```sh
+"/private/tmp/My Frameworks/JavaVM.framework/Commands/java" MyMain
+```
+
+Compile Objective-C clients with the staged public headers and framework:
+
+```sh
+cc -traditional-cpp -F"/private/tmp/My Frameworks" client.m \
+  -framework JavaVM -framework Foundation -o client
+DYLD_FRAMEWORK_PATH="/private/tmp/My Frameworks" ./client
+```
+
+DR2 dyld does not expand modern `@rpath`, `@loader_path`, or `@executable_path`
+names. `DYLD_FRAMEWORK_PATH` selects the private facade after relocation; the
+facade loads its adjacent runtime and ObjCJava library by absolute bundle path,
+so embedding clients do not need `DYLD_LIBRARY_PATH`. The internal ObjCJava
+bootstrap property records that exact private image path. A missing private
+bridge fails rather than loading `/usr/lib/java/libObjCJava`.
+
+`framework-layout` checks the package links, public-header client linkage,
+loaded facade location, compiler and command launchers. Full Objective-C/JNI,
+GUI, audio and Release/Debug acceptance remains a separate runtime gate; layout
+success alone does not establish those behaviors.
+
+Direct use of `NSJavaObject` or the C bridge functions additionally requires
+`-L"/private/tmp/My Frameworks/JavaVM.framework/Libraries" -lObjCJava -ljavai` and that
+private `Libraries` directory in `DYLD_LIBRARY_PATH` at launch. The original DR2
+facade likewise does not export the NSJavaObject class: a client referencing
+`[NSJavaObject class]` with only `-framework JavaVM` fails to link. Merely importing
+the umbrella header, declaring Java proxy pointer types, or embedding through
+NSJavaVirtualMachine does not add this direct bridge-library dependency.
+
+
+The framework variant derives Java home from its loaded runtime image, limits
+`System.loadLibrary` to that private home's library directory, and accepts native
+library paths up to the platform path limit instead of 127 bytes. These changes
+are compiled only for the framework; the generic JDK keeps its existing rules.
+On DR2, preloading a dylib by absolute path does not satisfy a later leaf-name
+load dependency. Framework extension libraries therefore import the preloaded
+VM through the flat namespace without private `LC_LOAD_DYLIB` paths. The loader
+preloads the adjacent AWT library when audio needs its shared entry helpers.
+The import audit explicitly loads each private native library and binds every
+external undefined symbol, including lazy imports. Full-image binding also
+forces duplicate CRT/System startup symbols in DR2, so the audit binds the
+library's actual imports individually.

@@ -39,6 +39,9 @@
 #include "jio.h"
 
 #include "java_lang_Runtime.h"
+#ifdef JDK115_FRAMEWORK_HOME
+#include <limits.h>
+#endif
 
 static char *security_exception = JAVAPKG "SecurityException";
 
@@ -84,7 +87,12 @@ java_lang_Runtime_initializeLinkerInternal(struct Hjava_lang_Runtime *Hlink)
 long /* bool_t */
 java_lang_Runtime_loadFileInternal(struct Hjava_lang_Runtime *Hlinker, 
 				   HString *Hfilename) {
+    /* A relocated private framework may exceed the historical 127-byte path. */
+#ifdef JDK115_FRAMEWORK_HOME
+    char fname[PATH_MAX];
+#else
     char fname[128];
+#endif
     if (Hfilename == 0) {
 	SignalError(0, JAVAPKG "NullPointerException", "filename");
 	return 0;

@@ -2,6 +2,9 @@
 #import <objc/objc-runtime.h>
 
 void bridgeInitializeSelectorMaps(void);
+SEL JavaMethodNameToObjectiveCSelector(const char *name, int argumentCount, char *buffer, int capacity);
+char *ObjectiveCSelectorToJavaMethodName(SEL selector, char *buffer, int capacity);
+const char *NSSelectorToJavaMethodName(SEL selector);
 void NSSetJavaMethodForObjcSelector(const char *name, SEL selector);
 void NSSetOverloadedJavaMethodForObjcSelector(const char *name,
     const char *signature, SEL selector);

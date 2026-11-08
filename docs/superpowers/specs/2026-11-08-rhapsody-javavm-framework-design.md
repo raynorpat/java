@@ -1,6 +1,6 @@
 # Complete Rhapsody DR2 JavaVM.framework
 
-Status: approved by the user on 2026-11-08; implementation in progress.
+Status: approved by the user on 2026-11-08; implementation and native DR2 acceptance complete. See `tests/framework-dr2/intake.md` for evidence and the external native-wrapper boundary.
 
 ## Requested result
 

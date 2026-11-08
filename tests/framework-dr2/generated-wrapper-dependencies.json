@@ -1,0 +1,649 @@
+{
+  "source_archive": "out/rhapsody115/apple-java-classes.tar",
+  "source_sha256": "0001e603ef69ddd82dc1e48809306af3881e116fc6d999f368b0d905548bce58",
+  "retained_classes": 573,
+  "classes_declaring_native_methods": 408,
+  "native_method_declarations": 8813,
+  "method": "Classfile constant pools and method access flags; literal loadLibrary invocations in method bytecode. Native methods without direct load calls may inherit initialization or use other loading paths.",
+  "library_families": {
+    "AppKitJava.A": {
+      "classes": [
+        "com/apple/alpha/app/ActionCell",
+        "com/apple/alpha/app/AffineTransform",
+        "com/apple/alpha/app/Application",
+        "com/apple/alpha/app/AttributedStringAttacher",
+        "com/apple/alpha/app/AttributedStringAttributer",
+        "com/apple/alpha/app/AttributedStringDrawer",
+        "com/apple/alpha/app/BezierPath",
+        "com/apple/alpha/app/BitmapImageRep",
+        "com/apple/alpha/app/Box",
+        "com/apple/alpha/app/Browser",
+        "com/apple/alpha/app/BrowserCell",
+        "com/apple/alpha/app/Button",
+        "com/apple/alpha/app/ButtonCell",
+        "com/apple/alpha/app/CachedImageRep",
+        "com/apple/alpha/app/Cell",
+        "com/apple/alpha/app/ClipView",
+        "com/apple/alpha/app/Color",
+        "com/apple/alpha/app/ColorList",
+        "com/apple/alpha/app/ColorPanel",
+        "com/apple/alpha/app/ColorPicker",
+        "com/apple/alpha/app/ColorWell",
+        "com/apple/alpha/app/ComboBox",
+        "com/apple/alpha/app/ComboBoxCell",
+        "com/apple/alpha/app/Control",
+        "com/apple/alpha/app/Cursor",
+        "com/apple/alpha/app/CustomImageRep",
+        "com/apple/alpha/app/DPSContext",
+        "com/apple/alpha/app/DPSServerContext",
+        "com/apple/alpha/app/DragManager",
+        "com/apple/alpha/app/Drawing",
+        "com/apple/alpha/app/EPSImageRep",
+        "com/apple/alpha/app/Event",
+        "com/apple/alpha/app/ExtendedUndoManager",
+        "com/apple/alpha/app/FileWrapper",
+        "com/apple/alpha/app/Font",
+        "com/apple/alpha/app/FontManager",
+        "com/apple/alpha/app/FontPanel",
+        "com/apple/alpha/app/Form",
+        "com/apple/alpha/app/FormCell",
+        "com/apple/alpha/app/GraphicsContext",
+        "com/apple/alpha/app/HelpManager",
+        "com/apple/alpha/app/Image",
+        "com/apple/alpha/app/ImageCell",
+        "com/apple/alpha/app/ImageRep",
+        "com/apple/alpha/app/ImageView",
+        "com/apple/alpha/app/InputManager",
+        "com/apple/alpha/app/InputServer",
+        "com/apple/alpha/app/InterfaceStyle",
+        "com/apple/alpha/app/LayoutManager",
+        "com/apple/alpha/app/Matrix",
+        "com/apple/alpha/app/Menu",
+        "com/apple/alpha/app/MenuElement",
+        "com/apple/alpha/app/MenuItemCell",
+        "com/apple/alpha/app/MenuView",
+        "com/apple/alpha/app/MutableParagraphStyle",
+        "com/apple/alpha/app/OpenPanel",
+        "com/apple/alpha/app/OutlineView",
+        "com/apple/alpha/app/PICTImageRep",
+        "com/apple/alpha/app/PageLayout",
+        "com/apple/alpha/app/Panel",
+        "com/apple/alpha/app/ParagraphStyle",
+        "com/apple/alpha/app/Pasteboard",
+        "com/apple/alpha/app/PopUpButton",
+        "com/apple/alpha/app/PopUpButtonCell",
+        "com/apple/alpha/app/PrintInfo",
+        "com/apple/alpha/app/PrintOperation",
+        "com/apple/alpha/app/PrintPanel",
+        "com/apple/alpha/app/Printer",
+        "com/apple/alpha/app/ProgressIndicator",
+        "com/apple/alpha/app/Responder",
+        "com/apple/alpha/app/RulerMarker",
+        "com/apple/alpha/app/RulerView",
+        "com/apple/alpha/app/SavePanel",
+        "com/apple/alpha/app/Screen",
+        "com/apple/alpha/app/ScrollView",
+        "com/apple/alpha/app/Scroller",
+        "com/apple/alpha/app/SecureTextField",
+        "com/apple/alpha/app/SecureTextFieldCell",
+        "com/apple/alpha/app/Slider",
+        "com/apple/alpha/app/SliderCell",
+        "com/apple/alpha/app/SpellChecker",
+        "com/apple/alpha/app/SpellServer",
+        "com/apple/alpha/app/SplitView",
+        "com/apple/alpha/app/StringDrawer",
+        "com/apple/alpha/app/TabView",
+        "com/apple/alpha/app/TabViewItem",
+        "com/apple/alpha/app/TableColumn",
+        "com/apple/alpha/app/TableHeaderCell",
+        "com/apple/alpha/app/TableHeaderView",
+        "com/apple/alpha/app/TableView",
+        "com/apple/alpha/app/Text",
+        "com/apple/alpha/app/TextAttachment",
+        "com/apple/alpha/app/TextAttachmentCell",
+        "com/apple/alpha/app/TextContainer",
+        "com/apple/alpha/app/TextField",
+        "com/apple/alpha/app/TextFieldCell",
+        "com/apple/alpha/app/TextStorage",
+        "com/apple/alpha/app/TextTab",
+        "com/apple/alpha/app/TextView",
+        "com/apple/alpha/app/View",
+        "com/apple/alpha/app/Window",
+        "com/apple/alpha/app/Workspace"
+      ],
+      "native_methods": 2890,
+      "class_count": 102,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "AppKitJava.B": {
+      "classes": [
+        "com/apple/yellow/application/NSActionCell",
+        "com/apple/yellow/application/NSAffineTransform",
+        "com/apple/yellow/application/NSApplication",
+        "com/apple/yellow/application/NSBezierPath",
+        "com/apple/yellow/application/NSBitmapImageRep",
+        "com/apple/yellow/application/NSBox",
+        "com/apple/yellow/application/NSBrowser",
+        "com/apple/yellow/application/NSBrowserCell",
+        "com/apple/yellow/application/NSButton",
+        "com/apple/yellow/application/NSButtonCell",
+        "com/apple/yellow/application/NSCachedImageRep",
+        "com/apple/yellow/application/NSCell",
+        "com/apple/yellow/application/NSClipView",
+        "com/apple/yellow/application/NSColor",
+        "com/apple/yellow/application/NSColorList",
+        "com/apple/yellow/application/NSColorPanel",
+        "com/apple/yellow/application/NSColorPicker",
+        "com/apple/yellow/application/NSColorWell",
+        "com/apple/yellow/application/NSComboBox",
+        "com/apple/yellow/application/NSComboBoxCell",
+        "com/apple/yellow/application/NSControl",
+        "com/apple/yellow/application/NSCursor",
+        "com/apple/yellow/application/NSCustomImageRep",
+        "com/apple/yellow/application/NSDPSContext",
+        "com/apple/yellow/application/NSDPSServerContext",
+        "com/apple/yellow/application/NSDocument",
+        "com/apple/yellow/application/NSDocumentController",
+        "com/apple/yellow/application/NSDragManager",
+        "com/apple/yellow/application/NSEPSImageRep",
+        "com/apple/yellow/application/NSEvent",
+        "com/apple/yellow/application/NSFileWrapper",
+        "com/apple/yellow/application/NSFont",
+        "com/apple/yellow/application/NSFontManager",
+        "com/apple/yellow/application/NSFontPanel",
+        "com/apple/yellow/application/NSForm",
+        "com/apple/yellow/application/NSFormCell",
+        "com/apple/yellow/application/NSGraphics",
+        "com/apple/yellow/application/NSGraphicsContext",
+        "com/apple/yellow/application/NSHelpManager",
+        "com/apple/yellow/application/NSImage",
+        "com/apple/yellow/application/NSImageCell",
+        "com/apple/yellow/application/NSImageRep",
+        "com/apple/yellow/application/NSImageView",
+        "com/apple/yellow/application/NSInputManager",
+        "com/apple/yellow/application/NSInputServer",
+        "com/apple/yellow/application/NSInterfaceStyle",
+        "com/apple/yellow/application/NSLayoutManager",
+        "com/apple/yellow/application/NSMatrix",
+        "com/apple/yellow/application/NSMenu",
+        "com/apple/yellow/application/NSMenuItem",
+        "com/apple/yellow/application/NSMenuItemCell",
+        "com/apple/yellow/application/NSMenuView",
+        "com/apple/yellow/application/NSMutableParagraphStyle",
+        "com/apple/yellow/application/NSOpenPanel",
+        "com/apple/yellow/application/NSOutlineView",
+        "com/apple/yellow/application/NSPICTImageRep",
+        "com/apple/yellow/application/NSPageLayout",
+        "com/apple/yellow/application/NSPanel",
+        "com/apple/yellow/application/NSParagraphStyle",
+        "com/apple/yellow/application/NSPasteboard",
+        "com/apple/yellow/application/NSPopUpButton",
+        "com/apple/yellow/application/NSPopUpButtonCell",
+        "com/apple/yellow/application/NSPrintInfo",
+        "com/apple/yellow/application/NSPrintOperation",
+        "com/apple/yellow/application/NSPrintPanel",
+        "com/apple/yellow/application/NSPrinter",
+        "com/apple/yellow/application/NSProgressIndicator",
+        "com/apple/yellow/application/NSResponder",
+        "com/apple/yellow/application/NSRulerMarker",
+        "com/apple/yellow/application/NSRulerView",
+        "com/apple/yellow/application/NSSavePanel",
+        "com/apple/yellow/application/NSScreen",
+        "com/apple/yellow/application/NSScrollView",
+        "com/apple/yellow/application/NSScroller",
+        "com/apple/yellow/application/NSSecureTextField",
+        "com/apple/yellow/application/NSSecureTextFieldCell",
+        "com/apple/yellow/application/NSSlider",
+        "com/apple/yellow/application/NSSliderCell",
+        "com/apple/yellow/application/NSSpellChecker",
+        "com/apple/yellow/application/NSSpellServer",
+        "com/apple/yellow/application/NSSplitView",
+        "com/apple/yellow/application/NSStatusBar",
+        "com/apple/yellow/application/NSStatusItem",
+        "com/apple/yellow/application/NSTabView",
+        "com/apple/yellow/application/NSTabViewItem",
+        "com/apple/yellow/application/NSTableColumn",
+        "com/apple/yellow/application/NSTableHeaderCell",
+        "com/apple/yellow/application/NSTableHeaderView",
+        "com/apple/yellow/application/NSTableView",
+        "com/apple/yellow/application/NSText",
+        "com/apple/yellow/application/NSTextAttachment",
+        "com/apple/yellow/application/NSTextAttachmentCell",
+        "com/apple/yellow/application/NSTextContainer",
+        "com/apple/yellow/application/NSTextField",
+        "com/apple/yellow/application/NSTextFieldCell",
+        "com/apple/yellow/application/NSTextStorage",
+        "com/apple/yellow/application/NSTextTab",
+        "com/apple/yellow/application/NSTextView",
+        "com/apple/yellow/application/NSView",
+        "com/apple/yellow/application/NSWindow",
+        "com/apple/yellow/application/NSWindowController",
+        "com/apple/yellow/application/NSWorkspace"
+      ],
+      "native_methods": 3170,
+      "class_count": 102,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "EOAccessJava.A": {
+      "classes": [
+        "com/apple/yellow/eoaccess/EOAccessArrayFaultHandler",
+        "com/apple/yellow/eoaccess/EOAccessFaultHandler",
+        "com/apple/yellow/eoaccess/EOAccessGenericFaultHandler",
+        "com/apple/yellow/eoaccess/EOAdaptor",
+        "com/apple/yellow/eoaccess/EOAdaptorChannel",
+        "com/apple/yellow/eoaccess/EOAdaptorContext",
+        "com/apple/yellow/eoaccess/EOAdaptorOperation",
+        "com/apple/yellow/eoaccess/EOAttribute",
+        "com/apple/yellow/eoaccess/EODatabase",
+        "com/apple/yellow/eoaccess/EODatabaseChannel",
+        "com/apple/yellow/eoaccess/EODatabaseContext",
+        "com/apple/yellow/eoaccess/EODatabaseDataSource",
+        "com/apple/yellow/eoaccess/EODatabaseOperation",
+        "com/apple/yellow/eoaccess/EOEntity",
+        "com/apple/yellow/eoaccess/EOEntityClassDescription",
+        "com/apple/yellow/eoaccess/EOJoin",
+        "com/apple/yellow/eoaccess/EOLoginPanel",
+        "com/apple/yellow/eoaccess/EOModel",
+        "com/apple/yellow/eoaccess/EOModelGroup",
+        "com/apple/yellow/eoaccess/EORelationship",
+        "com/apple/yellow/eoaccess/EOSQLExpression",
+        "com/apple/yellow/eoaccess/EOSQLQualifier",
+        "com/apple/yellow/eoaccess/EOStoredProcedure"
+      ],
+      "native_methods": 535,
+      "class_count": 23,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "EOControlJava.A": {
+      "classes": [
+        "com/apple/yellow/eocontrol/EOAndQualifier",
+        "com/apple/yellow/eocontrol/EOArrayDataSource",
+        "com/apple/yellow/eocontrol/EOClassDescription",
+        "com/apple/yellow/eocontrol/EOCooperatingObjectStore",
+        "com/apple/yellow/eocontrol/EOCustomObject",
+        "com/apple/yellow/eocontrol/EODataSource",
+        "com/apple/yellow/eocontrol/EODelayedObserver",
+        "com/apple/yellow/eocontrol/EODelayedObserverQueue",
+        "com/apple/yellow/eocontrol/EODetailDataSource",
+        "com/apple/yellow/eocontrol/EOEditingContext",
+        "com/apple/yellow/eocontrol/EOFaultHandler",
+        "com/apple/yellow/eocontrol/EOFetchSpecification",
+        "com/apple/yellow/eocontrol/EOGenericRecord",
+        "com/apple/yellow/eocontrol/EOGlobalID",
+        "com/apple/yellow/eocontrol/EOKeyComparisonQualifier",
+        "com/apple/yellow/eocontrol/EOKeyGlobalID",
+        "com/apple/yellow/eocontrol/EOKeyValueArchiver",
+        "com/apple/yellow/eocontrol/EOKeyValueQualifier",
+        "com/apple/yellow/eocontrol/EOKeyValueUnarchiver",
+        "com/apple/yellow/eocontrol/EONotQualifier",
+        "com/apple/yellow/eocontrol/EONullValue",
+        "com/apple/yellow/eocontrol/EOObjectStore",
+        "com/apple/yellow/eocontrol/EOObjectStoreCoordinator",
+        "com/apple/yellow/eocontrol/EOObserverCenter",
+        "com/apple/yellow/eocontrol/EOObserverProxy",
+        "com/apple/yellow/eocontrol/EOOrQualifier",
+        "com/apple/yellow/eocontrol/EOQualifier",
+        "com/apple/yellow/eocontrol/EOQualifierVariable",
+        "com/apple/yellow/eocontrol/EOSortOrdering",
+        "com/apple/yellow/eocontrol/EOTemporaryGlobalID"
+      ],
+      "native_methods": 368,
+      "class_count": 30,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "EOInterfaceJava.A": {
+      "classes": [
+        "com/apple/yellow/eointerface/EOActionAssociation",
+        "com/apple/yellow/eointerface/EOActionCellAssociation",
+        "com/apple/yellow/eointerface/EOActionInsertionAssociation",
+        "com/apple/yellow/eointerface/EOAssociation",
+        "com/apple/yellow/eointerface/EOColumnAssociation",
+        "com/apple/yellow/eointerface/EOComboBoxAssociation",
+        "com/apple/yellow/eointerface/EOControlAssociation",
+        "com/apple/yellow/eointerface/EODetailSelectionAssociation",
+        "com/apple/yellow/eointerface/EODisplayGroup",
+        "com/apple/yellow/eointerface/EOGenericControlAssociation",
+        "com/apple/yellow/eointerface/EOMasterCopyAssociation",
+        "com/apple/yellow/eointerface/EOMasterDetailAssociation",
+        "com/apple/yellow/eointerface/EOMasterPeerAssociation",
+        "com/apple/yellow/eointerface/EOMatrixAssociation",
+        "com/apple/yellow/eointerface/EOPickTextAssociation",
+        "com/apple/yellow/eointerface/EOPopUpAssociation",
+        "com/apple/yellow/eointerface/EORecursiveBrowserAssociation",
+        "com/apple/yellow/eointerface/EOTableViewAssociation",
+        "com/apple/yellow/eointerface/EOTextAssociation"
+      ],
+      "native_methods": 146,
+      "class_count": 19,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "FoundationJava.A": {
+      "classes": [
+        "com/apple/alpha/core/Archiver",
+        "com/apple/alpha/core/Array",
+        "com/apple/alpha/core/AssertionHandler",
+        "com/apple/alpha/core/AttributedString",
+        "com/apple/alpha/core/AutoreleasePool",
+        "com/apple/alpha/core/Bundle",
+        "com/apple/alpha/core/CalendarDate",
+        "com/apple/alpha/core/CharacterSet",
+        "com/apple/alpha/core/Coder",
+        "com/apple/alpha/core/ConditionLock",
+        "com/apple/alpha/core/CountedSet",
+        "com/apple/alpha/core/Data",
+        "com/apple/alpha/core/Date",
+        "com/apple/alpha/core/DateFormatter",
+        "com/apple/alpha/core/Deserializer",
+        "com/apple/alpha/core/Dictionary",
+        "com/apple/alpha/core/DirectoryEnumerator",
+        "com/apple/alpha/core/DistributedLock",
+        "com/apple/alpha/core/DistributedNotificationCenter",
+        "com/apple/alpha/core/Enumerator",
+        "com/apple/alpha/core/FileAttributes",
+        "com/apple/alpha/core/FileHandle",
+        "com/apple/alpha/core/FileManager",
+        "com/apple/alpha/core/Formatter",
+        "com/apple/alpha/core/Host",
+        "com/apple/alpha/core/Invocation",
+        "com/apple/alpha/core/Lock",
+        "com/apple/alpha/core/MethodSignature",
+        "com/apple/alpha/core/MutableArray",
+        "com/apple/alpha/core/MutableAttributedString",
+        "com/apple/alpha/core/MutableCharacterSet",
+        "com/apple/alpha/core/MutableData",
+        "com/apple/alpha/core/MutableDictionary",
+        "com/apple/alpha/core/MutableSet",
+        "com/apple/alpha/core/Notification",
+        "com/apple/alpha/core/NotificationCenter",
+        "com/apple/alpha/core/NotificationQueue",
+        "com/apple/alpha/core/NumberFormatter",
+        "com/apple/alpha/core/Path",
+        "com/apple/alpha/core/Pipe",
+        "com/apple/alpha/core/Port",
+        "com/apple/alpha/core/PortNameServer",
+        "com/apple/alpha/core/ProcessInfo",
+        "com/apple/alpha/core/RecursiveLock",
+        "com/apple/alpha/core/RunLoop",
+        "com/apple/alpha/core/Scanner",
+        "com/apple/alpha/core/Serializer",
+        "com/apple/alpha/core/Set",
+        "com/apple/alpha/core/StringEncoding",
+        "com/apple/alpha/core/StringManipulator",
+        "com/apple/alpha/core/SystemLog",
+        "com/apple/alpha/core/Task",
+        "com/apple/alpha/core/Thread",
+        "com/apple/alpha/core/TimeZone",
+        "com/apple/alpha/core/Timer",
+        "com/apple/alpha/core/Unarchiver",
+        "com/apple/alpha/core/UndoManager",
+        "com/apple/alpha/core/UserDefaults",
+        "com/apple/alpha/core/Value"
+      ],
+      "native_methods": 770,
+      "class_count": 59,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "FoundationJava.B": {
+      "classes": [
+        "com/apple/yellow/foundation/NSArchiver",
+        "com/apple/yellow/foundation/NSArray",
+        "com/apple/yellow/foundation/NSAttributedString",
+        "com/apple/yellow/foundation/NSBundle",
+        "com/apple/yellow/foundation/NSCharacterSet",
+        "com/apple/yellow/foundation/NSCoder",
+        "com/apple/yellow/foundation/NSData",
+        "com/apple/yellow/foundation/NSDate",
+        "com/apple/yellow/foundation/NSDictionary",
+        "com/apple/yellow/foundation/NSDistributedNotificationCenter",
+        "com/apple/yellow/foundation/NSFormatter",
+        "com/apple/yellow/foundation/NSGregorianDate",
+        "com/apple/yellow/foundation/NSGregorianDateFormatter",
+        "com/apple/yellow/foundation/NSMutableArray",
+        "com/apple/yellow/foundation/NSMutableAttributedString",
+        "com/apple/yellow/foundation/NSMutableCharacterSet",
+        "com/apple/yellow/foundation/NSMutableData",
+        "com/apple/yellow/foundation/NSMutableDictionary",
+        "com/apple/yellow/foundation/NSMutableSet",
+        "com/apple/yellow/foundation/NSMutableStringReference",
+        "com/apple/yellow/foundation/NSNotification",
+        "com/apple/yellow/foundation/NSNotificationCenter",
+        "com/apple/yellow/foundation/NSNotificationQueue",
+        "com/apple/yellow/foundation/NSNumberFormatter",
+        "com/apple/yellow/foundation/NSPathUtilities",
+        "com/apple/yellow/foundation/NSPort",
+        "com/apple/yellow/foundation/NSRunLoop",
+        "com/apple/yellow/foundation/NSSet",
+        "com/apple/yellow/foundation/NSStringReference",
+        "com/apple/yellow/foundation/NSSystem",
+        "com/apple/yellow/foundation/NSTimeZone",
+        "com/apple/yellow/foundation/NSTimer",
+        "com/apple/yellow/foundation/NSUnarchiver",
+        "com/apple/yellow/foundation/NSUndoManager",
+        "com/apple/yellow/foundation/NSUserDefaults"
+      ],
+      "native_methods": 531,
+      "class_count": 35,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "KeyboardJava.A": {
+      "classes": [
+        "com/apple/alpha/keyboard/KeyDefinition",
+        "com/apple/alpha/keyboard/KeyboardView",
+        "com/apple/alpha/keyboard/Keymap"
+      ],
+      "native_methods": 38,
+      "class_count": 3,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "NIAccessJava.A": {
+      "classes": [
+        "com/apple/alpha/niaccess/NIBinder",
+        "com/apple/alpha/niaccess/NIDirectory",
+        "com/apple/alpha/niaccess/NIDomain",
+        "com/apple/alpha/niaccess/NINetInfo",
+        "com/apple/alpha/niaccess/NIServer"
+      ],
+      "native_methods": 147,
+      "class_count": 5,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "NIInterfaceJava.A": {
+      "classes": [
+        "com/apple/alpha/niinterface/NIAuthenticationPanel",
+        "com/apple/alpha/niinterface/NIDomainPanel",
+        "com/apple/alpha/niinterface/NIOpenPanel"
+      ],
+      "native_methods": 42,
+      "class_count": 3,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "ObjCJava": {
+      "classes": [
+        "com/apple/alpha/core/keyValue"
+      ],
+      "native_methods": 9,
+      "class_count": 1,
+      "status": "core bridge reconstructed"
+    },
+    "PrintingJava.A": {
+      "classes": [
+        "com/apple/alpha/printing/PrincipalInstance",
+        "com/apple/alpha/printing/PrinterCommunicationDriver",
+        "com/apple/alpha/printing/PrinterConfigurationController",
+        "com/apple/alpha/printing/PrinterProcessorDriver"
+      ],
+      "native_methods": 25,
+      "class_count": 4,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "PureAppKitJava.A": {
+      "classes": [
+        "com/apple/alpha/app/PureApplication"
+      ],
+      "native_methods": 1,
+      "class_count": 1,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "PureAppKitJava.B": {
+      "classes": [
+        "com/apple/yellow/application/NSPureApplication"
+      ],
+      "native_methods": 1,
+      "class_count": 1,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "SybaseEOAdaptorJava.A": {
+      "classes": [
+        "com/apple/yellow/sybaseeoadaptor/SybaseAdaptor",
+        "com/apple/yellow/sybaseeoadaptor/SybaseChannel",
+        "com/apple/yellow/sybaseeoadaptor/SybaseColumn",
+        "com/apple/yellow/sybaseeoadaptor/SybaseContext",
+        "com/apple/yellow/sybaseeoadaptor/SybaseSQLExpression"
+      ],
+      "native_methods": 60,
+      "class_count": 5,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    },
+    "SysAdmin": {
+      "classes": [
+        "com/apple/alpha/sysadmin/NetworkConfig",
+        "com/apple/alpha/sysadmin/NetworkTime",
+        "com/apple/alpha/sysadmin/UserDetails"
+      ],
+      "native_methods": 18,
+      "class_count": 3,
+      "status": "separate generated wrapper library; not reconstructed or packaged"
+    }
+  },
+  "native_classes_without_direct_loadLibrary_literal": [
+    {
+      "class": "com/apple/alpha/core/NativeObject",
+      "superclass": "java/lang/Object",
+      "native_methods": 10
+    },
+    {
+      "class": "com/apple/alpha/core/ObjectiveCSelector",
+      "superclass": "com/apple/yellow/foundation/NSSelector",
+      "native_methods": 2
+    },
+    {
+      "class": "com/apple/alpha/app/AlertPanel",
+      "superclass": "java/lang/Object",
+      "native_methods": 1
+    },
+    {
+      "class": "com/apple/yellow/foundation/_private/NSCoderInputStream",
+      "superclass": "java/io/InputStream",
+      "native_methods": 2
+    },
+    {
+      "class": "com/apple/yellow/foundation/_private/NSCoderOutputStream",
+      "superclass": "java/io/OutputStream",
+      "native_methods": 2
+    },
+    {
+      "class": "com/apple/yellow/foundation/NSRuntime",
+      "superclass": "java/lang/Object",
+      "native_methods": 2
+    },
+    {
+      "class": "com/apple/yellow/foundation/NSEnumerator",
+      "superclass": "java/lang/Object",
+      "native_methods": 2
+    },
+    {
+      "class": "com/apple/yellow/foundation/NSMutableRect",
+      "superclass": "com/apple/yellow/foundation/NSRect",
+      "native_methods": 10
+    },
+    {
+      "class": "com/apple/yellow/foundation/NSMutablePoint",
+      "superclass": "com/apple/yellow/foundation/NSPoint",
+      "native_methods": 6
+    },
+    {
+      "class": "com/apple/yellow/foundation/NSMutableSize",
+      "superclass": "com/apple/yellow/foundation/NSSize",
+      "native_methods": 6
+    },
+    {
+      "class": "com/apple/yellow/foundation/NSMutableRange",
+      "superclass": "com/apple/yellow/foundation/NSRange",
+      "native_methods": 6
+    },
+    {
+      "class": "com/apple/yellow/foundation/NSPropertyListSerialization",
+      "superclass": "java/lang/Object",
+      "native_methods": 4
+    },
+    {
+      "class": "com/apple/yellow/foundation/NSDecimalMappingBehavior",
+      "superclass": "java/lang/Object",
+      "native_methods": 4
+    },
+    {
+      "class": "com/apple/yellow/foundation/NSAutoreleasePool",
+      "superclass": "java/lang/Object",
+      "native_methods": 2
+    },
+    {
+      "class": "com/apple/yellow/application/NSAlertPanel",
+      "superclass": "java/lang/Object",
+      "native_methods": 3
+    }
+  ],
+  "core_examples": {
+    "com/apple/alpha/core/NativeObject": {
+      "native_methods": 10,
+      "libraries": []
+    },
+    "com/apple/yellow/foundation/NSObject": {
+      "native_methods": 0,
+      "libraries": []
+    },
+    "com/apple/yellow/foundation/NSRuntime": {
+      "native_methods": 2,
+      "libraries": []
+    },
+    "com/apple/yellow/foundation/NSRect": {
+      "native_methods": 0,
+      "libraries": []
+    },
+    "com/apple/yellow/foundation/NSPoint": {
+      "native_methods": 0,
+      "libraries": []
+    },
+    "com/apple/yellow/foundation/NSSize": {
+      "native_methods": 0,
+      "libraries": []
+    },
+    "com/apple/yellow/foundation/NSRange": {
+      "native_methods": 0,
+      "libraries": []
+    },
+    "com/apple/yellow/foundation/NSArray": {
+      "native_methods": 19,
+      "libraries": [
+        "FoundationJava.B"
+      ]
+    },
+    "com/apple/yellow/foundation/NSData": {
+      "native_methods": 11,
+      "libraries": [
+        "FoundationJava.B"
+      ]
+    },
+    "com/apple/yellow/foundation/NSDictionary": {
+      "native_methods": 11,
+      "libraries": [
+        "FoundationJava.B"
+      ]
+    },
+    "com/apple/yellow/foundation/NSSet": {
+      "native_methods": 14,
+      "libraries": [
+        "FoundationJava.B"
+      ]
+    }
+  }
+}

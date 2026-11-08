@@ -1,0 +1,5 @@
+private ObjCJava initialized
+versioned initializer
+fallback initializer
+missing initializer rejected
+PASS private NSRuntime bootstrap

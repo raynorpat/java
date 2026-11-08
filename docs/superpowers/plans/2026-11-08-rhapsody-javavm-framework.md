@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
+**Status:** Complete; native DR2 verification and final review fixes are recorded in `tests/framework-dr2/intake.md`. Integration remains a separate decision.
+
 **Goal:** Build the complete DR2 JavaVM.framework while preserving the generic JDK makefile.
 
 **Architecture:** Reuse the reconstructed runtime and add the Objective-C framework facade and required ObjCJava bridge. A separate makefile produces a private versioned framework and native acceptance clients.
@@ -62,38 +64,38 @@
 **Files:** `src/rhapsody/java/framework/NSJavaVirtualMachine.{h,m}`, `JavaVM.h`, `Info-nextstep.plist`, `tests/framework-dr2/embedding.m`, initial bridge sources.
 **Interfaces:** Public donor NSJavaVirtualMachine and NSObject category signatures; bridge entry points `NSLoadVirtualMachine` and `NSAddClassFile`, with exact argument/return ABI recovered before coding.
 
-- [ ] Add donor fixtures for singleton creation, default classpath, non-Java construction errors, class lookup and defineClass:withName:.
-- [ ] Record donor startup dependencies and VM adapter requirements; pin exact bridge interfaces in evidence before implementing them.
-- [ ] Observe the reconstructed embedding fixture fail; implement real startup against the reconstructed VM and facade behavior.
-- [ ] Pass the fixture without donor JavaVM/ObjCJava loading; commit.
+- [x] Add donor fixtures for singleton creation, default classpath, non-Java construction errors, class lookup and defineClass:withName:.
+- [x] Record donor startup dependencies and VM adapter requirements; pin exact bridge interfaces in evidence before implementing them.
+- [x] Observe the reconstructed embedding fixture fail; implement real startup against the reconstructed VM and facade behavior.
+- [x] Pass the fixture without donor JavaVM/ObjCJava loading; commit.
 
 ### Task 4: Java classes, constructors and dispatch
 
 **Files:** `src/rhapsody/java/bridge/`, `tests/framework-dr2/BridgeFixture.java`, `embedding.m`.
 **Interfaces:** NSJavaObject developer-header API, Objective-C runtime class registration, JVM method signatures and donor i386 bridge calling convention.
 
-- [ ] Add donor/reconstructed fixtures covering class lookup, inheritance, overloaded constructors, static/instance calls, all primitive types, references, arrays and invalid signatures.
-- [ ] Run reconstructed fixtures to establish failures; implement class registration, construction and method dispatch using recovered bridge interfaces.
-- [ ] Verify exact values (including long/double and negative values), error behavior and dynamic dependency provenance; commit.
+- [x] Add donor/reconstructed fixtures covering class lookup, inheritance, overloaded constructors, static/instance calls, all primitive types, references, arrays and invalid signatures.
+- [x] Run reconstructed fixtures to establish failures; implement class registration, construction and method dispatch using recovered bridge interfaces.
+- [x] Verify exact values (including long/double and negative values), error behavior and dynamic dependency provenance; commit.
 
 ### Task 5: Ownership, exceptions and thread entry
 
 **Files:** bridge sources; `tests/framework-dr2/ownership.m`, `BridgeFixture.java`.
 **Interfaces:** Existing proxy handle/class API, VM GC roots, thread attachment and NSJavaObject coding/key-value behavior recovered from the donor.
 
-- [ ] Add differential fixtures for repeated wrapping, retain/release around Java GC, exception propagation, supported field/key-value access, coding and calls from an additional native thread.
-- [ ] Observe failures; implement the corresponding donor lifetime, conversion and thread behavior.
-- [ ] Run fixtures repeatedly in fresh processes; document donor limitations and account for required generated wrappers; commit.
+- [x] Add differential fixtures for repeated wrapping, retain/release around Java GC, exception propagation, supported field/key-value access, coding and calls from an additional native thread.
+- [x] Observe failures; implement the corresponding donor lifetime, conversion and thread behavior.
+- [x] Run fixtures repeatedly in fresh processes; document donor limitations and account for required generated wrappers; commit.
 
 ### Task 6: Complete framework build and acceptance
 
 **Files:** `build/rhapsody-framework.mk`, framework resources/launcher, `tests/framework-dr2/check-framework.sh`, `docs/building.md`.
 **Interfaces:** Generic build's VM/libraries/classes and Tasks 2–5 embedding implementation; versioned framework layout and private install destination.
 
-- [ ] Add a failing client build using staged `-F` headers and `-framework JavaVM`, plus layout and loaded-library assertions.
-- [ ] Implement the separate build entry point and package versioned framework/headers/resources/Commands/Classes/Libraries/Home with canonical library copies.
-- [ ] Verify Release and Debug console/JNI/embedding/AWT/audio checks and relocation to a path containing spaces; reject donor Java components in dynamic loads.
-- [ ] Recheck generic install/launch behavior and document both build commands.
-- [ ] Commit acceptance evidence, obtain whole-branch review, fix material findings with regression tests and leave integration explicit.
+- [x] Add a failing client build using staged `-F` headers and `-framework JavaVM`, plus layout and loaded-library assertions.
+- [x] Implement the separate build entry point and package versioned framework/headers/resources/Commands/Classes/Libraries/Home with canonical library copies.
+- [x] Verify Release and Debug console/JNI/embedding/AWT/audio checks and relocation to a path containing spaces; reject donor Java components in dynamic loads.
+- [x] Recheck generic install/launch behavior and document both build commands.
+- [x] Commit acceptance evidence, obtain whole-branch review, fix material findings with regression tests and leave integration explicit.
 
 The donor investigation in Tasks 1 and 3 determines private bridge signatures. Record those discoveries before coding dependent tasks; do not guess an interface to make the plan look complete.

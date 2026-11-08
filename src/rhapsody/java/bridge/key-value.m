@@ -42,7 +42,7 @@ static struct fieldblock *keyMember(HObject *object, const char *key,
         *method = NO;
         *kind = fieldsig(fb)[0];
     }
-    return strchr("BCISZFDJL", *kind) ? fb : NULL;
+    return fb;
 }
 
 BOOL NSJavaValueForKey(HObject *object, NSString *key, id *value)
@@ -55,7 +55,7 @@ BOOL NSJavaValueForKey(HObject *object, NSString *key, id *value)
     if (!object) [NSJavaException raise:@"java/lang/NullPointerException"
         format:@"attempt to get key %@ of null object", key];
     fb = keyMember(object, [key cString], NO, &method, &kind);
-    if (!fb) return NO;
+    if (!fb || !strchr("BCISZFDJL", kind)) return NO;
     if (method) {
         bits.words[0] = __JAVAMethodInvoke(EE(), object, (struct methodblock *)fb,
             FALSE, FALSE, NULL, &bits.words[1]);
@@ -117,7 +117,7 @@ BOOL NSJavaTakeValueForKey(HObject *object, id value, NSString *key)
     if (!object) [NSJavaException raise:@"java/lang/NullPointerException"
         format:@"attempt to set key %@ of null object", key];
     fb = keyMember(object, [key cString], YES, &method, &kind);
-    if (!fb) return NO;
+    if (!fb || !strchr("BCISZFDJL", kind)) return NO;
     switch (kind) {
     case 'L':
         bits.object = objectValue(value, fieldsig(fb) + (method ? 1 : 0), &expected);
@@ -140,4 +140,14 @@ BOOL NSJavaTakeValueForKey(HObject *object, id value, NSString *key)
             (va_list)&bits, NULL);
     else memcpy((char *)unhand(object) + fb->u.offset, &bits, size);
     return YES;
+}
+
+int NSHasKey(HObject *object, const char *key, BOOL setting,
+    struct fieldblock **member, BOOL *method)
+{
+    char kind;
+    struct fieldblock *found = keyMember(object, key, setting, method, &kind);
+    if (!found) return 0;
+    *member = found;
+    return kind == 'L' ? 1 : kind == 'J' ? 4 : kind == 'F' || kind == 'D' ? 3 : strchr("BCISZ", kind) ? 2 : 0;
 }

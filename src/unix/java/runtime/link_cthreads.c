@@ -20,6 +20,12 @@ void sysBuildLibName(char *out, int size, char *path, char *name)
 
 char *sysInitializeLinker(void)
 {
+#ifdef JDK115_FRAMEWORK_HOME
+    const char *home = sysJavaHome();
+    char *result = malloc(strlen(home) + 5);
+    if (result) sprintf(result, "%s/lib", home);
+    return result;
+#else
     const char *path = getenv("DYLD_LIBRARY_PATH");
     const char *home = sysJavaHome();
     /* A missing reconstructed library must not silently load a donor binary. */
@@ -30,12 +36,30 @@ char *sysInitializeLinker(void)
     result = malloc(strlen(home) + strlen(path) + strlen(defaults) + 8);
     if (result) sprintf(result, "%s/lib:%s:%s", home, path, defaults);
     return result;
+#endif
 }
 
 int sysAddDLSegment(char *path)
 {
     NSObjectFileImage image;
-    NSObjectFileImageReturnCode result = NSCreateObjectFileImageFromFile(path, &image);
+    NSObjectFileImageReturnCode result;
+#ifdef JDK115_FRAMEWORK_HOME
+    const char *name = strrchr(path, '/');
+    name = name ? name + 1 : path;
+    /* Audio imports the shared AWT entry/exception helpers. Private dylibs
+     * deliberately omit unrelocatable LC_LOAD_DYLIB paths on DR2. */
+    if (!strcmp(name, "libmmedia.dylib") || !strcmp(name, "libmmedia.A.dylib")) {
+        const char *home = sysJavaHome();
+        char *dependency = malloc(strlen(home) + 19);
+        int loaded;
+        if (!dependency) return 0;
+        sprintf(dependency, "%s/lib/libawt.dylib", home);
+        loaded = sysAddDLSegment(dependency);
+        free(dependency);
+        if (!loaded) return 0;
+    }
+#endif
+    result = NSCreateObjectFileImageFromFile(path, &image);
     if (result == NSObjectFileImageSuccess)
         return NSLinkModule(image, path, 1) != NULL;
     /* DR2 SDK marks NSDestroyObjectFileImage unimplemented. */

@@ -1,4 +1,4 @@
-/* Pure-class branch of DR2 CreateObjCClassForJavaClass, 0x53d03a08. */
+/* DR2 CreateObjCClassForJavaClass method tables, 0x53d03a08. */
 #import "classgen.h"
 #import "selectors.h"
 #include "signature.h"
@@ -24,19 +24,17 @@ static void installMethods(Class clazz, struct objc_method_list *list)
     }
 }
 
-Class bridgeCreatePureJavaClass(ClassClass *javaClass, Class superclass,
-    BridgeMethodImplementation implementation)
+Class bridgeCreateNamedJavaClassWithOverrides(const char *name, ClassClass *javaClass, Class superclass,
+    BridgeMethodImplementation implementation, const struct objc_method *overrides,
+    unsigned overrideCount)
 {
     Class clazz, meta;
     struct objc_method_list *instanceMethods, *classMethods;
     unsigned i, count = cbMethodsCount(javaClass);
     BridgeJavaInfo *info;
-    if (!(superclass->info & 0x400))
-        [NSException raise:NSInvalidArgumentException
-            format:@"Pure Java class generation requires a Java proxy superclass"];
     clazz = calloc(2, sizeof(struct objc_class));
     meta = clazz + 1;
-    clazz->name = meta->name = strdup(cbName(javaClass));
+    clazz->name = meta->name = strdup(name);
     clazz->isa = meta;
     clazz->super_class = superclass;
     meta->isa = objc_getMetaClass("NSObject");
@@ -45,7 +43,7 @@ Class bridgeCreatePureJavaClass(ClassClass *javaClass, Class superclass,
     meta->version = 5;
     clazz->instance_size = superclass->instance_size;
     meta->instance_size = sizeof(struct objc_class);
-    instanceMethods = methodList(count);
+    instanceMethods = methodList(count + overrideCount);
     classMethods = methodList(count);
     for (i = 0; i < count; ++i) {
         struct methodblock *method = &cbMethods(javaClass)[i];
@@ -79,12 +77,31 @@ Class bridgeCreatePureJavaClass(ClassClass *javaClass, Class superclass,
         entry->method_types = types;
         entry->method_imp = imp;
     }
+    for (i = 0; i < overrideCount; ++i)
+        instanceMethods->method_list[instanceMethods->method_count++] = overrides[i];
     installMethods(clazz, instanceMethods);
     installMethods(meta, classMethods);
     objc_addClass(clazz);
-    clazz->info |= 0x400;
-    meta->info |= 0x400 | CLS_META;
+    clazz->info |= superclass->info & 0x400 ? 0x400 : 0x200;
+    meta->info |= (superclass->info & 0x400 ? 0x400 : 0x200) | CLS_META;
     info = NSSetJavaClassForObjcClass(cbName(javaClass), clazz);
     if (info) info->javaClass = javaClass;
     return clazz;
+}
+
+Class bridgeCreatePureJavaClass(ClassClass *javaClass, Class superclass,
+    BridgeMethodImplementation implementation)
+{
+    if (!(superclass->info & 0x400))
+        [NSException raise:NSInvalidArgumentException
+            format:@"Pure Java class generation requires a Java proxy superclass"];
+    return bridgeCreateJavaClassWithOverrides(javaClass, superclass, implementation, NULL, 0);
+}
+
+Class bridgeCreateJavaClassWithOverrides(ClassClass *javaClass, Class superclass,
+    BridgeMethodImplementation implementation, const struct objc_method *overrides,
+    unsigned overrideCount)
+{
+    return bridgeCreateNamedJavaClassWithOverrides(cbName(javaClass), javaClass,
+        superclass, implementation, overrides, overrideCount);
 }

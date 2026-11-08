@@ -46,12 +46,18 @@ static void *bridgeFunction(const char *name)
 }
 - initWithClassPath:(NSString *)classPath
 {
-    NSString *path;
+    NSString *path, *runtimePath, *framework;
     void *(*loadVM)(NSString *);
     if ([allVirtualMachines count])
         [NSException raise:NSInternalInconsistencyException
             format:@"NSJavaVirtualMachine: multiple virtual machines are not supported in a single process"];
     path = bridgePath();
+    /* DR2 has no @executable_path/rpath expansion. Preload the canonical VM
+     * by absolute bundle path before resolving the bridge's leaf dependency. */
+    runtimePath = [[path stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"libjavai.dylib"];
+    if (!NSAddLibrary([runtimePath cString]))
+        [NSException raise:NSInternalInconsistencyException
+            format:@"NSJavaVirtualMachine: can't load Java runtime %@", runtimePath];
     if (!NSAddLibrary([path cString]))
         [NSException raise:NSInternalInconsistencyException
             format:@"NSJavaVirtualMachine: can't load ObjCJava library %@", path];
@@ -60,6 +66,11 @@ static void *bridgeFunction(const char *name)
     if (!loadVM)
         [NSException raise:NSInternalInconsistencyException
             format:@"NSJavaVirtualMachine: can't find NSLoadVirtualMachine() in ObjCJava library"];
+    /* The private bootstrap must win over a system NSRuntime on the caller's
+     * class path. Public defaultClassPath still exposes donor configuration. */
+    framework = [[path stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
+    classPath = [NSString stringWithFormat:@"%@/Classes/rhapsody-peers.zip:%@/Classes/classes.zip%@%@",
+        framework, framework, [classPath length] ? @":" : @"", classPath ? classPath : @""];
     _vmdata = loadVM(classPath);
     return self;
 }

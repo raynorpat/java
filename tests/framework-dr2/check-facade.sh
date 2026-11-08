@@ -20,6 +20,6 @@ if "$build/embedding" missing-bridge > "$build/embedding-missing-bridge.txt" 2> 
     exit 1
 fi
 # DR2 dyld terminates the process before NSAddLibrary can return on this error.
-grep 'out/dr2-framework-tests/Libraries/libObjCJava.dylib' "$build/embedding-missing-bridge.err" > /dev/null
+grep 'out/dr2-framework-tests/Libraries/libjavai.dylib' "$build/embedding-missing-bridge.err" > /dev/null
 grep 'No such file or directory' "$build/embedding-missing-bridge.err" > /dev/null
 echo 'PASS framework facade (startup requires reconstructed bridge)'

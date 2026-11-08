@@ -45,6 +45,10 @@
 const char *
 sysJavaHome(void)
 {
+#ifdef JDK115_FRAMEWORK_HOME
+    extern const char *frameworkJavaHome(void);
+    return frameworkJavaHome();
+#else
     static char home[MAXPATHLEN];
     char *p;
 
@@ -68,6 +72,7 @@ sysJavaHome(void)
 	if ((p = strrchr(home, '/')) != NULL) *p = 0;	/* bin */
     }
     return home;
+#endif
 }
 
 char *

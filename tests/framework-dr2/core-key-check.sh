@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+b=out/dr2-core-key
+mkdir -p "$b/bootstrap" "$b/classes"
+out/dr2/bin/javac -classpath vendor/jdk1.1.5/lib/classes.zip -d "$b/bootstrap" src/rhapsody/classes/com/apple/yellow/foundation/NSRuntime.java
+out/dr2/bin/javac -classpath /System/Library/Java:vendor/jdk1.1.5/lib/classes.zip -d "$b/classes" tests/framework-dr2/KVCFixture.java tests/framework-dr2/CoreKeyFixture.java tests/framework-dr2/CoreKeyApi.java
+cc -traditional-cpp -DDONOR tests/framework-dr2/core-key.m -framework Foundation -o "$b/donor"
+"$b/donor" "$b/classes:/System/Library/Java:/System/Library/Frameworks/JavaVM.framework/Classes/classes.jar" > "$b/donor.txt" 2> "$b/donor.err"
+flags='-traditional-cpp -fno-common -DIN_JRT -DCOMPILER -DXP_UNIX -DJDK115_CTHREADS -DJNI115_ENABLED -DJAVA_INTERNAL_BUILD -Isrc/share/java/include -Isrc/share/java/include/_gen -Isrc/unix/java/include -Isrc/rhapsody/java/bridge'
+cc $flags -dynamiclib src/rhapsody/java/bridge/*.m src/rhapsody/java/bridge/*.c -Lout/dr2/lib -ljavai -framework Foundation -o "$b/libObjCJava.dylib"
+cc -traditional-cpp tests/framework-dr2/core-key.m -L"$b" -lObjCJava -framework Foundation -o "$b/client"
+DYLD_LIBRARY_PATH="`pwd`/out/dr2/lib:`pwd`/$b" "$b/client" "$b/bootstrap:$b/classes:/System/Library/Java:vendor/jdk1.1.5/lib/classes.zip" > "$b/client.txt" 2> "$b/client.err"
+diff "$b/donor.txt" "$b/client.txt"
+sed 's/^.*] //' "$b/donor.err" > "$b/donor.diagnostics"
+sed 's/^.*] //' "$b/client.err" > "$b/client.diagnostics"
+diff "$b/donor.diagnostics" "$b/client.diagnostics"
+echo 'PASS core Java key-value natives'

@@ -4,14 +4,7 @@
 #include "oobj.h"
 #include "interpreter.h"
 
-@interface NSJavaException : NSException {
-    HObject *_javaException;
-}
-- initWithName:(NSString *)name reason:(NSString *)reason
-    userInfo:(NSDictionary *)info javaException:(HObject *)exception;
-- (HObject *)javaException;
-- (NSString *)stackTrace;
-@end
+#import "../framework/NSJavaException.h"
 
 void ExceptionInitialization(void);
 NSException *_JavaExceptionToNSException(HObject *exception);

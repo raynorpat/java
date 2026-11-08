@@ -177,6 +177,19 @@ void BRIDGESetJavaTypeMapping(const char *name, void *toObjc, void *toJava, unsi
     info->structSize = size;
 }
 
+void NSSetJavaTypeMappings(const char *name, void *toObjc, void *toJava)
+{
+    BridgeJavaInfo *info;
+    _BRIDGEComplain(1, @"NSSetJavaTypeMappings() is obsolete and incorrect - struct returns will not work!  Use BRIDGESetJavaTypeMapping().");
+    info = _BRIDGEJavaInfoForJavaClassName(name);
+    if (info) {
+        NSLog(@"ObjCJava: a mapping for %s to %s already exists; cannot create overloaded type mapping",
+            name, info->objcClass ? info->objcClass->name : "an ObjC type");
+        return;
+    }
+    BRIDGESetJavaTypeMapping(name, toObjc, toJava, 0);
+}
+
 ClassClass *NSJavaLookupClassName(const char *name)
 {
     BridgeJavaInfo *info;
@@ -228,4 +241,18 @@ SEL NSSelectorForJavaConstructor(Class clazz, const char *signature)
         if (!strncmp(signature, info->constructors[i].signature, strlen(signature) - 1))
             return info->constructors[i].selector;
     return signature[0] == '(' && signature[1] == ')' ? @selector(init) : NULL;
+}
+
+BridgeJavaInfo *NSSetJavaClassAndConstructorsForObjcClass(const char *name,
+    const char *objcName, int count, BridgeConstructor *constructors)
+{
+    Class clazz = objc_lookUpClass(objcName);
+    BridgeJavaInfo *info;
+    if (!clazz) {
+        _BRIDGEComplain(0, @"ObjCJava: can't find Objective C class `%s' for mapping to java class `%s'", objcName, name);
+        return NULL;
+    }
+    info = NSSetJavaClassForObjcClass(name, clazz);
+    if (info && count) { info->constructorCount = count; info->constructors = constructors; }
+    return info;
 }

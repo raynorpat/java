@@ -10,7 +10,7 @@ typedef struct {
 } BridgeConstructor;
 
 /* The 32-byte DR2 JavaInfo layout, including the metaclass cache ABI. */
-typedef struct {
+typedef struct BridgeJavaInfo {
     void *toJava;
     void *toObjc;
     const char *javaName;

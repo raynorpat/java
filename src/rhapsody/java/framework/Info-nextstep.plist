@@ -1,0 +1,4 @@
+{
+    NSExecutable = JavaVM;
+    NSPrincipalClass = NSJavaVirtualMachine;
+}

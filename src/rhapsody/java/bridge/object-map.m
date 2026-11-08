@@ -3,7 +3,8 @@
 #include <mach/cthreads.h>
 
 static NSMapTable *objcToJava, *javaToObjc;
-static struct mutex mapLock;
+struct mutex MapLock;
+#define mapLock MapLock
 
 void bridgeInitializeObjectMap(void)
 {

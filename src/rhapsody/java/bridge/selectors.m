@@ -12,6 +12,45 @@ typedef struct {
 
 static NSHashTable *javaSelectors, *objcSelectors;
 
+SEL JavaMethodNameToObjectiveCSelector(const char *name, int argumentCount, char *buffer, int capacity)
+{
+    char *text, *end;
+    int length;
+    SEL result;
+    if (!name) return NULL;
+    length = strlen(name) + argumentCount + 1;
+    text = capacity < length ? malloc(length) : buffer;
+    strcpy(text, name);
+    end = text + strlen(name);
+    while (argumentCount--) *end++ = ':';
+    *end = 0;
+    result = sel_registerName(text);
+    if (text != buffer) free(text);
+    return result;
+}
+
+char *ObjectiveCSelectorToJavaMethodName(SEL selector, char *buffer, int capacity)
+{
+    const char *name;
+    char *result, *end;
+    int length;
+    if (!selector) return NULL;
+    name = sel_getName(selector);
+    length = strlen(name) + 1;
+    result = capacity < length ? malloc(length) : buffer;
+    end = result;
+    while (*name && *name != ':') *end++ = *name++;
+    *end = 0;
+    return result;
+}
+
+const char *NSSelectorToJavaMethodName(SEL selector)
+{
+    const char *name, *signature;
+    _BRIDGEComplain(3, @"NSSelectorToJavaMethodName() is an obsolete function.  Call NSGetJavaMethodForSelector() instead!");
+    return NSGetJavaMethodForSelector(selector, &name, &signature) ? name : NULL;
+}
+
 static unsigned stringHash(const char *text)
 {
     unsigned hash = 0, shift = 0;

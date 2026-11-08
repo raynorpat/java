@@ -303,3 +303,168 @@ archives compare byte-for-byte. Nonserializable Java objects and unsupported
 Objective-C serialization match the donor errors. Private NSCoder stream
 natives are bound explicitly during SerializeInitialization. Persistent coder
 maps and retained Java streams follow the donor's lack of teardown.
+
+## Hybrid class generation and native constructor access
+
+`hybrid-check.sh` compares two generated levels above an Objective-C native
+superclass. Both class/metaclass use flag 0x200 and preserve inherited instance
+size. Only the first generated level owns copy, retain, release, copyWithZone:,
+valueForKey: and takeValue:forKey:. Copy dispatches Java clone; retain roots the
+mapped Java object; release unroots at native retain count two, before calling
+the first native superclass implementation. The fixture compares actual Java
+dispatch, clone side effects, primitive KVC, native fallback and root counts.
+The original pure-class builder and `check-classgen.sh` remain independently
+linkable without the hybrid lifetime modules.
+
+The package-private constructor case exposed a donor/runtime difference.
+Donor libjava.A.dylib `execute_java_constructor_vararg` at 0x5c114584 performs
+ordinary access checks; it is not universally privileged. Its
+`VerifyFieldAccess` at 0x5c109ae4 returns true when current_class is null.
+The shared reconstruction's classinitialize.c instead returns IsPublic(access)
+for that case. The checked bridge `JAVANewObject` therefore passes PRIVILEGED_EE
+only when there is no current Java method. It retains the original environment
+for exception conversion and leaves shared VM access policy unchanged.
+
+`hybrid-access-check.sh` preserves donor oracles for private/package/protected
+constructors, a public constructor in a package-private class, private packed
+float constructors, constructor exceptions, abstract classes and missing
+constructors. Registered JNI callbacks reached through ordinary Java methods
+also check that an unrelated Java caller cannot construct the private class,
+while a same-class Java caller can. Thus native entry privilege does not bypass
+access checks when a Java caller frame is present.
+
+`hybrid-full-check.sh` adds end-to-end hybrid acceptance with the complete
+production NSLoadVirtualMachine bootstrap and reconstructed NSRuntime. It uses
+actual Java subclasses of the donor NSObject wrapper, not manual object maps
+or replacement callbacks. Fourteen donor/reconstructed transcript lines cover
+Objective-C init, C argument constructors, Java factory constructors, identity,
+native hash/equals/description/KVC, a public native-superclass mapping, real
+Java/native copying and independent state, and wrapping an existing native
+instance. Explicit Java finalization followed by the production safe-release
+queue drain verifies mapping removal, release of the Java-owned native retain,
+and three native deallocations. This tests finalizer behavior without claiming
+deterministic garbage-collector timing. Reconstruction rejects loaded donor
+VM/bridge images, and stdout plus normalized stderr are compared freshly.
+
+### Generated wrapper dependency boundary
+
+`generated-wrapper-dependencies.json` inventories the retained 573 Apple Java
+classes and their literal native-library loads. There are 408 native-declaring
+classes with 8,813 native declarations. FoundationJava, AppKitJava, EO families,
+printing, keyboard, networking/admin, and adaptor libraries are separate generated
+OS wrapper libraries; retaining their bytecode does not reconstruct their natives.
+No NSValue class is present in this archive. NSPoint/NSRange/NSSize/NSRect value
+classes are pure Java; mutable wrapper classes must be assessed separately.
+
+`wrapper-dependencies-check.sh` runs fresh full-bootstrap donor/reconstructed
+processes for NSArray and NSData. The donor returns zero count/length; this
+reconstruction reports `java.lang.UnsatisfiedLinkError:FoundationJava.B` and rejects
+any loaded donor JavaVM or `/usr/lib/java` image. These generated wrapper libraries
+are outside the reconstructed core embedding contract and are not silently loaded.
+
+`core-key-check.sh` tests all nine alpha.core.keyValue native exports through Java
+fixture native aliases, preserving object identity and donor errors. The retained
+keyValue initializer itself requests `NativeObject.loadLibrary("ObjCJava")`; the
+donor fails this request because it lacks `ObjCJavaInitialization`. Native aliasing
+in the test isolates the exported native ABI from that obsolete loader defect.
+
+### Core native and class ABI audit
+
+The donor exports exactly 30 `Java_*_stub` entry points: NativeObject (12),
+keyValue (9), NSRuntime (3), ObjectiveCSelector (2), and NSCoder streams (4).
+The third NSRuntime entry, `nextRootPath`, is a legacy native absent from the
+retained NSRuntime class; its exported ABI still returns NEXT_ROOT or an empty
+Java string. NativeObject's 12 exports likewise include legacy methods absent
+from the retained class.
+
+`values-abi-check.sh` compares deprecated type-registration diagnostics, public
+and private class conversions, constructor registration, reflection metadata,
+explicitly named class creation, and legacy NEXT_ROOT against fresh donor output.
+The donor's primitive field-signature buffers are not NUL-terminated; the fixture
+compares descriptor-length bytes, and reconstructed buffers safely include a
+terminator. Reflection flags exclude VM-private bits (mask 0xfff). This is a
+memory-safety repair, not an additional reflection feature.
+
+## Exported VM helpers and public data
+
+`check-vm-helpers.sh` compares the full donor/reconstructed bootstrap for
+`JAVAFieldLookup`, scalar/object array allocation, UTF-16 string construction
+(including embedded NUL), subclass checks, the four typed NSNumber callbacks,
+flat-namespace function lookup, and the empty donor runtime-registration hook.
+The initial reconstructed run reported all eleven missing functions. The final
+run matches the donor transcript and normalized diagnostics, including the
+legacy signature-buffer API and all five additional exported data records.
+`MapLock` is the actual identity-map mutex; the class caches are initialized by
+MappingInitialization. Version strings retain the donor's 73.dev target metadata.
+
+The deprecated `_NSJavaSignatureToObjc` preserves caller-buffer selection and its
+exact complaint, but requires enough space for the actual encoding as well as
+the donor's strlen(signature)+8 threshold. This retains the existing bounds
+correction for signatures with many primitive arguments. `JAVANewString` returns
+NULL on allocation failure instead of dereferencing a failed allocation.
+
+Full production bootstrap also passes explicit Java GC while an Objective-C
+proxy is retained, invocation/GC from an attached native worker, identity checks,
+and final release/unmapping (`check-bootstrap-full.sh`). These runs use the real
+reconstructed NSRuntime, with no retention substitute.
+
+The packaged Release facade passes construction, strings, identity, KVC,
+exception recovery, singleton behavior and defineClass through staged public
+headers and `-framework JavaVM`, without DYLD_LIBRARY_PATH. Runtime acceptance
+passes JNI callbacks, math/ZIP/network, AWT window creation/disposal and audio,
+with loaded-image assertions. Relocation and final Debug acceptance are recorded
+separately after the completed package checks.
+
+
+## Final native acceptance and review
+
+Tasks 3 through 6 are complete on the DR2 Intel guest. The final
+`check-components.sh` run passed all 33 component and integration groups.
+`core-exports-check.sh` bound all 155 donor public symbols within the
+reconstructed ObjCJava image; this establishes export ownership, not exhaustive
+input coverage. Individual component logs are kept separately because shared
+redirected suite output exhibited NUL holes on this guest; explicit exit statuses
+and the fresh isolated-log suite passed.
+
+Both Release and Debug packages built successfully, including unchanged repeat
+builds without recompilation. Both passed layout, private native imports,
+Objective-C embedding, export ownership, JNI, math/ZIP/network, actual AWT
+window creation/disposal, audio, and loaded-image provenance checks. Both also
+passed relocation under `Relocated Frameworks With Spaces` with the original
+framework temporarily hidden; restoration was verified afterward. Long paths
+required a framework-only PATH_MAX native-library filename buffer. The generic
+runtime retains its existing behavior.
+
+A fresh whole-branch review of candidate tree
+`19f38273c724fa0f0d87bb16d96e266aa43a46bd` against base `25341e0` found two
+material build/test issues, both fixed with failing-then-passing native checks:
+
+- `framework-build-dependencies.sh`: touching a VM header or the framework
+  makefile now invalidates the custom runtime and bridge objects.
+- `framework-fresh-check.sh`: runtime acceptance compiles its own desktop helper
+  and passes for both Release and Debug from a context without prebuilt Release
+  outputs. The complete acceptance driver uses this check.
+
+After the final runtime change, generic `check-core check-libraries check-install`
+passed again: console, numeric conversions, reflection, serialization, monitors,
+interrupts, ZIP, math, resources, JPEG, JNI headers, debugger thread states,
+donor-path exclusion, and privately installed launchers. The known ALIGN macro
+redefinition warning remains non-fatal.
+
+The core JavaVM/ObjCJava implementation is complete within the approved boundary.
+FoundationJava/AppKitJava and EO/admin generated native wrapper libraries remain
+separate unreconstructed dependencies; their absence and explicit failure are
+tested, with no donor fallback. Completion does not imply these libraries work.
+Donor defects remain compatibility behavior; portability beyond DR2 Intel was
+not assessed. The public constructor float-varargs limitation is recorded below
+and in `core-exports.md`.
+
+
+The public `_NSCreateJavaObjectV` path unconditionally calls
+`MorphObjcArgumentsForJava` (donor addresses 0x53d049d0 and 0x53d060f4).
+Its float traversal advances four bytes even when `shortFloats=NO` and C
+varargs promote float to eight-byte double. A following reference can therefore
+be misread or crash. This donor limitation is preserved, not repaired. Raw
+constructor adapter tests cover both float layouts; they do not establish
+correctness of this public mixed-float/reference path. This finding comes from
+donor disassembly review, not an executed crashing differential fixture.

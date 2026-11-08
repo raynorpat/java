@@ -1,0 +1,4 @@
+ordinary=1 pure=1
+unmapped=2
+hybrid=115,2
+fallback=3

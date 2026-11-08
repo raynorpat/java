@@ -136,7 +136,7 @@ HObject *_NSRaiseExceptionInJava(ExecEnv *env, NSException *exception)
 void bridgeRaisePendingJavaException(ExecEnv *env)
 {
     HObject *exception;
-    if (!env) env = EE();
+    if (!env || env == PRIVILEGED_EE) env = EE();
     if (!exceptionOccurred(env)) return;
     exception = env->exception.exc;
     exceptionClear(env);
@@ -157,7 +157,14 @@ void NSReleaseJavaObject(HObject *object)
 HObject *JAVANewObject(ExecEnv *env, ClassClass *clazz, const char *signature,
     bool_t shortFloats, va_list args)
 {
-    HObject *object = bridgeNewJavaObject(env, clazz, signature, shortFloats, args);
+    ExecEnv *current = !env || env == PRIVILEGED_EE ? EE() : env;
+    ExecEnv *constructorEnv = env;
+    HObject *object;
+    /* DR2 VerifyFieldAccess allows native callers with no Java caller class.
+     * Preserve Java-frame access checks without changing the shared VM rule. */
+    if (!current->current_frame || !current->current_frame->current_method)
+        constructorEnv = PRIVILEGED_EE;
+    object = bridgeNewJavaObject(constructorEnv, clazz, signature, shortFloats, args);
     bridgeRaisePendingJavaException(env);
     return object;
 }

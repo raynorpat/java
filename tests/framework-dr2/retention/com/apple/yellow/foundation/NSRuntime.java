@@ -6,6 +6,8 @@ import java.util.Enumeration;
 /* Isolated dependency fixture, not a replacement for the shipped NSRuntime.
  * The two private methods reproduce its donor retention-table bytecode. */
 public class NSRuntime {
+    /* NativeObject class initialization seam; do not load the donor bridge. */
+    public static String[] librarySearchPaths() { return new String[0]; }
     private static Hashtable _retainedObjects = new Hashtable();
     private static void retainObject(int key, Object object) {
         _retainedObjects.put(new Integer(key), object);
