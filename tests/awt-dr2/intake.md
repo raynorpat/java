@@ -34,6 +34,20 @@ AwtException.throwToJava:exception:, and leaves through NativeMethodExit.
 These are JNI/Objective-C bridge entries, not Motif-style legacy stack stubs.
 The bridge and AppKit dispatch rules must be recovered and tested on DR2.
 
+## Separate peer archive
+
+`python tools/rhapsody115-peers.py vendor/jdk1.1.5/lib/classes.zip vendor/rhapsody-dr2 out/rhapsody115/peers`
+produces a deterministic rhapsody-peers.zip, class lists and a hash/audit manifest.
+`python tests/awt-dr2/peers-test.py` verifies all 38 entries retain their original
+donor bytes, none replace a baseline entry, and the baseline archive is unchanged.
+No native libraries are included. Transfer this prepared directory to the guest,
+then run `sh tests/awt-dr2/check-peers.sh <installed-image> <peer-directory>` from
+the guest source root. This passes on reconstructed DR2: all classes define,
+RComponentPeer.fJavaCounterpart is a Component, nNativeView is int, RButtonPeer
+implements ButtonPeer, and setLabel takes String and returns void. The generated
+JNI headers also match all 168 audited native methods exactly. Toolkit startup
+and native implementations remain separate acceptance gates.
+
 Reproduction from the repository root:
 
 ```powershell
