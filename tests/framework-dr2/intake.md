@@ -178,8 +178,20 @@ the parameter name suggests: the long fixture returns 1336557c, then 9fbad9f8;
 the double fixture returns c0040000, then 00000000. Callers must reconstruct
 values according to these observed semantics.
 
-Constructor integration remains open: the donor's constructor-vararg entry
-takes a shortFloats flag, whereas the reconstructed common VM entry currently
-has five arguments and always promotes float arguments. An Objective-C
-constructor adapter must account for this before native float constructors
-can be accepted. No runtime constructor behavior was changed in this increment.
+The donor's constructor-vararg entry takes a shortFloats flag, whereas the
+reconstructed common VM entry has five arguments and always promotes float
+arguments. The bridge-local constructor adapter described below accounts for
+that ABI difference without changing the generic VM entry point.
+
+## Constructor argument adapter
+
+`check-constructors.sh` compares seven native cases: default construction,
+promoted and short-float mixed primitive arguments, reference/array/float
+arguments, a throwing constructor, missing-constructor lookup with an empty
+argument area, and successful construction after clearing the exception.
+`bridgeNewJavaObject` promotes four-byte floats into the double-width argument
+layout accepted by the existing VM. It resolves the constructor before reading
+the argument area, so missing-constructor errors do not dereference nonexistent
+arguments. Java exceptions remain pending for the future Objective-C exception
+conversion layer. This is raw constructor acceptance, not acceptance of
+`+[NSJavaObject newWithSignature:]` or full framework startup.
