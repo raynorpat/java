@@ -25,6 +25,19 @@ static sys_thread_t *threads;
 static sys_thread_t *primordial_pending;
 long ProcStackSize;
 
+/* DR2 5c138064/5c13807c: use the supplied JNI environment's Java thread. */
+void *get_awt_cookie(void *env)
+{
+    Hjava_lang_Thread *thread = (Hjava_lang_Thread *)JNIEnv2EE(env)->thread;
+    return ((sys_thread_t *)unhand(thread)->PrivateInfo)->awt_cookie;
+}
+
+void set_awt_cookie(void *env, void *cookie)
+{
+    Hjava_lang_Thread *thread = (Hjava_lang_Thread *)JNIEnv2EE(env)->thread;
+    ((sys_thread_t *)unhand(thread)->PrivateInfo)->awt_cookie = cookie;
+}
+
 static void register_thread(sys_thread_t *t)
 {
     sysMonitorEnter(_queue_lock);

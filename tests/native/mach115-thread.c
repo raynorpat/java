@@ -7,6 +7,7 @@
 #include "sys_api.h"
 #include "cthreads/threads_md.h"
 #include "cthreads/monitor_md.h"
+#include "cthreads/runtime.h"
 #include "java_lang_Thread.h"
 #include "monitor_cache.h"
 #include <mach/mach.h>
@@ -375,6 +376,13 @@ static void test_attachment(void)
     CHECK(sysThreadIsInterrupted(t, FALSE) == 1 && sysThreadIsInterrupted(t, TRUE) == 1);
     CHECK(sysThreadIsInterrupted(t, FALSE) == 0);
     object.eetop = (long)&ee;
+    ee.thread = (JHandle *)&handle;
+    CHECK(get_awt_cookie(EE2JNIEnv(&ee)) == NULL);
+    set_awt_cookie(EE2JNIEnv(&ee), &ee);
+    current.incarnation = (cthread_t)&native[1];
+    CHECK(t->awt_cookie == &ee && get_awt_cookie(EE2JNIEnv(&ee)) == &ee);
+    set_awt_cookie(EE2JNIEnv(&ee), NULL);
+    current.incarnation = (cthread_t)&native[0];
     CHECK(!sysThreadHasPendingException(t));
     sysThreadPostException(t, &handle);
     CHECK(sysThreadHasPendingException(t) && ee.exception.exc == (JHandle *)&handle);

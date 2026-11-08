@@ -303,3 +303,24 @@ install: image
 
 check-install: install
 	/bin/sh tests/awt-dr2/check-install.sh "$(INSTALL_DIR)"
+
+$(BUILD)/tests/autorelease: tests/awt-dr2/autorelease115.m src/rhapsody/sun/awt/awt_AutoreleasePool.m src/rhapsody/sun/awt/awt_AutoreleasePool.h
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) tests/awt-dr2/autorelease115.m src/rhapsody/sun/awt/awt_AutoreleasePool.m -framework Foundation -o $@
+
+.PHONY: check-autorelease
+check-autorelease: $(BUILD)/tests/autorelease
+	$(BUILD)/tests/autorelease
+
+$(BUILD)/tests/context: tests/awt-dr2/context115.m src/rhapsody/sun/awt/awt_ThreadContext.m src/rhapsody/sun/awt/awt_ThreadContext.h src/rhapsody/sun/awt/awt_AutoreleasePool.m src/rhapsody/sun/awt/awt_AutoreleasePool.h $(BUILD)/lib/libjavai.dylib
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) tests/awt-dr2/context115.m src/rhapsody/sun/awt/awt_ThreadContext.m src/rhapsody/sun/awt/awt_AutoreleasePool.m -L$(BUILD)/lib -ljavai -framework AppKit -framework Foundation -o $@
+
+$(BUILD)/tests/desktop-launch: tests/awt-dr2/desktop-launch.c
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $< -o $@
+
+.PHONY: check-context
+check-context: $(BUILD)/tests/context $(BUILD)/tests/desktop-launch
+	test -n "$(DESKTOP_PID)"
+	/bin/sh tests/awt-dr2/check-context.sh "$(BUILD)" "$(DESKTOP_PID)"
