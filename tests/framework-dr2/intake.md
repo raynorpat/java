@@ -264,3 +264,27 @@ The donor NSRuntime static initializer hardcodes the system ObjCJava path. Its
 retention logic can be tested independently, but production bootstrap must
 adapt that class's loading path before it is safe to use with the private
 framework. No donor bridge is loaded by the reconstructed retention tests.
+
+## Exception conversion and checked calls
+
+`check-exceptions.sh` compares 18 donor transcript lines plus normalized
+secondary-exception diagnostics. NSJavaException preserves the raw Java handle,
+roots it until deallocation, and archives its Foundation exception fields
+without archiving the handle. The fixture verifies ordinary Java exceptions,
+native exception names and mapped userInfo, null and `*nil*` messages, name
+fallback, stack traces/descriptions, Java handle identity on round trip, and
+suppression of an exception thrown by getMessage during conversion.
+
+The checked JAVANewObject, __JAVAMethodInvoke and NSRetainJavaObject wrappers
+now turn pending Java failures into Objective-C exceptions. The fixture checks
+throwing methods/constructors, nil retention and successful subsequent calls.
+The reverse raise helper also sets the expected pending Java exception, checked
+through the recovered ExecEnv layout on both VMs.
+
+Tests reuse the donor NativeException, NSException and NSMemoryOutputStream
+Java classes; these dependencies contain no native library initialization.
+The separate retention NSRuntime fixture still isolates bootstrap. Test-only
+NSIdToJavaHandle/NSJavaHandleToId functions accept explicitly registered
+identities and abort on an unmapped non-null object. General object wrapping
+remains unimplemented and is not implied by the mapped userInfo checks.
+Reconstructed loaded-image checks reject the donor JavaVM and ObjCJava images.
