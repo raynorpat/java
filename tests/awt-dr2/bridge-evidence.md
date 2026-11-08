@@ -96,3 +96,15 @@ reconstruction at the first exit before this fix. It now passes under both java
 and jre through check-exceptions, alongside the exception/GC fixture. The six
 check-core fixtures and native repeated-suspend/single-resume check also pass.
 These checks cover bootstrap and thread teardown, not complete AppKit startup.
+
+## JNI native-entry integration
+
+NativeEntry115 and nativeentry115.m pass unchanged against the donor AWT and the
+reconstructed bridge in a live desktop bootstrap namespace. Four Java workers
+make 20 outer calls each, with two nested JNI calls through Java callbacks and
+System.gc at every depth. The test checks outer versus nested exit tokens,
+Foundation thread-dictionary context, current DPS context, and the VM's cached
+AWT cookie after the callbacks. No production changes were needed for this gate.
+`make -f build/rhapsody.mk check-native-entry DESKTOP_PID=<Workspace PID>` runs
+this check with a 30-second timeout. It does not prove AppKit event dispatch or
+Toolkit startup; those remain pending.

@@ -338,3 +338,11 @@ $(BUILD)/tests/libexceptionbridge115.dylib: tests/awt-dr2/exceptionbridge115.m s
 .PHONY: check-exceptions
 check-exceptions: image $(BUILD)/tests/libexceptionbridge115.dylib
 	/bin/sh tests/awt-dr2/check-exceptions.sh "$(BUILD)"
+
+$(BUILD)/tests/libnativeentry115.dylib: tests/awt-dr2/nativeentry115.m src/rhapsody/sun/awt/awt_ThreadContext.m src/rhapsody/sun/awt/awt_ThreadContext.h src/rhapsody/sun/awt/awt_AutoreleasePool.m src/rhapsody/sun/awt/awt_AutoreleasePool.h $(BUILD)/lib/libjavai.dylib
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/nativeentry115.m src/rhapsody/sun/awt/awt_ThreadContext.m src/rhapsody/sun/awt/awt_AutoreleasePool.m -framework AppKit -framework Foundation -L$(BUILD)/lib -ljavai -o $@
+
+.PHONY: check-native-entry
+check-native-entry: image $(BUILD)/tests/libnativeentry115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-native-entry.sh "$(BUILD)" "$(DESKTOP_PID)"
