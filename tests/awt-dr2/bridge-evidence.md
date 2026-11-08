@@ -316,3 +316,22 @@ no pending Java event reference. The reconstructed probe first failed because
 AwtCanvas did not exist; check-canvas-draw now passes, alongside check-paint-cover
 and check-view. Native RCanvasPeer construction and general input routing remain
 separate unfinished integration work.
+
+## Containers and child clipping
+
+AwtContainer (54004214--540044f4) now clips drawing around each child frame,
+tracks whether subview clipping is needed, rejects hit tests while disabled,
+propagates native-widget notifications and remembers the last entered Java view.
+The clip sequence follows rectClipHole/psw_rectClipHole (5401fe4c/5401fdb8): an
+expanded outer bounds rectangle and a child rectangle form an even-odd clip.
+Successive clips preserve overlapping child regions.
+
+ContainerDraw115 shares the native drawing harness and passes unchanged against
+donor and reconstruction. Eight lifecycles check two overlapping child holes with
+pixel reads, removal of one child while retaining the other hole, removal of the
+last child restoring unrestricted drawing, enabled/disabled hit testing in the
+correct superview coordinates, notification delivery to both children, and
+last-entered-view identity. Reconstruction first failed because AwtContainer was
+absent. Durable check-container-draw, check-canvas-draw and check-toolkit now pass.
+This supplies the container used by native Frames; Frame construction, window
+callbacks and general event routing are still pending.

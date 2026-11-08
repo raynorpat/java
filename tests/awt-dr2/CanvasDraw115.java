@@ -5,7 +5,7 @@ import java.awt.event.PaintEvent;
 
 public class CanvasDraw115 {
     static { System.loadLibrary("canvasdraw115"); }
-    static native PaintEvent draw(Canvas source, boolean inherited);
+    static native PaintEvent draw(Canvas source, boolean inherited, boolean container);
     public static void main(String[] args) {
         try {
             java.awt.Toolkit.getDefaultToolkit();
@@ -13,7 +13,7 @@ public class CanvasDraw115 {
             for (int cycle = 0; cycle < 8; cycle++) {
                 boolean inherited = cycle % 2 != 0;
                 source.setBackground(inherited ? null : Color.red);
-                PaintEvent event = draw(source, inherited);
+                PaintEvent event = draw(source, inherited, false);
                 System.gc();
                 if (event == null || event.getSource() != source || event.getID() != PaintEvent.PAINT ||
                     !event.getUpdateRect().equals(new Rectangle(4, 5, 20, 21)))
