@@ -12,6 +12,8 @@
 - (void)updateMouseMotionEventStatus;
 - (void)sendAdditionalJavaEventsFor:(NSEvent *)event;
 - (void)dispatchFocusEventGained:(BOOL)gained temporary:(BOOL)temporary;
+- (void)dispatchNSEventToPeer:(NSEvent *)event;
+- (void)dispatchEnterExitPair:(NSEvent *)event;
 - (BOOL)dispatchesAwtEventsOfType:(int)type;
 @end
 

@@ -11,6 +11,7 @@
 - (void)releaseJavaEvent:(JNIEnv *)env;
 - (BOOL)isSynthetic;
 - (int)javaModifiers;
+- (void)updateLocationTo:(NSPoint)point;
 @end
 
 @interface SyntheticEvent : NSEvent

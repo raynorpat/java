@@ -42,6 +42,9 @@ static void rectPath(NSRect rect)
 - (void)didAddSubview:(NSView *)view { _clipSubviews = YES; }
 - (void)willRemoveSubview:(NSView *)view
 {
+    AwtContainer *container = [self outermostJavaContainer];
+    if ([[container lastJavaViewEntered] isDescendantOf:view])
+        [container setLastJavaViewEntered:nil];
     if ([[self subviews] count] == 1) _clipSubviews = NO;
 }
 - (void)notifyAwtWindowOfNativeWidgetAddition:(id)window

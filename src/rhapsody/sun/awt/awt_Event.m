@@ -20,6 +20,8 @@
     return [self type] == NSApplicationDefined && [self subtype] == NSAWTEventType;
 }
 - (BOOL)isSynthetic { return NO; }
+/* 54005804: the donor's x86 shift test always permits this assignment. */
+- (void)updateLocationTo:(NSPoint)point { _location = point; }
 /* 54005478: right-button events carry Java's historical META_MASK. */
 - (int)javaModifiers
 {

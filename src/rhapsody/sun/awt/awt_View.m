@@ -3,6 +3,7 @@
 #import "awt_Event.h"
 #import "awt_Application.h"
 #import "awt_Exception.h"
+#import "awt_Container.h"
 
 /* 54010b20: hitTest accepts coordinates in the content view's superview. */
 @implementation NSWindow (AWTViewTracking)
@@ -86,6 +87,49 @@
         [self updateMouseMotionEventStatus];
 }
 - (void)awtContainerChangedBackground { }
+/* Mouse portion of 5400f9a8; keyboard conversion shares this path later. */
+- (void)dispatchNSEventToPeer:(NSEvent *)event
+{
+    JNIEnv *env = [NSApp appkitEnv];
+    jobject source, javaEvent;
+    if (![(AwtView *)self peer]) return;
+    source = javaComponentForView(env, self);
+    javaEvent = nsMouseEventToJavaEvent(env, event, source, self);
+    (*env)->DeleteLocalRef(env, source);
+    if (javaEvent) {
+        NS_DURING
+            [NSApp dispatchJavaEvent:javaEvent isLocalRef:YES];
+        NS_HANDLER
+            (*env)->DeleteLocalRef(env, javaEvent);
+            [localException raise];
+        NS_ENDHANDLER
+        (*env)->DeleteLocalRef(env, javaEvent);
+    }
+}
+/* 5400fa6c: stale tracking notifications describe the CURRENT pointer hit. */
+- (void)dispatchEnterExitPair:(NSEvent *)event
+{
+    NSWindow *window = [self window];
+    NSPoint point = [window mouseLocationOutsideOfEventStream];
+    AwtContainer *container = [self outermostJavaContainer];
+    AwtView *next = (AwtView *)[window deepestViewUnderLocation:point dispatchingEventsOfType:NSMouseEntered];
+    AwtView *previous = (AwtView *)[container lastJavaViewEntered];
+    NSCursor *cursor;
+    if (next == previous) return;
+    /* Java listeners may dispose either target during the paired callbacks. */
+    [[container retain] autorelease];
+    [[previous retain] autorelease];
+    [[next retain] autorelease];
+    [event updateLocationTo:point];
+    [previous dispatchNSEventToPeer:event];
+    cursor = [[[NSCursor currentCursor] retain] autorelease];
+    [next dispatchNSEventToPeer:event];
+    if (![next peer] || [next window] != window) next = nil;
+    [container setLastJavaViewEntered:next];
+    [next updateMouseMotionEventStatus];
+    if ([next isKindOfClass:[AwtView class]] && cursor == [NSCursor currentCursor])
+        [[next cursor] set];
+}
 /* 5400fcb8: append to the native queue, preserving responder event order. */
 - (void)dispatchFocusEventGained:(BOOL)gained temporary:(BOOL)temporary
 {
@@ -117,7 +161,12 @@
     [super dealloc];
 }
 - (jobject)peer { return _peer; }
-- (void)clearPeer { _peer = NULL; }
+- (void)clearPeer
+{
+    AwtContainer *container = [self outermostJavaContainer];
+    if ([container lastJavaViewEntered] == self) [container setLastJavaViewEntered:nil];
+    _peer = NULL;
+}
 - (NSColor *)awtBackgroundColor
 {
     if (!_backgroundColor && [[self superview] isKindOfClass:[AwtView class]])
@@ -196,6 +245,9 @@
     return [self isAwtEnabled];
 }
 - (BOOL)acceptsFirstResponder { return [self isAwtEnabled]; }
+/* 5400f5d4/5400f5f8: either native tracking notification refreshes the pair. */
+- (void)mouseEntered:(NSEvent *)event { [self dispatchEnterExitPair:event]; }
+- (void)mouseExited:(NSEvent *)event { [self dispatchEnterExitPair:event]; }
 /* 5400f51c, 5400f578: only successful native transitions notify Java. */
 - (BOOL)becomeFirstResponder
 {

@@ -569,3 +569,38 @@ source identity, flags, callback GC and Toolkit re-entry. The donor passed; the
 reconstruction initially failed with no temporary events. After implementation,
 all six input/mouse-values/toolkit/window/handoff/dispatch targets pass. Menu
 activation within these same donor methods remains part of the pending menu work.
+
+### Phase 7 hover checkpoint
+
+AwtView mouseEntered/mouseExited (5400f5d4/5400f5f8) now call the recovered
+NSView dispatchEnterExitPair: (5400fa6c). It queries the window's current pointer
+position, hit-tests for an enter/exit target, updates the tracking event location,
+dispatches the previous target before the next target, records the new target,
+and refreshes motion subscription and cursor state. NSEvent updateLocationTo:
+(54005804) directly assigns the location: the donor's emitted x86 shift/test
+never takes its invalid-event branch. Mouse dispatchNSEventToPeer: (5400f9a8)
+uses the existing Java conversion and dispatch bridge.
+
+Input115 moves a real native window under and away from the current pointer,
+invokes its tracking callback with deliberately stale coordinates, and posts a
+real native motion event between transitions. Donor and reconstruction both
+produce ENTER/MOVE/EXIT, correct current coordinates and Java source identity,
+with callback GC and Toolkit re-entry. Motion starts before any button press.
+The reconstruction initially delivered no enter event. A reconstruction-only
+case disposes the Frame from mouseEntered and verifies its Java peer is cleared.
+ContainerDraw115 also checks removal of the recorded hover child clears tracking.
+
+Ruling: retain callback targets through the native autorelease pool and clear
+borrowed hover pointers on removal/disposal. This extends the earlier disposal
+ruling; reproducing the donor's stale pointer would conflict with actual resource
+release in this tree. The cost is an intentional difference from donor lifetime
+behavior, whose native window disposal entry does nothing.
+
+The view-state test exposed obsolete standalone linkage after the event bridge
+was added. It now links the same test-only AWT library as the other native view
+fixtures. Six input/mouse-values/toolkit/window/handoff/dispatch targets passed;
+additional input (including hover disposal), view, container-draw, window-state
+and window-callbacks targets passed. A NUL-filled section in the combined guest
+log obscured input/view output; both checks were rerun directly and passed with
+clean output. Keyboard, synthetic input, widgets, menus and the remaining Phase 7
+acceptance work are still pending. The partial AWT library is not installed.
