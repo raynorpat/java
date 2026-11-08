@@ -10,6 +10,7 @@
 
 @interface NSButtonCell (AWTBackgroundColor)
 - (void)_setBackgroundColor:(NSColor *)color;
+- (void)_setButtonType:(int)type adjustingImage:(BOOL)adjust;
 @end
 
 /* 54010024: controls derive preferred geometry from their cell. */
@@ -18,7 +19,7 @@
 @end
 
 @implementation AwtButton
-- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor title:(NSString *)title
+- (id)commonInitWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor title:(NSString *)title
 {
     self = [super initWithFrame:frame];
     _peer = (jobject)peer;
@@ -27,6 +28,11 @@
     [self awtSetCursor:cursor];
     [self awtSetTitle:title];
     [self setTarget:self];
+    return self;
+}
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor title:(NSString *)title
+{
+    self = [self commonInitWithPeer:peer frame:frame enabled:enabled font:font backgroundColor:background foregroundColor:foreground cursor:cursor title:title];
     [self setBezelStyle:1];
     [self setAction:@selector(buttonClicked:)];
     _isCheckBoxButton = NO;
@@ -34,6 +40,21 @@
     [self awtSetForegroundColor:foreground];
     return self;
 }
+/* 5400351c: switching the cell type resets its title and state. */
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor title:(NSString *)title state:(BOOL)state inGroup:(BOOL)inGroup
+{
+    self = [self commonInitWithPeer:peer frame:frame enabled:enabled font:font backgroundColor:background foregroundColor:foreground cursor:cursor title:title];
+    [self awtSetInGroup:inGroup];
+    [self awtSetTitle:title];
+    [self setState:state];
+    [self setAction:@selector(checkboxClicked:)];
+    _isCheckBoxButton = YES;
+    [self awtSetBackgroundColor:background];
+    [self awtSetForegroundColor:foreground];
+    return self;
+}
+- (void)awtSetInGroup:(BOOL)inGroup { [[self cell] _setButtonType:inGroup ? 4 : 3 adjustingImage:YES]; }
+- (void)awtSetState:(BOOL)state { [self setState:state]; }
 - (void)dealloc
 {
     [_foregroundColor release];
@@ -141,11 +162,35 @@
     NS_ENDHANDLER
     (*env)->DeleteLocalRef(env, event);
 }
+- (void)checkboxClicked:(id)sender
+{
+    JNIEnv *env = [NSApp appkitEnv];
+    jclass cls;
+    jmethodID method;
+    jobject event;
+    if (!_peer) return;
+    [[self retain] autorelease];
+    cls = (*env)->FindClass(env, "com/apple/rhapsody/awt/RCheckboxPeer");
+    if (!cls) [AwtException raiseUsingEnv:env];
+    method = (*env)->GetMethodID(env, cls, "makeItemEvent", "(Z)Ljava/awt/event/ItemEvent;");
+    if (!method) [AwtException raiseUsingEnv:env];
+    event = (*env)->CallObjectMethod(env, _peer, method, [self state] != 0);
+    (*env)->DeleteLocalRef(env, cls);
+    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    NS_DURING
+        [NSApp dispatchJavaEvent:event isLocalRef:YES];
+    NS_HANDLER
+        (*env)->DeleteLocalRef(env, event);
+        [localException raise];
+    NS_ENDHANDLER
+    (*env)->DeleteLocalRef(env, event);
+}
 @end
 
-JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RButtonPeer_createNativeButton(JNIEnv *env, jobject peer,
+static jint createButton(JNIEnv *env, jobject peer,
     jint x, jint y, jint width, jint height, jboolean enabled, jboolean visible,
-    jobject font, jobject background, jobject foreground, jobject cursor, jstring title)
+    jobject font, jobject background, jobject foreground, jobject cursor, jstring title,
+    BOOL checkbox, BOOL state, BOOL inGroup)
 {
     AwtButton *volatile button = nil;
     jobject volatile globalPeer = NULL;
@@ -160,9 +205,14 @@ JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RButtonPeer_createNativeButto
         if (!globalPeer) [AwtException raiseUsingEnv:env];
         button = [AwtButton alloc];
         if (!button) [AwtException raise:env exceptionName:"java/lang/OutOfMemoryError" reason:"Cannot allocate AwtButton"];
-        [[button appkitProxy] initWithPeer:(int)globalPeer frame:NSMakeRect(x, y, width, height) enabled:enabled
-            font:[nativeFont appkitProxy] backgroundColor:[nativeBackground appkitProxy]
-            foregroundColor:[nativeForeground appkitProxy] cursor:nativeCursor title:nativeTitle];
+        if (checkbox)
+            [[button appkitProxy] initWithPeer:(int)globalPeer frame:NSMakeRect(x, y, width, height) enabled:enabled
+                font:[nativeFont appkitProxy] backgroundColor:[nativeBackground appkitProxy]
+                foregroundColor:[nativeForeground appkitProxy] cursor:nativeCursor title:nativeTitle state:state inGroup:inGroup];
+        else
+            [[button appkitProxy] initWithPeer:(int)globalPeer frame:NSMakeRect(x, y, width, height) enabled:enabled
+                font:[nativeFont appkitProxy] backgroundColor:[nativeBackground appkitProxy]
+                foregroundColor:[nativeForeground appkitProxy] cursor:nativeCursor title:nativeTitle];
     NS_HANDLER
         [[AwtView appkitProxy] discardView:(int)button];
         if (globalPeer) (*env)->DeleteGlobalRef(env, globalPeer);
@@ -172,11 +222,47 @@ JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RButtonPeer_createNativeButto
     if (pool) NativeMethodExit(env, pool);
     return (jint)button;
 }
+JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RButtonPeer_createNativeButton(JNIEnv *env, jobject peer,
+    jint x, jint y, jint width, jint height, jboolean enabled, jboolean visible,
+    jobject font, jobject background, jobject foreground, jobject cursor, jstring title)
+{
+    return createButton(env, peer, x, y, width, height, enabled, visible, font, background, foreground, cursor, title, NO, NO, NO);
+}
+JNIEXPORT jint JNICALL Java_com_apple_rhapsody_awt_RCheckboxPeer_createNativeButtonCheckbox(JNIEnv *env, jobject peer,
+    jint x, jint y, jint width, jint height, jboolean enabled, jboolean visible,
+    jobject font, jobject background, jobject foreground, jobject cursor, jstring title, jboolean state, jboolean inGroup)
+{
+    return createButton(env, peer, x, y, width, height, enabled, visible, font, background, foreground, cursor, title, YES, state, inGroup);
+}
 JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RButtonPeer_setLabel(JNIEnv *env, jobject peer, jstring title)
 {
     AwtAutoreleasePool *pool = NativeMethodEnter(env);
     NS_DURING
         [viewFromPeer(env, peer) awtSetTitle:javaToNSString(env, title)];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+}
+JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RCheckboxPeer_setLabel(JNIEnv *env, jobject peer, jstring title)
+{
+    Java_com_apple_rhapsody_awt_RButtonPeer_setLabel(env, peer, title);
+}
+JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RCheckboxPeer_setState(JNIEnv *env, jobject peer, jboolean state)
+{
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        [viewFromPeer(env, peer) awtSetState:state];
+    NS_HANDLER
+        [AwtException throwToJava:env exception:localException];
+    NS_ENDHANDLER
+    if (pool) NativeMethodExit(env, pool);
+}
+JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RCheckboxPeer_setCheckboxGroup(JNIEnv *env, jobject peer, jobject group)
+{
+    AwtAutoreleasePool *pool = NativeMethodEnter(env);
+    NS_DURING
+        [viewFromPeer(env, peer) awtSetInGroup:group != NULL];
     NS_HANDLER
         [AwtException throwToJava:env exception:localException];
     NS_ENDHANDLER

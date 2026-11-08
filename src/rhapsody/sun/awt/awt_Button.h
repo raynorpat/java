@@ -14,6 +14,11 @@
     BOOL _isCheckBoxButton;
 }
 - (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor title:(NSString *)title;
+- (id)commonInitWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor title:(NSString *)title;
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled font:(NSFont *)font backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor title:(NSString *)title state:(BOOL)state inGroup:(BOOL)inGroup;
+- (void)awtSetState:(BOOL)state;
+- (void)awtSetInGroup:(BOOL)inGroup;
+- (void)checkboxClicked:(id)sender;
 - (jobject)peer;
 - (void)clearPeer;
 - (void)awtSetTitle:(NSString *)title;

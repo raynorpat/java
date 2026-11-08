@@ -837,3 +837,33 @@ check-view, check-container-draw, check-window, check-input, check-keyboard,
 check-queue-read, check-handoff, check-dispatch, check-toolkit, check-event-cover
 and check-synthetic-input all pass with clean streamed output. Phase 7 remains
 in progress; other native controls and the full acceptance matrix are pending.
+
+### Phase 7 checkbox and radio-group checkpoint
+
+Recovered RCheckboxPeer creation, label, state and group bindings
+(5401179c/54011a08/54011acc/54011b90). AwtButton's checkbox initializer (5400351c)
+uses the shared native-button setup, then selects cell type 3 or 4 through
+_setButtonType:adjustingImage:, restores the title and initial state, and installs
+the checkbox action. State/group setters follow 54003a74/54003a30. The original
+Java peer's makeItemEvent(boolean) updates the Checkbox and its group before
+constructing the ItemEvent; the native action (54003b00) dispatches that event
+and releases its temporary JNI reference.
+
+Checkbox115 initially failed on the missing native constructor. Donor and
+reconstruction now pass ungrouped toggling, programmatic state/label changes,
+radio exclusivity, clicking an already selected radio, dynamic group membership,
+disabled clicks, item source/ID/label and selected/deselected values, callback
+reentry and GC, and queued native mouse input. The donor established that removing
+the selected checkbox from its group clears both Java and native selection;
+the fixture checks this explicitly. Reconstruction-only tracking passes Java
+and native constructor failures for both checkbox modes, plus frame disposal
+inside a queued native click's item callback, with no remaining native buttons.
+
+Button and checkbox creation now share their ownership/rollback helper, and the
+Objective-C common initializer follows the original class structure. The partial
+test library has 61 JNI entries. Other widgets and Phase 7 acceptance remain
+unfinished; no partial native library is installed.
+
+Fresh native check-checkbox, check-button, check-component-state, check-child-views,
+check-window, check-input, check-keyboard, check-dispatch and check-toolkit all pass
+with clean streamed output.
