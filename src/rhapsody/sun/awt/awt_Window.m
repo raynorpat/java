@@ -63,6 +63,21 @@
     [super dealloc];
 }
 - (jobject)peer { return _peer; }
+/* Focus portion of 540104f4/54010598; menu activation is handled separately. */
+- (void)becomeKeyWindow
+{
+    id responder = [self firstResponder];
+    [super becomeKeyWindow];
+    if ([responder dispatchesAwtEventsOfType:101])
+        [responder dispatchFocusEventGained:YES temporary:YES];
+}
+- (void)resignKeyWindow
+{
+    id responder = [self firstResponder];
+    [super resignKeyWindow];
+    if ([responder dispatchesAwtEventsOfType:100])
+        [responder dispatchFocusEventGained:NO temporary:YES];
+}
 /* 54010720: programmatic resizing must not feed back through the delegate. */
 - (void)awtSetFrame:(NSRect)frame display:(BOOL)display
 {

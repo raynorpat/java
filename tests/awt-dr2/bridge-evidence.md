@@ -560,3 +560,12 @@ Window key-status focus notifications and hover delivery remain separate work.
 
 Fresh check-input, check-mouse-values, check-toolkit, check-window, check-handoff
 and check-dispatch all pass with the responder focus bridge enabled.
+
+Window activation focus checkpoint: AwtWindow becomeKeyWindow/resignKeyWindow
+(540104f4/54010598) capture the first responder before calling the superclass,
+then dispatch temporary focus gained/lost when that responder accepts event type
+101/100. Input115 now checks both permanent and temporary lost/gained sequences,
+source identity, flags, callback GC and Toolkit re-entry. The donor passed; the
+reconstruction initially failed with no temporary events. After implementation,
+all six input/mouse-values/toolkit/window/handoff/dispatch targets pass. Menu
+activation within these same donor methods remains part of the pending menu work.

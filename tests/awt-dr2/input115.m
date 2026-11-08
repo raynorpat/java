@@ -5,14 +5,19 @@
 @end
 @interface InputProbe : NSObject
 + (void)injectView:(int)address;
-+ (void)focusView:(int)address;
++ (void)focusView:(int)address temporary:(BOOL)temporary;
 @end
 @implementation InputProbe
-+ (void)focusView:(int)address
++ (void)focusView:(int)address temporary:(BOOL)temporary
 {
     NSView *view = (NSView *)address;
-    [view resignFirstResponder];
-    [view becomeFirstResponder];
+    if (temporary) {
+        [[view window] resignKeyWindow];
+        [[view window] becomeKeyWindow];
+    } else {
+        [view resignFirstResponder];
+        [view becomeFirstResponder];
+    }
 }
 + (void)injectView:(int)address
 {
@@ -30,7 +35,7 @@
     }
 }
 @end
-JNIEXPORT void JNICALL Java_Input115_focus(JNIEnv *env, jclass cls, jobject frame)
+JNIEXPORT void JNICALL Java_Input115_focus(JNIEnv *env, jclass cls, jobject frame, jboolean temporary)
 {
     id pool = [[NSAutoreleasePool alloc] init];
     jclass component = (*env)->FindClass(env, "java/awt/Component");
@@ -38,7 +43,7 @@ JNIEXPORT void JNICALL Java_Input115_focus(JNIEnv *env, jclass cls, jobject fram
     jobject peer = (*env)->CallObjectMethod(env, frame, method);
     jclass peerClass = (*env)->FindClass(env, "com/apple/rhapsody/awt/RComponentPeer");
     jfieldID field = (*env)->GetFieldID(env, peerClass, "nNativeView", "I");
-    [[InputProbe appkitProxy] focusView:(*env)->GetIntField(env, peer, field)];
+    [[InputProbe appkitProxy] focusView:(*env)->GetIntField(env, peer, field) temporary:temporary];
     [pool release];
 }
 JNIEXPORT void JNICALL Java_Input115_inject(JNIEnv *env, jclass cls, jobject frame)

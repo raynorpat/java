@@ -9,16 +9,16 @@ import java.awt.event.FocusListener;
 public class Input115 extends Frame implements MouseListener, MouseMotionListener, FocusListener {
     static { System.loadLibrary("input115"); }
     static native void inject(Frame frame);
-    static native void focus(Frame frame);
+    static native void focus(Frame frame, boolean temporary);
     volatile String focusEvents = "";
-    volatile boolean checkingFocus;
+    volatile boolean checkingFocus, temporaryFocus;
     volatile int pressed, dragged, released, clicked;
     volatile boolean consumePress, consumeRelease, disposeOnPress;
     volatile Throwable failure;
     Input115() { addMouseListener(this); addMouseMotionListener(this); addFocusListener(this); }
     void inspectFocus(FocusEvent event, String value) {
         if (!checkingFocus) return;
-        if (event.getSource() != this || event.isTemporary()) failure = new Error("native focus values: " + event);
+        if (event.getSource() != this || event.isTemporary() != temporaryFocus) failure = new Error("native focus values: " + event);
         Toolkit.getDefaultToolkit().getScreenSize();
         System.gc();
         focusEvents += value;
@@ -51,9 +51,14 @@ public class Input115 extends Frame implements MouseListener, MouseMotionListene
             Thread.sleep(100);
             frame.focusEvents = "";
             frame.checkingFocus = true;
-            focus(frame);
+            focus(frame, false);
             for (int wait = 0; wait < 200 && frame.focusEvents.length() < 2; wait++) Thread.sleep(10);
             if (!frame.focusEvents.equals("LG")) throw new Error("native focus sequence: " + frame.focusEvents);
+            frame.focusEvents = "";
+            frame.temporaryFocus = true;
+            focus(frame, true);
+            for (int wait = 0; wait < 200 && frame.focusEvents.length() < 2; wait++) Thread.sleep(10);
+            if (!frame.focusEvents.equals("LG")) throw new Error("native temporary focus sequence: " + frame.focusEvents);
             frame.checkingFocus = false;
             frame.consumePress = true;
             inject(frame);
