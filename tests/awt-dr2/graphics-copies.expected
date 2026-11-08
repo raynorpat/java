@@ -1,0 +1,10 @@
+clip 0:java.awt.Rectangle[x=0,y=0,width=84,height=84]
+clip 1:java.awt.Rectangle[x=0,y=0,width=84,height=84]
+clip 2:java.awt.Rectangle[x=0,y=0,width=-70,height=84]
+pixel 0:ff0000
+pixel 1:ff0000
+pixel 2:ffffff
+updated 0:ff
+updated 1:ff0000
+updated 2:ffffff
+DR2 graphics copies preserve the original peer clip behavior

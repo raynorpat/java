@@ -1423,3 +1423,34 @@ build integration fault: copied libawt files let dyld load two Objective-C image
 when a linked test helper loaded. GDB showed two libawt load addresses and a null
 AppKit state in the second copy. One canonical build/lib dylib, with test-directory
 symlinks, fixes it. Tracked image/audio/toolkit62902 and relocated install54692 pass.
+
+## Original peer clipping limitation
+
+The RoundButtons demo exposes a defect in the unmodified Apple Java peer, not a
+native reconstruction difference. `RGraphics.translate(x,y)` already subtracts
+x/y from its stored clip; `RScreenGraphics.create(x,y,w,h)` then subtracts them
+again before clipping. Javap confirms both operations in the original peer
+archive. A three-sibling GraphicsCopies115 probe produces an invalid third clip
+(width -70) and a white third center on both the original DR2 runtime and this
+reconstruction, with identical nine lines of rectangle/pixel output. RoundButtons
+therefore has a missing third button and partial repaint clipping. Preserve the
+audited peer bytes and record this donor limitation rather than changing Java
+classes or compensating unrelated native drawing operations. The targeted oracle
+fixture makes this limitation reproducible; it is not a claim of correct clipping.
+
+## Minimum-size creation and the AWT tree lock
+
+Both the donor and reconstructed eventmodel AppletViewer deadlock while opening
+four applets: an applet-loader thread holds AWT's tree lock while waiting for
+AppKit, and AppKit synchronously calls Component.setBounds from the minimum-size
+creation adjustment. The donor RFramePeer_createNativeFrame at 5401599c calls
+setFrame:display: (selector string in AppKit at 436250ac), so this is an original
+native defect. WindowTreeLock115 reproduces the cycle deterministically by calling
+addNotify while holding the public tree lock; the pre-fix run timed out with
+AppKit blocked in Component.reshape and main in RFramePeer.createNativeObjects.
+
+Use the existing delegate-suppressing awtSetFrame for this programmatic adjustment,
+then reflect the same geometry and event mask on the JNI caller after AppKit
+returns. Ordinary window-manager moves/resizes retain their delegate callbacks.
+Apply the same correction to borderless-window creation. This deliberately fixes
+the donor deadlock while preserving minimum-size coordinates and original peers.
