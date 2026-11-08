@@ -135,3 +135,13 @@ at the terminator. `signature-bounds.c` passed native DR2 checks and a WSL build
 with AddressSanitizer and UndefinedBehaviorSanitizer, including 128 parameters
 and truncated object/object-array descriptors. These bounds cases are not run
 through the donor's unsafe allocator/parser.
+
+## String conversion
+
+`check-strings.sh` compares native donor and reconstructed round trips through
+raw Java string handles. Nil, empty, ASCII, embedded NUL, non-ASCII BMP values,
+a surrogate pair and U+FFFF are preserved. The reconstruction uses the VM's
+character-array String constructor and copies UTF-16 units back into an
+autoreleased NSString. Native allocation/constructor failure conversion remains
+part of the exception work in Task 5; these successful round trips do not test
+out-of-memory behavior.
