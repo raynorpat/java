@@ -39,11 +39,13 @@
 - (void)strokeArc:(NSRect)rect startAngle:(float)start arcAngle:(float)angle andFill:(BOOL)fill;
 - (void)strokePolyLine:(NSData *)points count:(int)count andClose:(BOOL)close andFill:(BOOL)fill;
 - (void)drawString:(NSString *)string atPoint:(NSPoint)point;
+- (void)drawImage:(id)image atPoint:(NSPoint)point;
 @end
 @interface AwtScreenGraphics : AwtGraphics {
     unsigned int _flags;
     BOOL _surfaceIsCanvas;
 }
 - (id)initWithCanvas:(AwtCanvas *)canvas;
+- (id)initWithImage:(id)image;
 @end
 #endif

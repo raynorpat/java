@@ -1,0 +1,7 @@
+pixels:ff0000ff:ff000000:ff000000
+screen:ff0000:ff
+pixels:ff0000ff:ff000000:ff000000
+screen:ff0000:ff
+pixels:ff0000ff:ff000000:ff000000
+screen:ff0000:ff
+DR2 offscreen images draw and deliver pixels

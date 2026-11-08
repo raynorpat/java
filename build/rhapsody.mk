@@ -381,11 +381,18 @@ AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_ScrollingList.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Menu.m src/rhapsody/sun/awt/awt_Clipboard.m
 AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_FileDialog.h src/rhapsody/sun/awt/awt_Menu.h src/rhapsody/sun/awt/awt_Clipboard.h
 AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Container.h src/rhapsody/sun/awt/awt_Graphics.h src/rhapsody/sun/awt/awt_Window.h src/rhapsody/sun/awt/awt_Component.h
+AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Image.m src/rhapsody/sun/awt/awt_Image_stubs.c
+AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Image.h
+
+$(BUILD)/awtgen/.stamp: $(BUILD)/bin/javah $(JDK115_DIR)/lib/classes.zip $(RHAPSODY_PEERS)
+	mkdir -p $(@D)
+	$(BUILD)/bin/javah -classpath $(RHAPSODY_PEERS):$(JDK115_DIR)/lib/classes.zip -d $(@D) sun.awt.image.ImageRepresentation sun.awt.image.OffScreenImageSource java.awt.Color java.awt.image.IndexColorModel java.awt.image.DirectColorModel com.apple.rhapsody.awt.RGraphics
+	touch $@
 
 # Partial AWT is confined to tests until the complete peer surface is recovered.
-$(BUILD)/tests/toolkit/libawt.dylib: $(AWT_TOOLKIT_SOURCES) $(AWT_TOOLKIT_HEADERS) $(BUILD)/lib/libjavai.dylib build/rhapsody.mk
+$(BUILD)/tests/toolkit/libawt.dylib: $(AWT_TOOLKIT_SOURCES) $(AWT_TOOLKIT_HEADERS) $(BUILD)/lib/libjavai.dylib $(BUILD)/awtgen/.stamp build/rhapsody.mk
 	mkdir -p $(@D)
-	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib $(AWT_TOOLKIT_SOURCES) -framework AppKit -framework Foundation -L$(BUILD)/lib -ljavai -o $@
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -I$(BUILD)/awtgen -dynamiclib $(AWT_TOOLKIT_SOURCES) -framework AppKit -framework Foundation -L$(BUILD)/lib -ljavai -o $@
 
 $(BUILD)/tests/toolkit/libtoolkitprobe115.dylib: tests/awt-dr2/dispatcher115.m $(BUILD)/tests/toolkit/libawt.dylib
 	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/dispatcher115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
@@ -641,3 +648,10 @@ $(BUILD)/tests/toolkit/libprimitives115.dylib: tests/awt-dr2/primitives115.m $(B
 .PHONY: check-primitives
 check-primitives: image $(BUILD)/tests/toolkit/libprimitives115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-primitives.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libimage115.dylib: tests/awt-dr2/image115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/image115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-image
+check-image: image $(BUILD)/tests/toolkit/libimage115.dylib $(BUILD)/tests/toolkit/libraster115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-image.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

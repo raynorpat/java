@@ -1,6 +1,7 @@
 /* DR2 libawt.A.dylib: state/primitives/text 54006b48--540078e4,
  * screen focus 5400a028--5400a1d4; JNI 54016144--54017270. */
 #import "awt_Graphics.h"
+#import "awt_Image.h"
 #import "awt_Conversions.h"
 #import "awt_Exception.h"
 #import "awt_ThreadContext.h"
@@ -214,9 +215,20 @@
         [self _endDrawing];
     }
 }
+- (void)drawImage:(id)image atPoint:(NSPoint)point
+{
+    if (image && [self _beginDrawingWithPaint:YES]) {
+        [(AwtImage *)image drawAtPoint:point];
+        [self _endDrawing];
+    }
+}
 @end
 
 @implementation AwtScreenGraphics
+- (id)initWithImage:(id)image
+{
+    return [super initWithSurface:image font:nil flipped:NO];
+}
 - (id)initWithCanvas:(AwtCanvas *)canvas
 {
     self = [super initWithSurface:canvas font:[canvas awtFont] flipped:NO];

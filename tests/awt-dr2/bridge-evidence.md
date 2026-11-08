@@ -1250,3 +1250,29 @@ with IllegalArgumentException; native bounds guards protect direct entry calls.
 Fresh check-primitives, check-window, check-canvas-draw, check-container-draw,
 check-fonts, check-menu, check-dispatch and check-toolkit pass. There are now 155
 JNI entries. Images, offscreen drawing, printing and final Phase 7 acceptance remain.
+
+## Offscreen image ownership and delivery
+
+Recovered AwtImage's offscreen constructor, native surface, drawing and pixel
+delivery from 540208dc--54022954, plus ROffScreenGraphics creation at 54018a9c.
+The unchanged classes use legacy stack bindings for image initialization, drawing,
+disposal and pixel delivery, and JNI for the graphics owner. The native build now
+generates their layout headers using the reconstructed javah and original classes.
+
+Image115 initially failed on offscreenInit. Drawing and readback now match the
+donor in three image lifetimes. Donor bitmap normalization followed by native-endian
+four-byte readback does not preserve ordinary RGB values: the red/blue test reads
+ff0000ff/ff000000 while drawing ff0000/0000ff correctly. The reconstruction keeps
+that observed behavior; image.expected records the donor output.
+
+Native images remain alive while graphics or pixel callbacks use them. Tracked
+tests cover constructor rollback, disposal with a graphics owner, disposal inside
+color-model/hints/pixel callbacks, callback exceptions, GC and AppKit reentry, and
+consumer removal at each callback stage. All native images are released afterward.
+Offscreen Image.flush is a Java no-op in the shipped classes, so the lifetime probe
+calls the existing private disposeImage method without modifying the archive.
+
+Fresh check-image, check-primitives, check-window, check-fonts, check-dispatch and
+check-toolkit pass. Producer uploads, scaling, printing and final Phase 7 acceptance
+remain pending; this checkpoint supplies four legacy image bindings and one JNI
+entry, with no fabricated implementations for the remaining image methods.
