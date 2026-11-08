@@ -1155,3 +1155,29 @@ zero. Production disposal needed no further change.
 Fresh check-barewindow, check-window, check-menu, check-input, check-keyboard,
 check-dispatch and check-toolkit pass. The test-only library has 131 JNI entries.
 Dialogs, complete graphics and the full installed-image gates remain pending.
+
+### Phase 7 dialog checkpoint
+
+Five RDialogPeer entries (54013738--54013c8c) use the AwtWindow dialog constructor
+at 540102c0: native styles 3/11 omit the frame's miniaturize control. The original
+setResizable binding is empty; later Java changes leave the native style intact.
+Initial focus recursively selects the first enabled AwtTextField/AwtTextView that
+accepts first responder (5401038c--5401048c). Native modal sessions use the existing
+AppKit connection's NSModalPanelRunLoopMode support.
+
+Donor and reconstruction pass modeless title/style changes, initial text focus,
+show/hide, and nested modal sessions opened from a button callback. Native clicks
+on the owner are blocked. Inner-dialog callback disposal restores the outer modal
+session; outer callback disposal also completes. Listeners run GC and reenter
+AppKit. Three constructor failures preserve Java throwable identity and release
+partial native objects; all tracked windows/views reach zero after disposal.
+
+A background-thread hide returns on the donor but can leave its modal event loop
+waiting for a native event. The fixture drives actual queued button clicks, which
+exercise native modal dispatch and action callbacks. That donor behavior has not
+been silently replaced with a different modal-loop implementation.
+
+Fresh check-dialog, check-barewindow, check-window, check-menu, check-textfield,
+check-input, check-keyboard, check-dispatch and check-toolkit pass. The test-only
+library has 136 JNI entries. File panels, complete graphics and full installed-image
+acceptance remain pending.

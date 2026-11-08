@@ -13,6 +13,9 @@
 - (id)commonInitWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled styleMask:(int)style contentView:(NSView *)view;
 - (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(NSView *)view;
 - (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(NSView *)view resizable:(BOOL)resizable title:(NSString *)title;
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(NSView *)view resizable:(BOOL)resizable title:(NSString *)title parent:(NSWindow *)parent;
+- (NSView *)findSuitableFirstResponder:(NSView *)view;
+- (void)ensureSuitableFirstResponderForDialog;
 - (jobject)peer;
 - (void)awtSetMenuBar:(id)bar;
 - (BOOL)counterpartIsKey;

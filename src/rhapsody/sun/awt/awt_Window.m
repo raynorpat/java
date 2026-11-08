@@ -67,6 +67,31 @@
     [self setTitle:title];
     return self;
 }
+/* 540102c0: dialog windows omit the frame's miniaturize style. */
+- (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled contentView:(NSView *)view resizable:(BOOL)resizable title:(NSString *)title parent:(NSWindow *)parent
+{
+    self = [self commonInitWithPeer:peer frame:frame enabled:enabled styleMask:resizable ? 11 : 3 contentView:view];
+    [self setTitle:title];
+    return self;
+}
+/* 5401038c--5401048c: choose the first enabled native text editor in tree order. */
+- (NSView *)findSuitableFirstResponder:(NSView *)view
+{
+    NSArray *children = [view subviews];
+    unsigned int index;
+    if (([view isKindOfClass:[AwtTextField class]] || [view isKindOfClass:[AwtTextView class]]) &&
+        [view acceptsFirstResponder] && [view isAwtEnabled]) return view;
+    for (index = 0; index < [children count]; index++) {
+        NSView *candidate = [self findSuitableFirstResponder:[children objectAtIndex:index]];
+        if (candidate) return candidate;
+    }
+    return nil;
+}
+- (void)ensureSuitableFirstResponderForDialog
+{
+    NSView *view = [self findSuitableFirstResponder:[self contentView]];
+    if (view && (id)view != [self firstResponder]) [self makeFirstResponder:view];
+}
 - (void)dealloc
 {
     [[[NSThread currentThread] threadDictionary] removeObjectForKey:
