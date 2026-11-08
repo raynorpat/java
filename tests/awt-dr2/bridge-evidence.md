@@ -783,3 +783,57 @@ Phase 7 remains in progress.
 Fresh check-component-state, check-child-views, check-view, check-container-draw,
 check-window, check-input, check-keyboard, check-queue-read and check-handoff all
 pass in the native DR2 guest, with clean streamed output.
+
+### Phase 7 native button checkpoint
+
+Recovered AwtButton (540033a0--54003d08), RButtonPeer construction/label updates
+(54010fd4/5401121c), and NSControl preferred size (54010024). The native class
+preserves the DR2 NSButton subclass layout, bezel style, cell background,
+attributed foreground, title/font updates, cursor rectangles, enabled state,
+focus and hover routing, and Java action creation through the original peer's
+private makeActionEvent method. Constructor failures follow the existing owned
+view/global-reference cleanup policy.
+
+Button115 first passed on the donor and failed at createNativeButton on the
+reconstruction. It checks native peer sizing (Java Component caches preferred
+sizes), Unicode labels, point size, attributed foreground, disabled clicks,
+action source/ID/command, callback toolkit reentry and GC. Reconstruction-only
+tracking adds Java/native constructor failures and disposal inside an action
+callback. The tracker initializes on AppKit with an autorelease pool; doing this
+before toolkit startup caused recursive Foundation logging during NSButton class
+initialization, a test-harness error identified from native stacks.
+
+Callback disposal exposed two implementation issues. First, AppKit delivered a
+pending paint after the frame peer had been cleared; GDB traced the bus error
+through AwtCanvas.drawRect, makeWrappedPaintEvent and a null JNI field receiver.
+Disposed canvases now skip drawing and Java paint creation. Second, one native
+button remained retained only after callback disposal. Ordinary disposal passed.
+Retain traces and worker stacks isolated the remote reference; flushing the main
+thread's pools and waking the event loop did not release it.
+
+Foundation's NSDistantObject release path (425452c4/425688ac) appends wire releases
+through NSConnection.releaseName:count: (42567fe4). finishEncoding (42528c84)
+piggybacks that buffer on the next outgoing request. The original dispatcher
+(5400463c) sends its wake-up request before draining callback temporaries, leaving
+an idle worker's last remote releases buffered. The worker now drains callback
+temporaries while AppKit still services requests, then uses a fresh pool for the
+existing unlock/wake-up sequence. The tracked callback-disposal test passes with
+zero live native buttons after this change.
+
+Ruling: flushing callback-owned remote references before signaling completion
+extends the port's actual-disposal policy beyond the donor's no-op disposal.
+It changes temporary-object destruction timing; bridge reentry and exception
+regressions are required to check that earlier cleanup remains safe. Action
+callbacks retain the native button until its surrounding native operation can
+finish, and their JNI event locals are released on success and native exceptions.
+
+The expanded Button115 fixture also passes queued native mouse-down/up input on
+both donor and reconstruction. Its tracked mode disposes the frame from that
+native click's Java action callback and verifies that every button is released.
+The partial library implements 57 JNI entries and remains confined to tests.
+
+Fresh native DR2 check-button, check-component-state, check-child-views,
+check-view, check-container-draw, check-window, check-input, check-keyboard,
+check-queue-read, check-handoff, check-dispatch, check-toolkit, check-event-cover
+and check-synthetic-input all pass with clean streamed output. Phase 7 remains
+in progress; other native controls and the full acceptance matrix are pending.

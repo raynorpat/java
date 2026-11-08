@@ -47,6 +47,11 @@
         [_eventLock lockWhenCondition:2];
         pool = [[NSAutoreleasePool alloc] init];
         [self performSelector:_selector];
+        /* DR2 batches released remote references into the next DO message.
+         * Drain callback proxies before the tickle, while AppKit still services
+         * requests, so an idle worker cannot retain a disposed native control. */
+        [pool release];
+        pool = [[NSAutoreleasePool alloc] init];
         [_eventLock unlockWithCondition:1];
         [_selfProxy _tickleAppKitRunLoop];
         [pool release];

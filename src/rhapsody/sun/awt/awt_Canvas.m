@@ -36,6 +36,8 @@
 @implementation AwtCanvas
 - (void)drawRect:(NSRect)rect
 {
+    /* AppKit may drain an invalidated rectangle while disposal services callbacks. */
+    if (![self peer]) return;
     [[self awtBackgroundColor] set];
     NSRectFill(rect);
     PSFlush();
