@@ -62,3 +62,42 @@ removing the Vendor key from each accumulated result.
 The checked transcript was observed on native DR2 Intel using cc
 `-traditional-cpp -framework Foundation -framework JavaVM`. Additional bridge
 fixtures and generated-wrapper dependency closure remain to be established.
+
+## Facade and startup checkpoint
+
+`check-facade.sh donor` validates the original framework's singleton, class
+lookup, missing-class result and second-VM exception. `check-facade.sh` also
+builds the reconstructed facade against Foundation only and compares the
+pre-startup transcript. It verifies that a missing private bridge is fatal;
+DR2 dyld terminates NSAddLibrary on an absent library before its caller can
+raise the framework exception. This fixture is explicitly not acceptance of
+reconstructed VM startup. No donor ObjCJava binary is used by the reconstructed
+facade test.
+
+The facade uses its containing bundle's Libraries/libObjCJava.dylib, replacing
+the donor's fixed /usr/lib/java location. Actual versioned-framework relocation
+remains Task 6. The `defineClass:withName:` selector has BOOL return encoding
+in the donor; the decompiler's Class return inference is incorrect.
+
+Recovered startup ABI:
+
+- `void *NSLoadVirtualMachine(NSString *classpath)` calls
+  `JAVALoadVirtualMachine(classpath, [NSUserDefaults standardUserDefaults])`,
+  then initializes `com/apple/yellow/foundation/NSRuntime` through FindClass.
+- `BOOL NSAddClassFile(void *vmdata, NSString *name, NSData *data)` calls the
+  JNI DefineClass entry through the environment held in vmdata.
+- vmdata has two pointer-sized fields: JavaVM pointer then JNIEnv pointer.
+- ClassgenInitialization (0x53d04344) installs FindObjcClassForJavaClass into
+  Foundation's `_NSAltClassNameFromString` hook. Implementing findClass: alone
+  does not supply Java class generation.
+- ObjCJava_AInitialization initializes mapping, selectors, reflection,
+  exceptions, GC ownership, serialization and built-in class conversions.
+
+The guest's `/System/Library/Java/com` was collected read-only into ignored
+`out/rhapsody115/apple-java-classes.tar` (573 files, per-file hashes in the
+adjacent apple-java-classes-manifest.json). NSRuntime.class has two native
+declarations: initialSearchPaths `()[Ljava/lang/String;` and
+initializeObjcLibrary `(Ljava/lang/String;Ljava/lang/String;)V`. The second
+resolves library initialization functions, including ObjCJava_AInitialization.
+This donor class set is investigation material, not an approved packaging
+closure or a substitute for reconstructed native code.

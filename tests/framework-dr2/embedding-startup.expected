@@ -1,0 +1,8 @@
+initial-count=0
+vm=1
+count=1
+same-vm=1
+foundation-class=1
+java-class=1
+missing-class=1
+second-vm=NSInternalInconsistencyException

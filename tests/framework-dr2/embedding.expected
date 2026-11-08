@@ -1,0 +1,4 @@
+initial-count=0
+classpath=fixture-path
+non-java=Not a Java Class
+reason=+newWithSignature: sent to non-java class NSObject
