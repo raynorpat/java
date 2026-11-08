@@ -1,9 +1,11 @@
 #import <AppKit/AppKit.h>
 #include "jni.h"
+#import "../../src/rhapsody/sun/awt/awt_Event.h"
 
 @interface NSApplication (DispatcherTest)
 - (void)setupForAwtToolkitUsingEnv:(JNIEnv *)env;
 - (BOOL)inAppkitThread;
+- (JNIEnv *)appkitEnv;
 @end
 @interface NSObject (DispatcherTest)
 - (id)appkitProxy;
@@ -12,11 +14,36 @@
 - (void)dispatchActionEventToMenuItemPeer:(jobject)peer;
 @end
 
+static int releasedCovers;
+static int postedCovers;
+@interface QueueCoverProbe : NSEvent
+@end
+@implementation QueueCoverProbe
+- (void)releaseJavaEvent:(JNIEnv *)env
+{
+    if ([self isJavaEvent] && [self javaEvent]) releasedCovers++;
+    [super releaseJavaEvent:env];
+}
+@end
 @interface DispatchProbe : NSObject
 - (BOOL)dispatchAddress:(int)address;
 - (void)menuAddress:(int)address;
+- (BOOL)postAddress:(int)address;
+- (BOOL)coverReleased;
 @end
 @implementation DispatchProbe
+- (BOOL)postAddress:(int)address
+{
+    NSEvent *cover, *peek;
+    if (!postedCovers) [QueueCoverProbe poseAsClass:[NSEvent class]];
+    cover = [NSEvent coverEventForJavaEvent:(jobject)address inEnv:[NSApp appkitEnv]];
+    postedCovers++;
+    [NSApp postEvent:cover atStart:YES];
+    peek = [NSApp nextEventMatchingMask:NSApplicationDefinedMask untilDate:[NSDate date]
+        inMode:NSDefaultRunLoopMode dequeue:NO];
+    return [peek isJavaEvent] && [peek javaEvent] == [cover javaEvent] && [cover javaEvent] != NULL;
+}
+- (BOOL)coverReleased { return postedCovers == releasedCovers; }
 - (void)menuAddress:(int)address
 {
     if (![NSApp inAppkitThread])
@@ -68,6 +95,23 @@ JNIEXPORT jboolean JNICALL Java_com_apple_rhapsody_awt_Dispatcher115_dispatch(JN
     jobject global = (*env)->NewGlobalRef(env, event);
     BOOL result = [[probe appkitProxy] dispatchAddress:(int)global];
     (*env)->DeleteGlobalRef(env, global);
+    [pool release];
+    return result;
+}
+
+JNIEXPORT jboolean JNICALL Java_ToolkitStartup115_post(JNIEnv *env, jclass cls, jobject event)
+{
+    id pool = [[NSAutoreleasePool alloc] init];
+    jobject global = (*env)->NewGlobalRef(env, event);
+    BOOL result = [[probe appkitProxy] postAddress:(int)global];
+    (*env)->DeleteGlobalRef(env, global);
+    [pool release];
+    return result;
+}
+JNIEXPORT jboolean JNICALL Java_ToolkitStartup115_coverReleased(JNIEnv *env, jclass cls)
+{
+    id pool = [[NSAutoreleasePool alloc] init];
+    BOOL result = [[probe appkitProxy] coverReleased];
     [pool release];
     return result;
 }

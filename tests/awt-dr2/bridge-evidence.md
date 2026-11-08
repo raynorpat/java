@@ -454,3 +454,49 @@ donor's uncoded subclass field. This adds internal reference ownership and
 userInfo state; it preserves Java exception identity and avoids the crash.
 This does not yet prove complete Java-source collectability or safe disposal
 inside delivered user event callbacks; normal event routing remains unfinished.
+
+
+### Queued Java events and initial screen graphics
+
+NSApplication's category hook now follows donor 54003110: dequeue:NO calls the
+original implementation directly; dequeue:YES dispatches Java covers and returns
+the next native event. The original method lookup follows 54003094, retaining the
+last matching selector implementation across the DR2 method lists. This also
+covers embedded NSApplication instances. The cover path follows 54002adc/54002c58,
+including the global-reference boundary and release after dispatch. Native mouse
+and key conversion is still pending; non-cover events currently proceed to AppKit.
+REventQueue.postSyntheticOtherEvent (54013e88/54006034) now appends SyntheticEvent
+covers through the AppKit proxy, enabling the Java window-opened/closed events.
+
+ToolkitStartup115 proved RED when the queue failed to deliver an event, then
+passed on donor and reconstruction: twenty queued mouse events follow twenty
+direct dispatches, re-enter AppKit during callbacks, run GC, and each release its
+native Java reference exactly once. Peeking leaves the event queued. DR2 copies
+posted NSEvents, so the probe compares the contained reference rather than object
+identity and counts releaseJavaEvent calls on the delivered copies.
+
+Real paint dispatch exposed an UnsatisfiedLinkError for nCreateNativeGraphics.
+The original RToolkit catches Throwable and prints a diagnostic, so a process
+exit of zero was insufficient evidence. check-window now rejects that diagnostic.
+The first screen-graphics group reconstructs surface/color/font ownership,
+origin and clipping state, rectangle stroke/fill/background clear, focus locking,
+flushing and disposal (54006b48--540071b4, 5400a028--5400a1d4, JNI 54019a38 and
+54016144--54017270 for the bound subset). The canvas constructor passes flipped:NO
+and calls allocateGState; the canvas itself supplies flipped coordinates.
+
+Raster115 uses real Java Frame.paint calls and original RScreenGraphics classes.
+It checks five exact RGB pixels across red fills, green background clearing,
+blue clipping after copying and translating Graphics, and an unchanged parent
+origin/color. All fifteen pixel checks pass on the donor and reconstruction.
+WindowLifetime115 additionally delivers three native window-closing events to
+Java listeners which dispose their Frames, sync through AppKit and run GC. Native
+window/view counts return to zero and Java peers are cleared each time.
+
+Fresh check-handoff, check-dispatch, check-toolkit, check-window, check-canvas-draw,
+check-container-draw, check-window-state and check-window-callbacks pass. The
+existing constructor-failure and small-frame oracle cases remain in check-window.
+Ruling: pull the initial Task 5 screen-graphics group forward because normal
+Task 4 event routing exposes paint callbacks immediately. This changes execution
+order, not the remaining acceptance requirements. Lines, text, XOR, shapes,
+images, printing, synthetic input and native input translation are still pending.
+The partial library remains confined to tests; this is not full AWT acceptance.

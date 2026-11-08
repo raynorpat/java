@@ -17,6 +17,8 @@
 - (NSString *)portName;
 - (BOOL)inAppkitThread;
 - (JNIEnv *)appkitEnv;
+- (BOOL)dispatchJavaEvent:(jobject)event isLocalRef:(BOOL)local;
+- (NSEvent *)sendNSEventThroughJava:(NSEvent *)event;
 @end
 
 @interface NSObject (AWTProxy)

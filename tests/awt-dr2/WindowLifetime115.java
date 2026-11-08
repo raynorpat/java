@@ -1,6 +1,8 @@
 import java.awt.Frame;
 import java.awt.Font;
 import java.awt.Toolkit;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class WindowLifetime115 {
     static { System.loadLibrary("windowlifetime115"); }
@@ -9,6 +11,9 @@ public class WindowLifetime115 {
     static native int liveViews();
     static native int liveThrowables();
     static native void failAt(int stage);
+    static native void requestClose(Frame frame);
+    static volatile int callbackDisposals;
+    static volatile Throwable callbackFailure;
     static native int visibleWindows();
     static final RuntimeException marker = new RuntimeException("construction marker");
     static class BadFont extends Font {
@@ -86,7 +91,33 @@ public class WindowLifetime115 {
                 if (visibleWindows() != 0) throw new Error("disposed native window still visible");
                 if (frame.getPeer() != null) throw new Error("Java peer not disposed");
             }
-            System.out.println("DR2 Frame failures preserve exceptions and release resources across five lifetimes");
+            for (int cycle = 0; cycle < 3; cycle++) {
+                final Frame frame = new Frame("callback disposal");
+                frame.addWindowListener(new WindowAdapter() {
+                    public void windowClosing(WindowEvent event) {
+                        try {
+                            frame.dispose();
+                            Toolkit.getDefaultToolkit().sync();
+                            System.gc();
+                        } catch (Throwable failure) { callbackFailure = failure; }
+                        callbackDisposals++;
+                    }
+                });
+                frame.setBounds(360, 100, 300, 180);
+                frame.show();
+                requestClose(frame);
+                for (int retry = 0; retry < 100 && callbackDisposals != cycle + 1; retry++) Thread.sleep(10);
+                if (callbackFailure != null) throw new Error("callback disposal failed: " + callbackFailure);
+                if (callbackDisposals != cycle + 1) throw new Error("window-closing callback not delivered");
+                for (int retry = 0; retry < 40 && (liveWindows() != 0 || liveViews() != 0); retry++) {
+                    System.gc();
+                    Thread.sleep(50);
+                    toolkit.sync();
+                }
+                if (liveWindows() != 0 || liveViews() != 0 || frame.getPeer() != null)
+                    throw new Error("callback disposal retained window/view/peer");
+            }
+            System.out.println("DR2 Frame failures and delivered closing callbacks release native resources");
             System.exit(0);
         } catch (Throwable failure) {
             failure.printStackTrace();

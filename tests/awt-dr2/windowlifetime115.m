@@ -42,8 +42,13 @@ static volatile int liveThrowables;
 @end
 @interface WindowLifetimeProbe : AwtWindow
 + (int)visibleWindows;
++ (void)requestCloseForView:(int)view;
 @end
 @implementation WindowLifetimeProbe
++ (void)requestCloseForView:(int)view
+{
+    [[(NSView *)view window] windowShouldClose:nil];
+}
 + (int)visibleWindows
 {
     NSEnumerator *windows = [[NSApp windows] objectEnumerator];
@@ -92,4 +97,17 @@ JNIEXPORT jint JNICALL Java_WindowLifetime115_liveThrowables(JNIEnv *env, jclass
 JNIEXPORT void JNICALL Java_WindowLifetime115_failAt(JNIEnv *env, jclass cls, jint stage)
 {
     failStage = stage;
+}
+
+JNIEXPORT void JNICALL Java_WindowLifetime115_requestClose(JNIEnv *env, jclass cls, jobject frame)
+{
+    id pool = [[NSAutoreleasePool alloc] init];
+    jclass component = (*env)->FindClass(env, "java/awt/Component");
+    jmethodID method = (*env)->GetMethodID(env, component, "getPeer", "()Ljava/awt/peer/ComponentPeer;");
+    jobject peer = (*env)->CallObjectMethod(env, frame, method);
+    jclass peerClass = (*env)->FindClass(env, "com/apple/rhapsody/awt/RComponentPeer");
+    jfieldID field = (*env)->GetFieldID(env, peerClass, "nNativeView", "I");
+    int view = (*env)->GetIntField(env, peer, field);
+    [[WindowLifetimeProbe appkitProxy] requestCloseForView:view];
+    [pool release];
 }
