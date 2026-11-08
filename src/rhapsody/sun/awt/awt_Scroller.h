@@ -3,8 +3,13 @@
 
 #import "awt_View.h"
 
+/* Native tracking must unwind when a Java callback disposes its control. */
+@interface AwtTrackingScroller : NSScroller
+- (void)cancelTracking;
+@end
+
 /* DR2 fragile ABI: NSScroller is 120 bytes. */
-@interface AwtScroller : NSScroller {
+@interface AwtScroller : AwtTrackingScroller {
     jobject _peer;
     NSColor *_backgroundColor;
     NSColor *_foregroundColor;

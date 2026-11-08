@@ -1032,3 +1032,33 @@ Fresh native check-scrollbar, check-textarea, check-button, check-checkbox,
 check-component-state, check-window, check-input, check-keyboard, check-dispatch
 and check-toolkit all pass. The test-only AWT library now has 91 JNI entries.
 Remaining widgets, graphics and full Phase 7 acceptance are still pending.
+
+### Phase 7 scroll-pane checkpoint
+
+AwtScrollView (5400cb58--5400d6f4) and nine RScrollPanePeer bindings
+(54019fe8--5401a738) preserve document attachment, all three scrollbar policies,
+insets, scrolling and per-axis line increments. Native preferred size is 100x100.
+For a 220x180 pane with a large child, automatic/always policies yield insets
+2,2,17,17 and viewport 201x161; never yields 2,2,2,2 and 216x176. Scrollbars
+occupy 15 pixels. The donor childResized entry is empty; native document-view
+notifications drive its layout. These behaviors match the reconstructed fixture.
+
+Native queued arrow clicks and knob drags pass on both axes. Adjustment listeners
+reenter AppKit and run GC. Native clip origins, changed line increments and
+scroller enabled states agree with Java. Six constructor failures (Java color
+conversion and native post-init failure for each policy) preserve throwable
+identity and leave no live panes. Disposal during native adjustment callbacks
+also releases the pane.
+
+That disposal initially timed out: tracing showed the action returned with the
+child scroller's window nil. AwtTrackingScroller now contains the already tested
+standalone-scrollbar cancellation wrapper. AwtScrollView overrides DR2's
+_newScroll: hook (43372b8c), preserving original frames, target/action setup and
+arrow position while creating that disposal-safe scroller. The original
+AwtScroller inherits the same wrapper without changing its fragile ivar layout.
+The failing callback test passes; temporary tracing was removed.
+
+Fresh native check-scrollpane, check-scrollbar, check-textarea, check-child-views,
+check-component-state, check-window, check-input, check-keyboard, check-dispatch
+and check-toolkit all pass. The test-only library has 100 JNI entries. Remaining
+controls, complete graphics and full installed-image acceptance remain pending.

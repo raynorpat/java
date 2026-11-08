@@ -14,7 +14,7 @@
 
 static NSString *trackingCancelled = @"AwtScrollerTrackingCancelled";
 
-@implementation AwtScroller
+@implementation AwtTrackingScroller
 /* DR2 tracking loops keep fetching from self->_window. Disposing a peer
  * detaches that window, so unwind the loop before it starts polling nil. */
 - (void)mouseDown:(NSEvent *)event
@@ -36,6 +36,11 @@ static NSString *trackingCancelled = @"AwtScrollerTrackingCancelled";
     NS_ENDHANDLER
     [window release];
 }
+- (void)cancelTracking
+{ [NSException raise:trackingCancelled format:@"Disposed scrollbar ended native tracking"]; }
+@end
+
+@implementation AwtScroller
 - (id)initWithPeer:(int)peer frame:(NSRect)frame enabled:(BOOL)enabled backgroundColor:(NSColor *)background foregroundColor:(NSColor *)foreground cursor:(NSCursor *)cursor isVertical:(BOOL)vertical minValue:(int)minimum maxValue:(int)maximum value:(int)value visibleAmount:(int)visible lineIncrement:(int)line pageIncrement:(int)page
 {
     _isVertical = vertical;
@@ -136,7 +141,7 @@ static NSString *trackingCancelled = @"AwtScrollerTrackingCancelled";
     (*env)->CallVoidMethod(env, _peer, method, type, value);
     (*env)->DeleteLocalRef(env, cls);
     if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
-    if (!_peer) [NSException raise:trackingCancelled format:@"Disposed scrollbar ended native tracking"];
+    if (!_peer) [self cancelTracking];
 }
 + (float)scrollerWidth { return [super scrollerWidth] + 4; }
 - (NSSize)preferredSize
