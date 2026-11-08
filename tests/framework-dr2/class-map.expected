@@ -1,0 +1,17 @@
+registered=1
+exact=1
+inherited=1
+strict-child=1
+class-cache=1
+child-cache=1
+java-exact=1
+java-inherited=1
+java-strict=1
+nil=1,1
+ctor-signature=(I)
+ctor-selector=initWithFixture:
+default-selector=init
+default-signature=()
+missing-constructor=1
+duplicate-java=1
+duplicate-objc=1

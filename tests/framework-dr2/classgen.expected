@@ -1,0 +1,12 @@
+name=ClassGenFixture
+registered=1
+class-version=1
+meta-version=5
+java-flag=1
+instance-layout=1
+value-types=i0@0:0
+private-method=1
+dollar-method=1
+instance-call=37
+static-call=115118
+float-call=2.50

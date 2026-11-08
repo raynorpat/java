@@ -195,3 +195,21 @@ the argument area, so missing-constructor errors do not dereference nonexistent
 arguments. Java exceptions remain pending for the future Objective-C exception
 conversion layer. This is raw constructor acceptance, not acceptance of
 `+[NSJavaObject newWithSignature:]` or full framework startup.
+
+## Class registry and generated classes
+
+`check-class-map.sh` compares 17 donor transcript lines and normalized duplicate
+registration diagnostics. Exact and inherited lookup, lazy Java class caching,
+constructor selector/signature registration and default construction match.
+The 32-byte JavaInfo layout and metaclass ivar cache follow the donor; root
+classes use a separate registry. Records use ordinary allocation rather than
+the donor's allocation pool.
+
+`check-classgen.sh` compares 12 donor transcript lines for the pure Java class
+builder: runtime registration, class/metaclass versions, inherited instance
+layout, method encodings, private method inclusion and dollar-name exclusion.
+Generated instance, static integer and static float methods execute real Java
+code in the reconstructed VM. The fixture supplies the dispatch implementations
+and a Java-backed test superclass; production NSJavaObject dispatch and ownership
+remain pending. Hybrid Objective-C/Java subclasses are outside this builder.
+Neither fixture is full framework startup or packaging acceptance.
