@@ -370,7 +370,7 @@ RHAPSODY_PEERS = out/dr2-peers/rhapsody-peers.zip
 AWT_TOOLKIT_SOURCES = $(AWT_DISPATCH_SOURCES) src/rhapsody/sun/awt/awt_ThreadContext.m src/rhapsody/sun/awt/awt_AutoreleasePool.m src/rhapsody/sun/awt/awt_Toolkit.m src/rhapsody/sun/awt/awt_EventQueue.m src/rhapsody/sun/awt/awt_Conversions.m src/rhapsody/sun/awt/awt_Font.m src/rhapsody/sun/awt/awt_View.m src/rhapsody/sun/awt/awt_Canvas.m
 AWT_TOOLKIT_HEADERS = src/rhapsody/sun/awt/awt_Conversions.h $(AWT_DISPATCH_HEADERS) src/rhapsody/sun/awt/awt_ThreadContext.h src/rhapsody/sun/awt/awt_AutoreleasePool.h src/rhapsody/sun/awt/awt_View.h src/rhapsody/sun/awt/awt_Canvas.h
 
-AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Container.m src/rhapsody/sun/awt/awt_Window.m src/rhapsody/sun/awt/awt_Component.m src/rhapsody/sun/awt/awt_Graphics.m src/rhapsody/sun/awt/awt_Frame.m src/rhapsody/sun/awt/awt_WindowPeer.m src/rhapsody/sun/awt/awt_Dialog.m
+AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Container.m src/rhapsody/sun/awt/awt_Window.m src/rhapsody/sun/awt/awt_Component.m src/rhapsody/sun/awt/awt_Graphics.m src/rhapsody/sun/awt/awt_Frame.m src/rhapsody/sun/awt/awt_WindowPeer.m src/rhapsody/sun/awt/awt_Dialog.m src/rhapsody/sun/awt/awt_FileDialog.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Button.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_TextField.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_PopUpButton.m
@@ -379,7 +379,7 @@ AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Scroller.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_ScrollView.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_ScrollingList.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Menu.m src/rhapsody/sun/awt/awt_Clipboard.m
-AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Menu.h src/rhapsody/sun/awt/awt_Clipboard.h
+AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_FileDialog.h src/rhapsody/sun/awt/awt_Menu.h src/rhapsody/sun/awt/awt_Clipboard.h
 AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Container.h src/rhapsody/sun/awt/awt_Graphics.h src/rhapsody/sun/awt/awt_Window.h src/rhapsody/sun/awt/awt_Component.h
 
 # Partial AWT is confined to tests until the complete peer surface is recovered.
@@ -623,3 +623,10 @@ $(BUILD)/tests/toolkit/libdialog115.dylib: tests/awt-dr2/dialog115.m $(BUILD)/te
 .PHONY: check-dialog
 check-dialog: image $(BUILD)/tests/toolkit/libdialog115.dylib $(BUILD)/tests/toolkit/libbarewindow115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-dialog.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libfiledialog115.dylib: tests/awt-dr2/filedialog115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/filedialog115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-filedialog
+check-filedialog: image $(BUILD)/tests/toolkit/libfiledialog115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-filedialog.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

@@ -69,7 +69,8 @@ JNIEXPORT void JNICALL Java_com_apple_rhapsody_awt_RWindowPeer_dispose(JNIEnv *e
             jobject globalPeer = [view peer];
             id window = [[view appkitProxy] window];
             setViewFromPeer(env, peer, nil);
-            [window disposeAwtWindow];
+            if (window) [window disposeAwtWindow];
+            else [[AwtView appkitProxy] discardView:(int)view];
             (*env)->DeleteGlobalRef(env, globalPeer);
         }
     NS_HANDLER

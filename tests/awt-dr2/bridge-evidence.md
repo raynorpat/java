@@ -1181,3 +1181,30 @@ Fresh check-dialog, check-barewindow, check-window, check-menu, check-textfield,
 check-input, check-keyboard, check-dispatch and check-toolkit pass. The test-only
 library has 136 JNI entries. File panels, complete graphics and full installed-image
 acceptance remain pending.
+
+### Phase 7 file-panel checkpoint
+
+AwtDummyFileDialogView (54004e24--5400532c) and six native entry points
+(5401445c--54014928) drive AppKit open/save panels. The original Java peer receives
+the directory and selected basename, appends a directory slash and hides itself;
+cancellation supplies a null filename. AppKit normalizes /private/tmp to /tmp,
+so the fixture compares canonical directory paths while retaining the slash check.
+
+The recovered filename delegate admits directories for navigation, delegates file
+packages according to the native panel policy, and calls Java for ordinary files.
+Tests cover acceptance/rejection, explicit package policy, disabled filtering,
+native load/save selection and cancellation. Filter callbacks reenter AppKit and
+run GC. The donor has an exported RFileDialogPeer_setTitle entry that its shipped
+peer does not declare; the reconstruction retains the entry without changing the
+original class archive.
+
+Tracked disposal initially retained two dummy views: the inherited window cleanup
+had no native window to release. RWindowPeer disposal now falls back to normal view
+cleanup when no window exists. Constructor rollback and disposal inside the Java
+selection callback now leave no native file-dialog views alive. Stored strings are
+released on deallocation, and the native panel delegate is cleared after showing.
+
+Fresh check-filedialog, check-dialog, check-barewindow, check-window, check-menu,
+check-textfield, check-input, check-keyboard, check-dispatch and check-toolkit pass.
+The test-only library has 142 JNI entries. Graphics/fonts/images/printing and the
+full Phase 7 installed-image acceptance remain pending.
