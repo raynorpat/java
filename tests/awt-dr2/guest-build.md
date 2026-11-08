@@ -133,3 +133,36 @@ compares java and jre output with the exact fixture, exercises absolute, relativ
 and PATH invocation, and checks installed javah output against the Sun JNI header.
 The real DR2 run passes all checks. Private relocated images are retained beside
 the installation for inspection. External executable symlinks are not covered.
+
+## Native Debug image and debugger
+
+`DEBUG=1` selects out/dr2-debug and enables DEBUG/TRACING/JCOV, including java_g
+for the unchanged RemoteAgent launcher. Keep Debug and release outputs separate.
+A fresh Debug image builds successfully on GNU Make 3.74. Agent stub objects use
+an explicit static pattern rule: the old implicit rule failed in the first build
+even though its stamp recipe had generated the source files. zlib excludes DEBUG
+as in the existing CMake build. Debug check-core, check-libraries and check-install
+pass on DR2; the Java repeated-suspend/single-resume fixture also passes.
+
+Compile tests/debugger/Debuggee115.java and Exception115.java with the guest javac
+`-g -d /private/tmp/jdk115-phase7/debug-classes`. On the host, run:
+
+```
+python tests/awt-dr2/debugger-ssh.py --host phase7 --port 2637 --ssh-config <private-config> --home /private/tmp/jdk115-phase7/tree/out/dr2-debug-clean --classes /private/tmp/jdk115-phase7/debug-classes --out out/rhapsody115/debug-session-attach --mode attach
+```
+
+Authentication comes from normal SSH config/agent/askpass. Repeat with modes
+caught, uncaught and stopped and separate output directories. Both Java processes
+execute inside the guest; the host reuses the existing protocol assertions.
+All four modes pass, including exact stack/local/step checks, two uncaught
+continuations and disconnect while stopped. The driver owns and closes each
+remote process. This does not yet cover RemoteAgent child launch on DR2.
+
+Caught/uncaught tests initially failed: the cthreads bounded wait saw the reported
+exception as a pending Thread.stop and immediately resumed the throwing thread.
+The callback now temporarily clears that exception while waiting, retaining its
+GC roots and restoring it unless a new asynchronous exception arrives. Donor
+sysMonitorWait at 0x5c1362f4 does not inspect pending Java exceptions; this correction
+is specific to the reconstructed bounded-wait adaptation. The protocol fixture
+also accepts the observed asynchronous run acknowledgement between event text and
+its prompt without relaxing the stack, locals or continuation assertions.

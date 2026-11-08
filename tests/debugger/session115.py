@@ -121,7 +121,9 @@ def main():
             prefix = "Exception" if args.exception_mode == "caught" else "Uncaught exception"
             client.expect(prefix + r": java.lang.IllegalArgumentException debugger exception\n"
                           r"\tat Exception115.fail\(Exception115.java:3\)", mark)
-            client.expect(r"\n\nmain\[1\] ", mark)
+            # The run command can print its acknowledgement between the
+            # asynchronous exception trace and the event thread's prompt.
+            client.expect(r"\n\n(?:running \.\.\.\n)?main\[1\] ", mark)
             mark = client.command("where")
             client.expect(r"Exception115.fail \(Exception115:3\)", mark)
             client.expect(r"main\[1\] ", mark)
@@ -159,7 +161,7 @@ def main():
         mark = client.command("run Debuggee115")
         # TTY prints the event prefix, fetches the stack, then prints the frame.
         # Its command thread can print a prompt during that remote stack fetch.
-        breakpoint_prefix = r"Breakpoint hit: (?:(?:main\[1\]|>) )?"
+        breakpoint_prefix = r"Breakpoint hit: (?:(?:running \.\.\.\n)|(?:(?:main\[1\]|>) ))*"
         client.expect(breakpoint_prefix + r"Debuggee115.target \(Debuggee115:4\)\nmain\[1\] ", mark)
         if args.stop_after_breakpoint:
             client.command("quit")

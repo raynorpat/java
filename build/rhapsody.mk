@@ -4,6 +4,11 @@ CC = cc
 BUILD = out/dr2
 JDK115_DIR = vendor/jdk1.1.5
 CFLAGS = -g -O0 -traditional-cpp -fno-common
+ifeq ($(DEBUG),1)
+BUILD = out/dr2-debug
+CFLAGS += -DDEBUG -DTRACING -DJCOV
+DEBUG_TOOLS = java_g
+endif
 CPPFLAGS = -DIN_JRT -DCOMPILER -DXP_UNIX -DJDK115_CTHREADS -DJNI115_ENABLED -DJAVA_INTERNAL_BUILD
 INCLUDES = -Isrc/share/java/include -Isrc/share/java/include/_gen -Isrc/unix/java/include -Isrc/share/java/runtime -Ithird_party/zlib-1.0.4 -I$(BUILD)/generated
 
@@ -122,7 +127,7 @@ TOOL_FLAGS_rmiregistry = -DTOOL_CLASS='"sun.rmi.registry.RegistryImpl"' -DTOOL_H
 TOOL_FLAGS_jdb = -DTOOL_CLASS='"sun.tools.ttydebug.TTY"' -DTOOL_SIMPLE -DTOOL_HEAP='""'
 
 .PHONY: all image check-types check-core check-libraries
-all: $(BUILD)/bin/java $(BUILD)/bin/javah $(BUILD)/bin/jre $(addprefix $(BUILD)/bin/,$(TOOLS)) $(addprefix $(BUILD)/lib/lib,net.dylib zip.dylib math.dylib sysresource.dylib jpeg.dylib agent.dylib)
+all: $(BUILD)/bin/java $(BUILD)/bin/javah $(BUILD)/bin/jre $(addprefix $(BUILD)/bin/,$(TOOLS) $(DEBUG_TOOLS)) $(addprefix $(BUILD)/lib/lib,net.dylib zip.dylib math.dylib sysresource.dylib jpeg.dylib agent.dylib)
 
 image: all
 	mkdir -p $(BUILD)/lib/security
@@ -148,7 +153,7 @@ $(BUILD)/lib/libjavai.dylib: $(OBJECTS)
 	mkdir -p $(@D)
 	$(CC) -dynamiclib -o $@ $(OBJECTS)
 
-$(BUILD)/bin/java: $(BUILD)/obj/src/share/java/javai/java_stub.o $(BUILD)/lib/libjavai.dylib
+$(BUILD)/bin/java $(BUILD)/bin/java_g: $(BUILD)/obj/src/share/java/javai/java_stub.o $(BUILD)/lib/libjavai.dylib
 	mkdir -p $(@D)
 	$(CC) -o $@ $< -L$(BUILD)/lib -ljavai
 
@@ -213,7 +218,8 @@ $(BUILD)/lib/libjpeg.dylib: $(JPEG_OBJECTS) $(BUILD)/lib/libjavai.dylib
 
 AGENT_SOURCES = $(addprefix src/share/java/debug/,agent115.c agent115_stack.c agent115_metadata.c agent115_events.c)
 AGENT_STUBS = $(BUILD)/agentgen/sun_tools_debug_Agent.c $(BUILD)/agentgen/sun_tools_debug_BreakpointHandler.c
-AGENT_OBJECTS = $(patsubst %.c,$(BUILD)/obj/%.o,$(AGENT_SOURCES)) $(BUILD)/agentobj/sun_tools_debug_Agent.o $(BUILD)/agentobj/sun_tools_debug_BreakpointHandler.o
+AGENT_STUB_OBJECTS = $(BUILD)/agentobj/sun_tools_debug_Agent.o $(BUILD)/agentobj/sun_tools_debug_BreakpointHandler.o
+AGENT_OBJECTS = $(patsubst %.c,$(BUILD)/obj/%.o,$(AGENT_SOURCES)) $(AGENT_STUB_OBJECTS)
 $(BUILD)/agentgen/.stamp: $(BUILD)/bin/javah $(JDK115_DIR)/lib/classes.zip
 	mkdir -p $(@D)
 	$(BUILD)/bin/javah -classpath $(JDK115_DIR)/lib/classes.zip -d $(@D) sun.tools.debug.Agent sun.tools.debug.AgentConstants sun.tools.debug.BreakpointHandler sun.tools.debug.BreakpointQueue sun.tools.debug.Field sun.tools.debug.StackFrame sun.tools.debug.LocalVariable sun.tools.debug.LineNumber sun.tools.java.Constants
@@ -226,7 +232,7 @@ $(BUILD)/obj/src/share/java/debug/%.o: src/share/java/debug/%.c $(HEADERS) $(BUI
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD)/agentgen $(INCLUDES) -c $< -o $@
 
-$(BUILD)/agentobj/%.o: $(BUILD)/agentgen/%.c $(BUILD)/agentgen/.stamp $(HEADERS)
+$(AGENT_STUB_OBJECTS): $(BUILD)/agentobj/%.o: $(BUILD)/agentgen/%.c $(BUILD)/agentgen/.stamp $(HEADERS)
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD)/agentgen $(INCLUDES) -c $< -o $@
 
@@ -234,6 +240,10 @@ $(BUILD)/lib/libagent.dylib: $(AGENT_OBJECTS) $(BUILD)/lib/libjavai.dylib
 	$(CC) -dynamiclib -o $@ $(AGENT_OBJECTS) -L$(BUILD)/lib -ljavai
 
 # GNU Make 3.74 chooses the first matching pattern, not the shortest stem.
+$(BUILD)/obj/third_party/zlib-1.0.4/%.o: third_party/zlib-1.0.4/%.c $(HEADERS)
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -UDEBUG $(INCLUDES) -c $< -o $@
+
 $(BUILD)/obj/%.o: %.c $(HEADERS)
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) -c $< -o $@
@@ -282,7 +292,7 @@ $(BUILD)/bin/jre: $(JRE_OBJECTS)
 install: image
 	test -n "$(INSTALL_DIR)"
 	mkdir -p "$(INSTALL_DIR)/bin" "$(INSTALL_DIR)/libexec" "$(INSTALL_DIR)/lib/security" "$(INSTALL_DIR)/include/unix"
-	for name in java javah jre $(TOOLS); do cp "$(BUILD)/bin/$$name" "$(INSTALL_DIR)/libexec/$$name"; cp tools/rhapsody-launcher.sh "$(INSTALL_DIR)/bin/$$name"; chmod +x "$(INSTALL_DIR)/bin/$$name"; done
+	for name in java javah jre $(TOOLS) $(DEBUG_TOOLS); do cp "$(BUILD)/bin/$$name" "$(INSTALL_DIR)/libexec/$$name"; cp tools/rhapsody-launcher.sh "$(INSTALL_DIR)/bin/$$name"; chmod +x "$(INSTALL_DIR)/bin/$$name"; done
 	for name in javai net zip math sysresource jpeg agent; do cp "$(BUILD)/lib/lib$$name.dylib" "$(INSTALL_DIR)/lib/"; done
 	cp "$(BUILD)/lib/classes.zip" "$(INSTALL_DIR)/lib/"
 	cp $(BUILD)/lib/*.properties "$(INSTALL_DIR)/lib/"

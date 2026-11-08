@@ -58,13 +58,30 @@ static void handle_breakpoint(ExecEnv *ee,unsigned char *pc)
 static void handle_exception(ExecEnv *ee,unsigned char *pc,HObject *exception)
 {
     Hjava_lang_Thread *thread=threadSelf(); JavaFrame *frame; unsigned char *catch_pc=NULL;
+#ifdef JDK115_CTHREADS
+    char saved_kind;
+    JHandle *saved_exception;
+#endif
     if (agent115_registered_thread(thread) || !get_queue()) return;
     for(frame=ee->current_frame;frame;frame=frame->prev)
         if(frame->current_method) {
             catch_pc=ProcedureFindThrowTag(ee,frame,exception,frame->lastpc);
             if(catch_pc) break;
         }
+#ifdef JDK115_CTHREADS
+    /* The bounded cthreads wait polls pending exceptions for Thread.stop.
+     * The exception being reported must not wake its own debugger wait.
+     * Keep it rooted on this stack and then in the event queue; preserve any
+     * new asynchronous exception posted while the debugger has us stopped. */
+    saved_kind=ee->exceptionKind; saved_exception=ee->exception.exc;
+    exceptionClear(ee);
+#endif
     report_event(thread,pc,ee,exception,catch_pc);
+#ifdef JDK115_CTHREADS
+    if (!exceptionOccurred(ee)) {
+        ee->exception.exc=saved_exception; ee->exceptionKind=saved_kind;
+    }
+#endif
 }
 #endif
 static void handle_exit(void)
