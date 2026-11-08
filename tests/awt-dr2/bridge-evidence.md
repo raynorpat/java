@@ -1004,3 +1004,31 @@ Fresh native check-textarea, check-textfield, check-label, check-component-state
 check-window, check-input, check-keyboard, check-dispatch and check-toolkit pass.
 The test-only library has 87 JNI entries; remaining controls and full Phase 7
 acceptance are still pending.
+
+### Phase 7 scrollbar checkpoint
+
+AwtScroller (5400a1d8--5400ab60) and the four RScrollbarPeer bindings
+(54019b94--54019f2c) preserve horizontal/vertical geometry, native float
+range/extent conversion, line/page increments and adjustment event mapping.
+Preferred sizes are 50x18 and 18x50. The donor's value conversion adds 0.5
+before truncation, including negative ranges; the reconstruction retains it.
+
+The donor and reconstructed fixtures pass programmatic clamping and extent
+changes, all four native step parts, queued knob dragging, changed increments
+and disabled input. Tracked constructor failures preserve Java throwable
+identity and release partially constructed controls. Adjustment listeners
+reenter AppKit, run GC and dispose their enclosing frame.
+
+Actual disposal requires an extension to the donor's no-op native disposal:
+NSScroller tracking fetches from the detached control's window, which becomes
+nil. A private exception unwinds tracking after callback disposal; the wrapper
+stops periodic events, clears the hit part and restores cursor handling. Removing
+this cancellation reproduced a watchdog timeout; restoring it passed. Retain
+tracing also identified a pending Foundation DO proxy release, not an extra
+control owner. The lifetime probe now makes an AppKit round trip to flush queued
+wire releases before counting. Temporary tracing was removed.
+
+Fresh native check-scrollbar, check-textarea, check-button, check-checkbox,
+check-component-state, check-window, check-input, check-keyboard, check-dispatch
+and check-toolkit all pass. The test-only AWT library now has 91 JNI entries.
+Remaining widgets, graphics and full Phase 7 acceptance are still pending.

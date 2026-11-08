@@ -375,6 +375,7 @@ AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Button.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_TextField.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_PopUpButton.m
 AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_ScrollingText.m
+AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Scroller.m
 AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Container.h src/rhapsody/sun/awt/awt_Graphics.h src/rhapsody/sun/awt/awt_Window.h src/rhapsody/sun/awt/awt_Component.h
 
 # Partial AWT is confined to tests until the complete peer surface is recovered.
@@ -569,3 +570,10 @@ $(BUILD)/tests/toolkit/libtextarea115.dylib: tests/awt-dr2/textarea115.m $(BUILD
 .PHONY: check-textarea
 check-textarea: image $(BUILD)/tests/toolkit/libtextarea115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-textarea.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libscrollbar115.dylib: tests/awt-dr2/scrollbar115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/scrollbar115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-scrollbar
+check-scrollbar: image $(BUILD)/tests/toolkit/libscrollbar115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-scrollbar.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
