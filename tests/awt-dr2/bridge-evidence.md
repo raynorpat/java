@@ -335,3 +335,36 @@ last-entered-view identity. Reconstruction first failed because AwtContainer was
 absent. Durable check-container-draw, check-canvas-draw and check-toolkit now pass.
 This supplies the container used by native Frames; Frame construction, window
 callbacks and general event routing are still pending.
+
+## Native Window construction and delegates
+
+AwtWindow construction (5401008c--5401037c) now creates deferred native windows
+from frame rectangles, assigns the content view and inset-adjusted bounds origin,
+and installs the initial responder without invoking focus callbacks. Borderless,
+fixed-size and resizable window styles match the donor. awtSetFrame:display:
+(54010720) suppresses delegate feedback during programmatic geometry changes.
+The donor requests mouse-move delivery before creating the server window; DR2's
+setter ignores that request while the window is deferred. The focused test records
+that observed state; live input behavior remains to be verified.
+
+Window delegate callbacks (5401079c--54010a78) now reflect native moves/resizes into
+Java Component bounds, preserving the existing 64-bit event mask and enabling
+Component events. Y conversion uses the screen's visible-frame height, matching
+invertYCoordinate (5401f8d4). Lifecycle notifications queue genuine WindowEvents
+through makeWrappedWindowEvent (54006634); the close delegate posts WINDOW_CLOSING
+and returns NO so Java retains control over closing.
+
+windowstate115 passes against both runtimes for all three styles, exact frame and
+content geometry, responder/delegate identity, and suppressed versus normal resize
+notifications. Its subclass declares the complete donor superclass layout because
+DR2's fragile Objective-C ABI otherwise underallocates subclass instances.
+WindowCallbacks115 passes ten real-peer/native-window lifetimes, alternating move
+and resize reflection, all five lifecycle event IDs, source identity, GC and a high
+64-bit event-mask flag. Reconstruction initially failed for missing AwtWindow and
+then missing windowDidMove:. Durable check-window-state, check-window-callbacks
+and check-paint-cover now pass with Window linked into the test-only AWT library.
+
+These probes explicitly invoke native delegate callbacks and construct peers with
+AllocObject. Java Frame peer construction, interactive window-manager events,
+focus/menu behavior, native disposal and normal application event routing remain
+unfinished; these checks do not stand in for those integration gates.

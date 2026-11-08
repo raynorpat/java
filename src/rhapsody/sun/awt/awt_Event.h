@@ -16,5 +16,6 @@
 @end
 
 NSEvent *makeWrappedPaintEvent(JNIEnv *env, id view, int type, NSRect rect);
+NSEvent *makeWrappedWindowEvent(JNIEnv *env, id window, int type);
 
 #endif

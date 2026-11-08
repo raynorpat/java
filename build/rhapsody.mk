@@ -370,8 +370,8 @@ RHAPSODY_PEERS = out/dr2-peers/rhapsody-peers.zip
 AWT_TOOLKIT_SOURCES = $(AWT_DISPATCH_SOURCES) src/rhapsody/sun/awt/awt_ThreadContext.m src/rhapsody/sun/awt/awt_AutoreleasePool.m src/rhapsody/sun/awt/awt_Toolkit.m src/rhapsody/sun/awt/awt_Conversions.m src/rhapsody/sun/awt/awt_Font.m src/rhapsody/sun/awt/awt_Event.m src/rhapsody/sun/awt/awt_View.m src/rhapsody/sun/awt/awt_Canvas.m
 AWT_TOOLKIT_HEADERS = src/rhapsody/sun/awt/awt_Conversions.h $(AWT_DISPATCH_HEADERS) src/rhapsody/sun/awt/awt_ThreadContext.h src/rhapsody/sun/awt/awt_AutoreleasePool.h src/rhapsody/sun/awt/awt_Event.h src/rhapsody/sun/awt/awt_View.h src/rhapsody/sun/awt/awt_Canvas.h
 
-AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Container.m
-AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Container.h
+AWT_TOOLKIT_SOURCES += src/rhapsody/sun/awt/awt_Container.m src/rhapsody/sun/awt/awt_Window.m
+AWT_TOOLKIT_HEADERS += src/rhapsody/sun/awt/awt_Container.h src/rhapsody/sun/awt/awt_Window.h
 
 # Partial AWT is confined to tests until the complete peer surface is recovered.
 $(BUILD)/tests/toolkit/libawt.dylib: $(AWT_TOOLKIT_SOURCES) $(AWT_TOOLKIT_HEADERS) $(BUILD)/lib/libjavai.dylib build/rhapsody.mk
@@ -440,3 +440,17 @@ check-canvas-draw: image $(BUILD)/tests/toolkit/libcanvasdraw115.dylib $(BUILD)/
 .PHONY: check-container-draw
 check-container-draw: image $(BUILD)/tests/toolkit/libcanvasdraw115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-container-draw.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/windowstate: tests/awt-dr2/windowstate115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include tests/awt-dr2/windowstate115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-window-state
+check-window-state: $(BUILD)/tests/windowstate $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-window-state.sh "$(BUILD)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libwindowcallbacks115.dylib: tests/awt-dr2/windowcallbacks115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/windowcallbacks115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-window-callbacks
+check-window-callbacks: image $(BUILD)/tests/toolkit/libwindowcallbacks115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-window-callbacks.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

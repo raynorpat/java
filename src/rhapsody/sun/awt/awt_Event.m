@@ -31,6 +31,33 @@
 - (BOOL)isSynthetic { return YES; }
 @end
 
+/* 54006634: window lifecycle events use the same owned native cover. */
+NSEvent *makeWrappedWindowEvent(JNIEnv *env, id window, int type)
+{
+    jclass cls;
+    jfieldID field;
+    jmethodID constructor;
+    jobject source, event;
+    NSEvent *cover;
+    cls = (*env)->FindClass(env, "com/apple/rhapsody/awt/RComponentPeer");
+    if (!cls) [AwtException raiseUsingEnv:env];
+    field = (*env)->GetFieldID(env, cls, "fJavaCounterpart", "Ljava/awt/Component;");
+    if (!field) [AwtException raiseUsingEnv:env];
+    source = (*env)->GetObjectField(env, [window peer], field);
+    (*env)->DeleteLocalRef(env, cls);
+    cls = (*env)->FindClass(env, "java/awt/event/WindowEvent");
+    if (!cls) [AwtException raiseUsingEnv:env];
+    constructor = (*env)->GetMethodID(env, cls, "<init>", "(Ljava/awt/Window;I)V");
+    if (!constructor) [AwtException raiseUsingEnv:env];
+    event = (*env)->NewObject(env, cls, constructor, source, type);
+    (*env)->DeleteLocalRef(env, cls);
+    (*env)->DeleteLocalRef(env, source);
+    if ((*env)->ExceptionOccurred(env)) [AwtException raiseUsingEnv:env];
+    cover = [SyntheticEvent coverEventForJavaEvent:event inEnv:env];
+    (*env)->DeleteLocalRef(env, event);
+    return cover;
+}
+
 /* 54006684: preserve the native rectangle's truncation toward zero. */
 NSEvent *makeWrappedPaintEvent(JNIEnv *env, id view, int type, NSRect rect)
 {
