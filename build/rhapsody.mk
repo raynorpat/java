@@ -396,3 +396,10 @@ $(BUILD)/tests/toolkit/libfontvalues115.dylib: tests/awt-dr2/fontvalues115.m $(B
 .PHONY: check-font-values
 check-font-values: image $(BUILD)/tests/toolkit/libfontvalues115.dylib $(BUILD)/tests/desktop-launch
 	/bin/sh tests/awt-dr2/check-font-values.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"
+
+$(BUILD)/tests/toolkit/libcursors115.dylib: tests/awt-dr2/cursors115.m $(BUILD)/tests/toolkit/libawt.dylib
+	$(CC) $(CFLAGS) -Isrc/share/java/include -Isrc/unix/java/include -dynamiclib tests/awt-dr2/cursors115.m -framework AppKit -framework Foundation -L$(BUILD)/tests/toolkit -lawt -o $@
+
+.PHONY: check-cursors
+check-cursors: image $(BUILD)/tests/toolkit/libcursors115.dylib $(BUILD)/tests/desktop-launch
+	/bin/sh tests/awt-dr2/check-cursors.sh "$(BUILD)" "$(RHAPSODY_PEERS)" "$(DESKTOP_PID)"

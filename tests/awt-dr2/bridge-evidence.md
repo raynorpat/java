@@ -240,3 +240,18 @@ freed temporary heap buffer instead of the donor's unbounded stack allocation;
 Values115 also checks full native-to-Java round trips for its Unicode/null cases.
 These helpers and both Font peer entries are included in the test-only AWT dylib.
 Font metrics, rendering and native Frame construction remain incomplete.
+
+## Cursor conversion for native views
+
+javaToNSCursor follows the donor table at 54026cac and function 5401f4a8. It maps
+the fixed Cursor constants 0--13 to AppKit cursor selectors, invokes them through
+the AppKit class proxy, and returns nil for null or unknown cursor types. Horizontal
+and vertical resize pairs deliberately share native cursors. Private diagonal,
+wait, hand and move selectors match the donor rather than substituting arrow cursors.
+
+Cursors115 passes unchanged against donor and reconstruction, checking actual
+native cursor identities for all 14 types over 20 GC cycles, plus null and an
+unknown type returned by a Cursor subclass. The initial reconstructed probe failed
+to link javaToNSCursor. This verifies conversion and thread handoff; actual cursor
+tracking rectangles and view mouse-enter/exit behavior remain part of window/input
+integration. The test uses the original Toolkit peer and a live desktop namespace.
