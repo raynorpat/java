@@ -1,5 +1,6 @@
 /* DR2 libawt.A.dylib: AwtWindow construction at 5401008c--5401037c. */
 #import "awt_Window.h"
+#import "awt_Menu.h"
 #import "awt_View.h"
 #import "awt_Application.h"
 #import "awt_Event.h"
@@ -72,11 +73,21 @@
     [super dealloc];
 }
 - (jobject)peer { return _peer; }
-/* Focus portion of 540104f4/54010598; menu activation is handled separately. */
+/* 54010a9c, 540106b8: window/menu attachment and native counterpart state. */
+- (void)awtSetMenuBar:(id)bar
+{
+    if (_menuBar != bar) {
+        [_menuBar removeMenuBarFromWindow:self]; [_menuBar release];
+        _menuBar = [bar retain]; [_menuBar addMenuBarToWindow:self];
+    }
+}
+- (BOOL)counterpartIsKey { return _counterpart && [_counterpart isMainWindow]; }
+/* 540104f4/54010598: activate menus before delivering temporary focus changes. */
 - (void)becomeKeyWindow
 {
     id responder = [self firstResponder];
     [super becomeKeyWindow];
+    if (_isRealWindow) [AwtMenuBar showMenuBarForWindow:self menubar:_menuBar];
     if ([responder dispatchesAwtEventsOfType:101])
         [responder dispatchFocusEventGained:YES temporary:YES];
 }
@@ -84,6 +95,7 @@
 {
     id responder = [self firstResponder];
     [super resignKeyWindow];
+    [_menuBar hideMenuBarForWindow:self];
     if ([responder dispatchesAwtEventsOfType:100])
         [responder dispatchFocusEventGained:NO temporary:YES];
 }
@@ -139,6 +151,7 @@
 + (void)discardWindow:(AwtWindow *)window view:(int)view
 {
     [window setDelegate:nil];
+    [window awtSetMenuBar:nil];
     [(AwtView *)view clearPeer];
     if ([window contentView]) {
         [window setReleasedWhenClosed:NO];

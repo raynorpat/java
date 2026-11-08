@@ -1090,3 +1090,29 @@ Fresh check-list, check-scrollpane, check-scrollbar, check-textarea,
 check-textfield, check-component-state, check-window, check-input, check-keyboard,
 check-dispatch and check-toolkit pass. The test-only library has 110 JNI entries;
 menus, dialogs, clipboard, complete graphics and full acceptance remain pending.
+
+### Phase 7 menu checkpoint
+
+AwtMenu, AwtMenuBar and AwtMenuItem (540079b8--54009350) implement native
+menus, check items, separators, shortcuts and popups through twelve JNI entries.
+Frame activation switches native menu bars; delayed hiding preserves the newly
+active window's bar. Help menus stay last, and Java menus precede system menus.
+Separators bypass font/shortcut conversion, as verified by a throwing font probe.
+
+Native actions preserve Java action commands and checkbox state. Shift-Command
+shortcuts and disabled-item suppression match the donor. Callbacks reenter AppKit
+and run GC; constructor failures and callback disposal release native components.
+Popup input runs on NSEventTrackingRunLoopMode: DR2's _DPSPostQElement only queues
+events and does not wake tracking when called by a background thread. A timer on
+the tracking loop supplies mouse release and keyboard selection in the fixture.
+
+The reconstruction clears Java native handles and global references on disposal,
+unlike the donor's incomplete lifetime handling. Disposed menu bars detach their
+windows and clear the application main menu. Pending popups retain their target
+view until execution or disposal and skip delivery after their peer is cleared.
+
+Fresh check-menu, check-list, check-scrollpane, check-scrollbar, check-textarea,
+check-textfield, check-component-state, check-window, check-input, check-keyboard,
+check-dispatch and check-toolkit pass. The test-only library has 122 JNI entries.
+Dialogs, clipboard, complete graphics and full installed-image acceptance remain
+pending; this is not Phase 7 completion.
