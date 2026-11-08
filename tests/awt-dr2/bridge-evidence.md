@@ -75,3 +75,24 @@ class module exits before entering its JNI method. The combination passes the
 actual dynamic-load fixture without a custom initialization routine. This applies
 to Java tool launchers and JNI invocation through jre, so the native Makefile
 relinks each when its link recipe changes.
+
+## Foundation bootstrap and Java thread teardown
+
+The VM donor's sysThreadBootstrap (5c144a38) starts an NSThread before Java
+cthreads enter Objective-C code. The reconstructed bootstrap now does the same;
+ExceptionBridge115 checks that Foundation is in multithreaded mode. The helper
+releases its allocation after detach retains the target, avoiding the donor's
+one-object leak.
+
+Donor sysThreadExit (5c144e24) selects NSThread.exit when the native cthread's
+Objective-C slot at byte 124 is populated. The port reads that slot before
+freeing the Java thread record, avoiding the donor's use-after-free, and lets
+Foundation release the native thread dictionary before terminating the cthread.
+Host-thread detach retains its existing separate ownership semantics.
+
+FoundationThreads115 places a deallocation probe in each of 20 Java workers'
+Foundation dictionaries. It passes on the original donor and failed on the
+reconstruction at the first exit before this fix. It now passes under both java
+and jre through check-exceptions, alongside the exception/GC fixture. The six
+check-core fixtures and native repeated-suspend/single-resume check also pass.
+These checks cover bootstrap and thread teardown, not complete AppKit startup.

@@ -126,11 +126,15 @@ int sysThreadAlloc(sys_thread_t **result, stackp_t base, void *cookie)
     return SYS_OK;
 }
 
-/* 5C144A38, VM portion. Foundation's NSThread initialization belongs to the
- * later AppKit integration, not this Sun VM's C platform backend. */
+/* 5C144A38: Foundation must leave its single-thread fast path before Java
+ * cthreads start using thread dictionaries or Objective-C exceptions. */
 int sysThreadBootstrap(sys_thread_t **result, void *cookie)
 {
     int status;
+#ifdef __APPLE__
+    extern void rhapsodyFoundationInit(void);
+    rhapsodyFoundationInit();
+#endif
     if (primordial_pending != NULL && primordial_pending == sysThreadSelf()) {
         *result = primordial_pending; primordial_pending = NULL;
         (*result)->cookie = cookie;
@@ -197,12 +201,20 @@ int sysThreadFree(sys_thread_t *t)
     return SYS_OK;
 }
 
-/* Native cthreads exit path from 5C144E24. The AppKit-owned NSThread path
- * belongs to the later Objective-C integration. In particular, do not copy
- * the original's read of t->cthread after sysThreadFree has released t. */
+/* DR2 5C144E24 exits through Foundation when cthread's private Objective-C
+ * slot is populated. Read it before freeing the Java thread record. */
 void sysThreadExit(void)
 {
+#ifdef __APPLE__
+    extern void rhapsodyFoundationExit(void);
+    int objc_thread;
+    memcpy(&objc_thread, (char *)sysThreadSelf()->cthread + 124,
+           sizeof(objc_thread));
+#endif
     sysThreadFree(sysThreadSelf());
+#ifdef __APPLE__
+    if (objc_thread) rhapsodyFoundationExit();
+#endif
     cthread_exit(NULL);
 }
 

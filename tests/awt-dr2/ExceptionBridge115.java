@@ -2,8 +2,10 @@ public class ExceptionBridge115 {
     static { System.loadLibrary("exceptionbridge115"); }
     static final RuntimeException original = new RuntimeException("original callback");
     static native void test(int mode, Throwable value);
+    static native boolean foundationReady();
     static void callback() { throw original; }
     public static void main(String[] args) {
+        if (!foundationReady()) throw new Error("Foundation is not in multithreaded mode");
         for (int cycle = 0; cycle < 20; cycle++) {
             for (int mode = 0; mode < 6; mode++) {
                 if (args.length != 0) System.out.println("cycle=" + cycle + " mode=" + mode);

@@ -112,7 +112,7 @@ ZLIB = \
 CORE = src/share/java/javai/javai.c src/share/java/javai/javai_dll.c $(RUNTIME_SOURCES) $(MD_SHARE) $(MD_PLAT) $(ZLIB)
 # The 1.1 net dylib owns socket natives. The retained 1.0 socket_md.c exports
 # collide with it in DR2's flat dyld namespace and are not part of this image.
-OBJECTS = $(patsubst %.c,$(BUILD)/obj/%.o,$(CORE))
+OBJECTS = $(patsubst %.c,$(BUILD)/obj/%.o,$(CORE)) $(BUILD)/obj/src/unix/java/runtime/foundation_md.o
 HEADERS = $(wildcard src/share/java/include/*.h src/share/java/include/_gen/*.h src/share/java/runtime/*.h src/unix/java/include/*.h src/unix/java/include/cthreads/*.h)
 
 TOOLS = javac javap jar appletviewer native2ascii serialver javadoc javakey rmic rmiregistry jdb
@@ -153,7 +153,11 @@ $(BUILD)/obj/src/share/java/runtime/stubs.o: $(BUILD)/generated/builtin-natives.
 
 $(BUILD)/lib/libjavai.dylib: $(OBJECTS)
 	mkdir -p $(@D)
-	$(CC) -dynamiclib -o $@ $(OBJECTS)
+	$(CC) -dynamiclib -o $@ $(OBJECTS) -framework Foundation
+
+$(BUILD)/obj/src/unix/java/runtime/foundation_md.o: src/unix/java/runtime/foundation_md.m
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD)/bin/java $(BUILD)/bin/java_g: $(BUILD)/obj/src/share/java/javai/java_stub.o $(BUILD)/lib/libjavai.dylib build/rhapsody.mk
 	mkdir -p $(@D)

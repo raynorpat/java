@@ -8,6 +8,44 @@
 + (void)throwToJava:(JNIEnv *)env exception:(NSException *)exception;
 @end
 
+JNIEXPORT jboolean JNICALL Java_ExceptionBridge115_foundationReady(JNIEnv *env, jclass cls)
+{
+    return [NSThread isMultiThreaded] ? JNI_TRUE : JNI_FALSE;
+}
+
+static NSLock *exitLock;
+static int releasedThreads;
+@interface ThreadReleaseProbe : NSObject
+@end
+@implementation ThreadReleaseProbe
+- (void)dealloc
+{
+    [exitLock lock];
+    ++releasedThreads;
+    [exitLock unlock];
+    [super dealloc];
+}
+@end
+
+JNIEXPORT jint JNICALL Java_FoundationThreads115_released(JNIEnv *env, jclass cls)
+{
+    int count;
+    if (!exitLock) exitLock = [NSLock new]; /* Main thread calls before spawning. */
+    [exitLock lock];
+    count = releasedThreads;
+    [exitLock unlock];
+    return count;
+}
+
+JNIEXPORT void JNICALL Java_FoundationThreads115_mark(JNIEnv *env, jclass cls)
+{
+    id pool = [[NSAutoreleasePool alloc] init];
+    id object = [ThreadReleaseProbe new];
+    [[[NSThread currentThread] threadDictionary] setObject:object forKey:@"ThreadReleaseProbe"];
+    [object release];
+    [pool release];
+}
+
 JNIEXPORT void JNICALL Java_ExceptionBridge115_test(JNIEnv *env, jclass cls, jint mode, jthrowable value)
 {
     id pool;
