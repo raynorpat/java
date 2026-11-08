@@ -117,3 +117,19 @@ Dependency ruling: the DR2 mmedia donor uses SoundKit objects through AppKit's
 NativeMethodEnter/Exit bridge. Recover audio after the Task 3 bridge rather than
 forcing it into the console-only portion of Task 2. Audio remains required for
 Phase 7 acceptance; there is no temporary audio implementation in this image.
+
+## Private installation and JRE
+
+Run `/bin/gnumake -f build/rhapsody.mk check-install INSTALL_DIR=/private/tmp/jdk115-phase7/installed`
+from the guest source root. Installation requires an explicit destination. It
+copies native binaries into libexec and shell launchers into bin; the launchers
+select the adjacent private libraries for DR2 dyld. The VM and JRE discover their
+home through the SDK's `_NSGetArgv`, and JRE uses NSAddLibrary and Mach-O symbol
+lookup instead of unavailable dlfcn APIs. Loaded images remain process-lifetime.
+
+The check copies the installed image to a fresh directory containing a space,
+unsets JAVA_HOME/DYLD_LIBRARY_PATH/CLASSPATH, changes directory, compiles Hello115,
+compares java and jre output with the exact fixture, exercises absolute, relative
+and PATH invocation, and checks installed javah output against the Sun JNI header.
+The real DR2 run passes all checks. Private relocated images are retained beside
+the installation for inspection. External executable symlinks are not covered.

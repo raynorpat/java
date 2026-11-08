@@ -23,6 +23,8 @@
 
 #if defined(__APPLE__) && !defined(JDK115_CTHREADS)
 #include <mach-o/dyld.h>	/* _NSGetExecutablePath */
+#elif defined(__APPLE__) && defined(JDK115_CTHREADS)
+#include <crt_externs.h>
 #endif
 #include <unistd.h>
 #include <stdio.h>
@@ -54,6 +56,8 @@ sysJavaHome(void)
 #elif defined(__linux__) && !defined(JDK115_CTHREADS)
 	ssize_t n = readlink("/proc/self/exe", home, sizeof home - 1);
 	home[n > 0 ? n : 0] = 0;
+#elif defined(__APPLE__) && defined(JDK115_CTHREADS)
+	if (!realpath((*_NSGetArgv())[0], home)) home[0] = 0;
 #endif
 	if (home[0] == 0) {
 	    p = getenv("JAVA_HOME");

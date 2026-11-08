@@ -122,7 +122,7 @@ TOOL_FLAGS_rmiregistry = -DTOOL_CLASS='"sun.rmi.registry.RegistryImpl"' -DTOOL_H
 TOOL_FLAGS_jdb = -DTOOL_CLASS='"sun.tools.ttydebug.TTY"' -DTOOL_SIMPLE -DTOOL_HEAP='""'
 
 .PHONY: all image check-types check-core check-libraries
-all: $(BUILD)/bin/java $(BUILD)/bin/javah $(addprefix $(BUILD)/bin/,$(TOOLS)) $(addprefix $(BUILD)/lib/lib,net.dylib zip.dylib math.dylib sysresource.dylib jpeg.dylib agent.dylib)
+all: $(BUILD)/bin/java $(BUILD)/bin/javah $(BUILD)/bin/jre $(addprefix $(BUILD)/bin/,$(TOOLS)) $(addprefix $(BUILD)/lib/lib,net.dylib zip.dylib math.dylib sysresource.dylib jpeg.dylib agent.dylib)
 
 image: all
 	mkdir -p $(BUILD)/lib/security
@@ -267,3 +267,29 @@ $(BUILD)/tests/library-path: tests/native/mach115-library-path.c src/unix/java/r
 
 check-libraries: image $(BUILD)/tests/jpeg-fixtures $(BUILD)/lib/libjpeg115probe.dylib $(BUILD)/tests/agent-status $(BUILD)/tests/library-path
 	/bin/sh tests/awt-dr2/check-libraries.sh $(BUILD)
+
+JRE_SOURCES = src/share/java/jre/jre.c src/share/java/jre/jre_main.c src/unix/java/jre/jre_md.c
+JRE_OBJECTS = $(patsubst %.c,$(BUILD)/jreobj/%.o,$(JRE_SOURCES))
+$(BUILD)/jreobj/%.o: %.c $(HEADERS)
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) -Isrc/share/java/jre -Isrc/unix/java/jre -DVERSION='"1.1.5"' -c $< -o $@
+
+$(BUILD)/bin/jre: $(JRE_OBJECTS)
+	mkdir -p $(@D)
+	$(CC) -o $@ $^
+
+.PHONY: install check-install
+install: image
+	test -n "$(INSTALL_DIR)"
+	mkdir -p "$(INSTALL_DIR)/bin" "$(INSTALL_DIR)/libexec" "$(INSTALL_DIR)/lib/security" "$(INSTALL_DIR)/include/unix"
+	for name in java javah jre $(TOOLS); do cp "$(BUILD)/bin/$$name" "$(INSTALL_DIR)/libexec/$$name"; cp tools/rhapsody-launcher.sh "$(INSTALL_DIR)/bin/$$name"; chmod +x "$(INSTALL_DIR)/bin/$$name"; done
+	for name in javai net zip math sysresource jpeg agent; do cp "$(BUILD)/lib/lib$$name.dylib" "$(INSTALL_DIR)/lib/"; done
+	cp "$(BUILD)/lib/classes.zip" "$(INSTALL_DIR)/lib/"
+	cp $(BUILD)/lib/*.properties "$(INSTALL_DIR)/lib/"
+	cp "$(BUILD)/lib/security/java.security" "$(INSTALL_DIR)/lib/security/"
+	cp -R src/share/java/include/. "$(INSTALL_DIR)/include/"
+	cp -R src/unix/java/include/. "$(INSTALL_DIR)/include/unix/"
+	cp -R "$(BUILD)/legal" "$(INSTALL_DIR)/"
+
+check-install: install
+	/bin/sh tests/awt-dr2/check-install.sh "$(INSTALL_DIR)"
