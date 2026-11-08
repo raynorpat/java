@@ -61,6 +61,40 @@ static IMP originalApplicationMethod(SEL selector)
 }
 
 @implementation NSApplication (AWTAdditions)
+/* 54002e40/540066ec: peek filters native types; get dispatches before conversion. */
+- (int)nextJavaEventOfType:(int)type dequeue:(BOOL)dequeue
+{
+    unsigned int mask;
+    NSDate *expiration;
+    jobject result = NULL;
+    switch (type) {
+        case -1: mask = NSAnyEventMask; break;
+        case 401: mask = NSKeyDownMask; break;
+        case 402: mask = NSKeyUpMask; break;
+        case 501: mask = NSLeftMouseDownMask | NSRightMouseDownMask; break;
+        case 502: mask = NSLeftMouseUpMask | NSRightMouseUpMask; break;
+        case 503: mask = NSMouseMovedMask; break;
+        case 506: mask = NSLeftMouseDraggedMask | NSRightMouseDraggedMask; break;
+        default: return 0;
+    }
+    expiration = dequeue ? [NSDate distantFuture] : [NSDate distantPast];
+    do {
+        NSEvent *event = [self nextEventMatchingMask:mask untilDate:expiration inMode:NSDefaultRunLoopMode dequeue:dequeue];
+        id target = [self findAwtTargetForEvent:event];
+        if (target && [target dispatchesAwtEventsOfType:[event type]] && [(AwtView *)target peer]) {
+            jobject source = javaComponentForView(appkitEnv, target);
+            jobject converted = [event type] >= NSKeyDown ? nsKeyEventToJavaEvent(appkitEnv, event, source) :
+                nsMouseEventToJavaEvent(appkitEnv, event, source, target);
+            (*appkitEnv)->DeleteLocalRef(appkitEnv, source);
+            if (converted) {
+                result = (*appkitEnv)->NewGlobalRef(appkitEnv, converted);
+                (*appkitEnv)->DeleteLocalRef(appkitEnv, converted);
+                if ((*appkitEnv)->ExceptionOccurred(appkitEnv)) [AwtException raiseUsingEnv:appkitEnv];
+            }
+        }
+    } while (dequeue && !result);
+    return (int)result;
+}
 - (unsigned int)previousEventFlags { return previousEventFlags; }
 /* 54003110: peeking must not dispatch; dequeue consumes Java covers. */
 - (NSEvent *)nextEventMatchingMask:(unsigned int)mask untilDate:(NSDate *)expiration inMode:(NSString *)mode dequeue:(BOOL)dequeue

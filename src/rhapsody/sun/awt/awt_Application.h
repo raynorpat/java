@@ -21,6 +21,8 @@
 - (BOOL)dispatchJavaEvent:(jobject)event isLocalRef:(BOOL)local;
 - (id)findAwtTargetForEvent:(NSEvent *)event;
 - (NSEvent *)sendNSEventThroughJava:(NSEvent *)event;
+/* Owned global JNI handle, transmitted as an integer through NSConnection. */
+- (int)nextJavaEventOfType:(int)type dequeue:(BOOL)dequeue;
 @end
 
 @interface NSObject (AWTProxy)

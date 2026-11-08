@@ -690,3 +690,35 @@ unfinished.
 Fresh check-synthetic-values, check-synthetic-input, check-keyboard, check-input,
 check-toolkit, check-event-cover and check-window all pass with clean streamed
 output, including window lifetime cleanup and Java painting.
+
+### Phase 7 queue retrieval checkpoint
+
+Recovered NSApplication nextJavaEventOfType:dequeue: (54002e40), the native event
+mask mapping (540066ec), and the three original REventQueue JNI read methods
+(540141d4/540142ac/54014384). Peek performs one non-dispatching native queue lookup;
+get waits for convertible input and uses the intercepted native dequeue path, so
+Java listeners receive that input before the returned event is converted again.
+Unsupported Java event IDs return null immediately. The return handle crosses
+NSConnection as a 32-bit integer, preserving the DR2 bridge ABI.
+
+QueueRead115 compares donor and reconstruction behavior using an atomic native
+probe for non-empty peeks/get, then a normal Java callback for a non-empty peek
+across the AppKit connection. It checks event-ID filtering, source/key values,
+distinct Java conversion objects, exactly one press/typed dispatch during get,
+callback re-entry, and a returned event surviving GC. The initial donor probe
+hung because activation had not yet registered a key window; the queued key had
+no AWT target. Activation is now a separate step and the probe verifies the key
+window before retrieval. The reconstruction initially failed at missing peekEvent.
+Both donor and reconstructed queue tests now pass.
+
+Ruling: the reconstruction releases each temporary cross-thread global JNI
+reference after rooting a local reference in the caller. The donor returns its
+global reference without releasing it. This continues the explicit resource
+ownership policy used elsewhere in the port; the intentional difference removes
+an internal reference leak without changing returned Java identity or values.
+AppKit conversion locals are released as well. The partial library now implements
+42 JNI entries and remains test-only. Child components/widgets and the rest of
+Phase 7 acceptance are still pending.
+
+Fresh queue-read, synthetic-input, keyboard, input, toolkit, handoff, dispatch and
+window regression targets all pass with clean streamed output.
