@@ -76,7 +76,6 @@ MD_SHARE = \
   src/share/java/runtime/math_md.c \
   src/share/java/runtime/process_md.c \
   src/share/java/runtime/properties_md.c \
-  src/share/java/runtime/socket_md.c \
   src/share/java/runtime/stubs_md.c
 
 MD_PLAT = \
@@ -104,6 +103,8 @@ ZLIB = \
   third_party/zlib-1.0.4/zutil.c
 
 CORE = src/share/java/javai/javai.c src/share/java/javai/javai_dll.c $(RUNTIME_SOURCES) $(MD_SHARE) $(MD_PLAT) $(ZLIB)
+# The 1.1 net dylib owns socket natives. The retained 1.0 socket_md.c exports
+# collide with it in DR2's flat dyld namespace and are not part of this image.
 OBJECTS = $(patsubst %.c,$(BUILD)/obj/%.o,$(CORE))
 HEADERS = $(wildcard src/share/java/include/*.h src/share/java/include/_gen/*.h src/share/java/runtime/*.h src/unix/java/include/*.h src/unix/java/include/cthreads/*.h)
 
@@ -121,7 +122,7 @@ TOOL_FLAGS_rmiregistry = -DTOOL_CLASS='"sun.rmi.registry.RegistryImpl"' -DTOOL_H
 TOOL_FLAGS_jdb = -DTOOL_CLASS='"sun.tools.ttydebug.TTY"' -DTOOL_SIMPLE -DTOOL_HEAP='""'
 
 .PHONY: all image check-types check-core
-all: $(BUILD)/bin/java $(addprefix $(BUILD)/bin/,$(TOOLS))
+all: $(BUILD)/bin/java $(addprefix $(BUILD)/bin/,$(TOOLS)) $(BUILD)/lib/libnet.dylib
 
 image: all
 	mkdir -p $(BUILD)/lib/security
@@ -153,6 +154,15 @@ $(BUILD)/bin/java: $(BUILD)/obj/src/share/java/javai/java_stub.o $(BUILD)/lib/li
 $(BUILD)/bin/%: src/share/java/javai/tool_main.c $(BUILD)/lib/libjavai.dylib
 	mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(INCLUDES) $(TOOL_FLAGS_$(@F)) $< -L$(BUILD)/lib -ljavai -o $@
+
+NET_SOURCES = $(wildcard src/share/java/net/*.c)
+NET_OBJECTS = $(patsubst %.c,$(BUILD)/obj/%.o,$(NET_SOURCES))
+$(BUILD)/obj/src/share/java/net/%.o: src/share/java/net/%.c $(HEADERS) src/share/java/net/net.h
+	mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -Isrc/share/java/net $(INCLUDES) -c $< -o $@
+
+$(BUILD)/lib/libnet.dylib: $(NET_OBJECTS) $(BUILD)/lib/libjavai.dylib
+	$(CC) -dynamiclib -o $@ $(NET_OBJECTS) -L$(BUILD)/lib -ljavai
 
 check-types:
 	mkdir -p $(BUILD)/tests

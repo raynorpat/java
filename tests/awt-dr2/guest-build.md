@@ -20,7 +20,7 @@ mkdir -p "$JAVA_HOME/tests/selfhost"
 This builds the reconstructed core dylib, java and the Java-class tool launchers
 with Apple cc-771.4/GCC 2.7.2.1 and GNU Make 3.74. Outputs remain under out/dr2;
 nothing is installed in JavaVM.framework. This is not yet a complete JDK image:
-support libraries, standalone tools, AppKit, and full acceptance remain pending.
+most support libraries, standalone tools, AppKit, and full acceptance remain pending.
 
 The Makefile uses `-traditional-cpp` to avoid cpp-precomp's crash on jni.c and
 incorrect parsing of check_code.c, and `-fno-common` because the DR2 dylib linker
@@ -69,3 +69,18 @@ awt-Validation115 fails because the unchanged Sun oracle reports `natural label
 paint missing: Validation footer`, while the reconstructed implementation passes.
 Two isolated repeats, including after guest stress ended, reproduce that oracle
 failure. It remains an open acceptance issue, not a passing Windows suite.
+
+## Networking
+
+The native Makefile also builds libnet.dylib. It omits the legacy 1.0 socket_md.c
+from the core: those unused native implementations collide with the reconstructed
+1.1 net dylib in DR2's flat dyld namespace. Net115, Net115Close and Net115PeekClose
+pass with exact fixture output on DR2, covering TCP/UDP, timeouts, options, and
+closing blocked operations.
+
+DR2 uses int socket lengths and select rather than poll. Its kernel rejects
+select nfds above FD_SETSIZE (256), even after raising RLIMIT_NOFILE and supplying
+a dynamically sized mask. Timed waits on such descriptors report SocketException
+before accessing the fixed mask. tests/native/mach115-net-wait.c verifies normal
+timeout/readiness and safe rejection at descriptor 300. The Linux poll path is
+unchanged; Net115HighFD's 1,100-descriptor expectation is not a DR2 capability.

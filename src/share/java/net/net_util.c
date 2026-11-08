@@ -1,6 +1,6 @@
 /* Reconstructed common socket support; OS mappings are portability adaptations. */
 #include "net.h"
-#ifndef WIN32
+#if !defined(WIN32) && !defined(JDK115_CTHREADS)
 #include <poll.h>
 #endif
 #ifdef WIN32
@@ -50,7 +50,7 @@ int netSocket(struct Hjava_io_FileDescriptor *fd)
 int netWait(struct Hjava_io_FileDescriptor *fd, long timeout, char *message)
 {
     int socket, result;
-#ifdef WIN32
+#if defined(WIN32) || defined(JDK115_CTHREADS)
     fd_set reads;
     struct timeval tv;
 #else
@@ -59,7 +59,15 @@ int netWait(struct Hjava_io_FileDescriptor *fd, long timeout, char *message)
     socket = netSocket(fd);
     if (socket < 0) return 0;
     if (!timeout) return 1;
-#ifdef WIN32
+#if defined(WIN32) || defined(JDK115_CTHREADS)
+#ifdef JDK115_CTHREADS
+    /* DR2's kernel rejects select nfds above FD_SETSIZE, even if a caller
+     * raises RLIMIT_NOFILE. Reject before FD_SET can overrun its mask. */
+    if (socket >= FD_SETSIZE) {
+        netSignalError(EINVAL, "Descriptor exceeds DR2 select capacity");
+        return 0;
+    }
+#endif
     FD_ZERO(&reads); FD_SET(socket, &reads);
     tv.tv_sec = timeout / 1000;
     tv.tv_usec = (timeout % 1000) * 1000;

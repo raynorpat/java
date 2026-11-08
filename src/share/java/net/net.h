@@ -19,7 +19,11 @@ typedef int net_socklen;
 #include <netdb.h>
 #include <unistd.h>
 #include <errno.h>
+#ifdef JDK115_CTHREADS
+typedef int net_socklen;
+#else
 typedef socklen_t net_socklen;
+#endif
 #define net_error() errno
 #define NET_ERR(x) x
 #define net_close close
